@@ -15,6 +15,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.Arrays;
+import pro.sketchware.utility.FileUtil;
 
 import extensions.fora2323.daygreen.keyword.IDCKeyword;
 import extensions.fora2323.daygreen.keyword.IDCppKeyword;
@@ -226,7 +228,7 @@ public class EditorUtils {
     public static void loadXmlConfig(CodeEditor editor, String pathOrFileName) {
         Language language = CodeEditorLanguages.loadTextMateLanguage(CodeEditorLanguages.SCOPE_NAME_XML);
         if (language instanceof TextMateLanguage tm) {
-            ArrayList<String> keywords = new ArrayList<>(List.of(IDXmlKeyword.forFile(pathOrFileName)));
+            ArrayList<String> keywords = new ArrayList<>(Arrays.asList(IDXmlKeyword.forFile(pathOrFileName)));
             
             if (editor instanceof SketchwareCodeEditor) {
                 String scId = ((SketchwareCodeEditor) editor).getScId();
