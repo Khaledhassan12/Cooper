@@ -557,7 +557,7 @@ public class ProjectBuilder {
         return extraPackages + mll.getPackageNameLocalLibrary();
     }
 
-    private void compileAidl() throws IOException {
+    public void compileAidl() throws IOException {
         File aidlRoot = new File(fpu.getPathAidl(yq.sc_id));
         if (!aidlRoot.isDirectory()) return;
 
@@ -631,8 +631,6 @@ public class ProjectBuilder {
      * Run Eclipse Compiler to compile Java files.
      */
     public void compileJavaCode() throws zy, IOException {
-        compileAidl();
-
         String classpathForHash = getClasspath();
         String javaInputHash = BuildCache.combine(
                 BuildCache.hashDirectory(yq.javaFilesPath, yq.rJavaDirectoryPath,

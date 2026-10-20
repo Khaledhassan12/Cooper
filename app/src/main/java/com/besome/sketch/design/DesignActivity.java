@@ -1302,128 +1302,43 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
             try {
                 Configs.isBuilding = true;
                 isBuilding = true;
-                var q = activity.q;
-                var sc_id = DesignActivity.sc_id;
-                onProgress("Deleting temporary files...", 1);
-                FileUtil.deleteFile(q.projectMyscPath);
 
-                q.c(activity.getApplicationContext());
-                q.a();
-                q.a(activity.getApplicationContext(), wq.e("600"));
-                if (yB.a(lC.b(sc_id), "custom_icon")) {
-                    q.aa(wq.e() + File.separator + sc_id + File.separator + "mipmaps");
-                    if (yB.a(lC.b(sc_id), "isIconAdaptive", false)) {
-                        q.createLauncherIconXml("""
-                                <?xml version="1.0" encoding="utf-8"?>
-                                <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android" >
-                                <background android:drawable="@mipmap/ic_launcher_background"/>
-                                <foreground android:drawable="@mipmap/ic_launcher_foreground"/>
-                                <monochrome android:drawable="@mipmap/ic_launcher_monochrome"/>
-                                </adaptive-icon>""");
-                    } else {
-                        q.a(wq.e() + File.separator + sc_id + File.separator + "icon.png");
+                org.sketchware.daygreen.builds.BuildTaskNew.Listener buildListener = new org.sketchware.daygreen.builds.BuildTaskNew.Listener() {
+                    @Override
+                    public void onTaskStart(@androidx.annotation.NonNull String taskName) {
+                        LogUtil.d("BuildTask", "> Task :app:" + taskName);
                     }
+
+                    @Override
+                    public void onTaskDone(@androidx.annotation.NonNull String taskName, long millis) {
+                        LogUtil.d("BuildTask", "  done in " + (millis / 1000f) + "s");
+                    }
+
+                    @Override
+                    public void onTaskFailed(@androidx.annotation.NonNull String taskName, @androidx.annotation.NonNull Throwable error) {
+                        LogUtil.e("BuildTask", "> Task :app:" + taskName + " FAILED", error);
+                    }
+
+                    @Override
+                    public void onBuildFinished(@androidx.annotation.NonNull org.sketchware.daygreen.builds.BuildTaskNew.Result result, long totalMillis) {
+                        LogUtil.d("BuildTask", "BUILD " + result.name() + " in " + (totalMillis / 1000f) + "s");
+                    }
+                };
+
+                org.sketchware.daygreen.builds.BuildTaskNew buildTaskNew = new org.sketchware.daygreen.builds.BuildTaskNew(
+                        activity.getApplicationContext(), 
+                        activity.q, 
+                        DesignActivity.sc_id, 
+                        this,
+                        buildListener, 
+                        () -> isCanceling
+                );
+
+                boolean success = buildTaskNew.run();
+                if (success && !isCanceling) {
+                    activity.installBuiltApk();
                 }
 
-                onProgress("Generating source code...", 2);
-                kC kC = jC.d(sc_id);
-                kC.b(q.resDirectoryPath + File.separator + "drawable-xhdpi");
-                kC = jC.d(sc_id);
-                kC.c(q.resDirectoryPath + File.separator + "raw");
-                kC = jC.d(sc_id);
-                kC.a(q.assetsPath + File.separator + "fonts");
-
-                ProjectBuilder builder = new ProjectBuilder(this, activity.getApplicationContext(), q);
-
-                var fileManager = jC.b(sc_id);
-                var dataManager = jC.a(sc_id);
-                var libraryManager = jC.c(sc_id);
-                q.a(libraryManager, fileManager, dataManager);
-                builder.buildBuiltInLibraryInformation();
-                q.b(fileManager, dataManager, libraryManager, builder.getBuiltInLibraryManager());
-                q.f();
-                q.e();
-
-                builder.maybeExtractAapt2();
-                if (isCanceling) {
-                    return;
-                }
-
-                onProgress("Extracting built-in libraries...", 3);
-                BuiltInLibraries.extractCompileAssets(this);
-                if (isCanceling) {
-                    return;
-                }
-
-                builder.compileResources();
-                if (isCanceling) {
-                    return;
-                }
-
-                onProgress("Generating view binding...", 11);
-                builder.generateViewBinding();
-                if (isCanceling) {
-                    return;
-                }
-
-                KotlinCompilerBridge.compileKotlinCodeIfPossible(this, builder);
-                if (isCanceling) {
-                    return;
-                }
-
-                onProgress("Java is compiling...", 13);
-                builder.compileJavaCode();
-                if (isCanceling) {
-                    return;
-                }
-
-                try {
-                    builder.compileNativeCode();
-                } catch (Exception e) {
-                    LogUtil.e("DesignActivity", "Native compilation failed", e);
-                    throw new RuntimeException(e);
-                }
-                if (isCanceling) {
-                    return;
-                }
-
-                StringfogHandler stringfogHandler = new StringfogHandler(sc_id);
-                stringfogHandler.start(this, builder);
-                if (isCanceling) {
-                    return;
-                }
-
-                ProguardHandler proguardHandler = new ProguardHandler(sc_id);
-                proguardHandler.start(this, builder);
-                if (isCanceling) {
-                    return;
-                }
-
-                onProgress(builder.getDxRunningText(), 17);
-                builder.createDexFilesFromClasses();
-                if (isCanceling) {
-                    return;
-                }
-
-                onProgress("Merging DEX files...", 18);
-                builder.getDexFilesReady();
-                if (isCanceling) {
-                    return;
-                }
-
-                onProgress("Building APK...", 19);
-                builder.buildApk();
-                if (isCanceling) {
-                    return;
-                }
-
-                onProgress("Signing APK...", 20);
-                builder.signDebugApk();
-                if (isCanceling) {
-                    return;
-                }
-
-                activity.installBuiltApk();
             } catch (MissingFileException e) {
                 activity.runOnUiThread(() -> {
                     boolean isMissingDirectory = e.isMissingDirectory();
