@@ -38,6 +38,7 @@ import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.io.RandomAccessFile;
 import java.lang.reflect.Method;
+import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -554,10 +555,64 @@ public class ProjectBuilder {
         return extraPackages + mll.getPackageNameLocalLibrary();
     }
 
+    private void compileAidl() throws IOException {
+        File aidlRoot = new File(fpu.getPathAidl(yq.sc_id));
+        if (!aidlRoot.isDirectory()) return;
+
+        List<File> aidlFiles = new ArrayList<>();
+        collectAidlFiles(aidlRoot, aidlFiles);
+        if (aidlFiles.isEmpty()) return;
+
+        File aidlBinary = new File(context.getFilesDir(), "bin/aidl");
+        if (!aidlBinary.exists()) {
+            throw new IOException("AIDL binary not found.\nPlease go to 'Build Tools' and download it first.");
+        }
+        try {
+            Os.chmod(aidlBinary.getAbsolutePath(), S_IRUSR | S_IWUSR | S_IXUSR);
+        } catch (Exception e) {
+            LogUtil.w(TAG, "Failed to chmod aidl: " + e.getMessage());
+        }
+
+        FileUtil.makeDir(yq.javaFilesPath);
+        for (File aidlFile : aidlFiles) {
+            ProcessBuilder pb = new ProcessBuilder(
+                    aidlBinary.getAbsolutePath(),
+                    "-I" + aidlRoot.getAbsolutePath(),
+                    "-o" + yq.javaFilesPath,
+                    aidlFile.getAbsolutePath()
+            );
+            pb.redirectErrorStream(true);
+            Process process = pb.start();
+            String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+            int exitCode;
+            try {
+                exitCode = process.waitFor();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IOException("AIDL interrupted", e);
+            }
+            if (exitCode != 0) {
+                throw new IOException("aidl failed for " + aidlFile.getName() + ":\n" + output);
+            }
+            LogUtil.d(TAG, "AIDL compiled: " + aidlFile.getName());
+        }
+    }
+
+    private static void collectAidlFiles(File dir, List<File> out) {
+        File[] children = dir.listFiles();
+        if (children == null) return;
+        for (File f : children) {
+            if (f.isDirectory()) collectAidlFiles(f, out);
+            else if (f.getName().endsWith(".aidl")) out.add(f);
+        }
+    }
+
     /**
      * Run Eclipse Compiler to compile Java files.
      */
     public void compileJavaCode() throws zy, IOException {
+        compileAidl();
+
         String classpathForHash = getClasspath();
         String javaInputHash = BuildCache.combine(
                 BuildCache.hashDirectory(yq.javaFilesPath, yq.rJavaDirectoryPath,
