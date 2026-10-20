@@ -51,6 +51,8 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
@@ -573,11 +575,29 @@ public class ProjectBuilder {
             LogUtil.w(TAG, "Failed to chmod aidl: " + e.getMessage());
         }
 
-        FileUtil.makeDir(yq.javaFilesPath);
+        File stagingRoot = new File(context.getCacheDir(), "aidl_staging");
+        FileUtil.deleteFile(stagingRoot.getAbsolutePath());
+        stagingRoot.mkdirs();
+
+        Pattern packagePattern = Pattern.compile("^\\s*package\\s+([\\w.]+)\\s*;", Pattern.MULTILINE);
         for (File aidlFile : aidlFiles) {
+            String content = FileUtil.readFile(aidlFile.getAbsolutePath());
+            Matcher matcher = packagePattern.matcher(content);
+            String pkg = matcher.find() ? matcher.group(1) : "";
+
+            File targetDir = new File(stagingRoot, pkg.replace('.', File.separatorChar));
+            targetDir.mkdirs();
+            FileUtil.writeFile(new File(targetDir, aidlFile.getName()).getAbsolutePath(), content);
+        }
+
+        List<File> stagedFiles = new ArrayList<>();
+        collectAidlFiles(stagingRoot, stagedFiles);
+
+        FileUtil.makeDir(yq.javaFilesPath);
+        for (File aidlFile : stagedFiles) {
             ProcessBuilder pb = new ProcessBuilder(
                     aidlBinary.getAbsolutePath(),
-                    "-I" + aidlRoot.getAbsolutePath(),
+                    "-I" + stagingRoot.getAbsolutePath(),
                     "-o" + yq.javaFilesPath,
                     aidlFile.getAbsolutePath()
             );
