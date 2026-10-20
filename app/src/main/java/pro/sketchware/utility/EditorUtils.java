@@ -18,8 +18,6 @@ import java.util.regex.Pattern;
 import java.util.Arrays;
 import pro.sketchware.utility.FileUtil;
 
-import extensions.fora2323.daygreen.keyword.IDXmlKeyword;
-
 import io.github.rosemoe.sora.lang.Language;
 import io.github.rosemoe.sora.langs.textmate.TextMateColorScheme;
 import io.github.rosemoe.sora.langs.textmate.TextMateLanguage;
@@ -55,8 +53,6 @@ public class EditorUtils {
 
         if (fullOverride) {
             scheme.setColor(EditorColorScheme.WHOLE_BACKGROUND, surface);
-            // Only override normal text color for non-TextMate schemes
-            // to avoid breaking syntax highlighting colors
             if (!(scheme instanceof TextMateColorScheme)) {
                 scheme.setColor(EditorColorScheme.TEXT_NORMAL, onSurface);
             }
@@ -65,13 +61,11 @@ public class EditorUtils {
             scheme.setColor(EditorColorScheme.LINE_NUMBER_BACKGROUND, surfaceContainer);
         }
 
-        // Always style these to maintain IDE feel
         scheme.setColor(EditorColorScheme.LINE_DIVIDER, surfaceContainerHighest);
         scheme.setColor(EditorColorScheme.SELECTION_INSERT, onSurfaceVariant);
         scheme.setColor(EditorColorScheme.HIGHLIGHTED_DELIMITERS_FOREGROUND, onSurface);
         scheme.setColor(EditorColorScheme.HIGHLIGHTED_DELIMITERS_BACKGROUND, surfaceContainerHighest);
 
-        // Completion window styling - matches IDE panels
         scheme.setColor(EditorColorScheme.COMPLETION_WND_BACKGROUND, surfaceContainer);
         scheme.setColor(EditorColorScheme.COMPLETION_WND_TEXT_PRIMARY, onSurface);
         scheme.setColor(EditorColorScheme.COMPLETION_WND_TEXT_SECONDARY, onSurfaceVariant);
@@ -93,12 +87,9 @@ public class EditorUtils {
                 String scId = ((SketchwareCodeEditor) editor).getScId();
                 if (scId != null && !scId.isEmpty()) {
                     File genDir = new File(FileUtil.getExternalStorageDir() + "/.sketchware/mysc/" + scId + "/gen/");
-
                     List<File> rJavaFiles = new ArrayList<>();
-
                     File mainR = new File(genDir, "R.java");
                     if (mainR.exists()) rJavaFiles.add(mainR);
-
                     if (genDir.exists() && genDir.isDirectory()) {
                         File[] subDirs = genDir.listFiles(File::isDirectory);
                         if (subDirs != null) {
@@ -108,26 +99,21 @@ public class EditorUtils {
                             }
                         }
                     }
-
                     for (File rJavaFile : rJavaFiles) {
                         try {
                             String rContent = FileUtil.readFile(rJavaFile.getAbsolutePath());
-                            // Ambil nama kelas internal (id, layout, string, color, dll)
                             Matcher classMatcher = Pattern.compile("public\\s+static\\s+final\\s+class\\s+([a-zA-Z0-9_]+)\\s*\\{").matcher(rContent);
                             ArrayList<String> subClasses = new ArrayList<>();
                             while (classMatcher.find()) {
                                 subClasses.add(classMatcher.group(1));
                             }
-
                             for (String subClass : subClasses) {
-                                // Cari semua field int di dalam class internal tersebut
                                 Matcher fieldMatcher = Pattern.compile("public\\s+static\\s+class\\s+" + subClass + "\\s*\\{([^\\}]+)\\}").matcher(rContent);
                                 if (fieldMatcher.find()) {
                                     String classContent = fieldMatcher.group(1);
                                     Matcher m = Pattern.compile("public\\s+static\\s+final\\s+int\\s+([a-zA-Z0-9_]+)\\s*=").matcher(classContent);
                                     while (m.find()) {
                                         String fieldName = m.group(1);
-                                        // Suntikkan variasi autocomplete lengkap agar muncul saat diketik setelah titik
                                         String key1 = "R." + subClass + "." + fieldName;
                                         String key2 = subClass + "." + fieldName;
                                         if (!fullKeywords.contains(key1)) fullKeywords.add(key1);
@@ -137,7 +123,7 @@ public class EditorUtils {
                                 }
                             }
                         } catch (Exception e) {
-                            Log.e("EditorUtils", "Failed to parse R.java cache: " + rJavaFile.getPath(), e);
+                            Log.e("EditorUtils", "Failed to parse R.java: " + rJavaFile.getPath(), e);
                         }
                     }
                 }
@@ -155,12 +141,9 @@ public class EditorUtils {
                 String scId = ((SketchwareCodeEditor) editor).getScId();
                 if (scId != null && !scId.isEmpty()) {
                     File genDir = new File(FileUtil.getExternalStorageDir() + "/.sketchware/mysc/" + scId + "/gen/");
-
                     List<File> rJavaFiles = new ArrayList<>();
-
                     File mainR = new File(genDir, "R.java");
                     if (mainR.exists()) rJavaFiles.add(mainR);
-
                     if (genDir.exists() && genDir.isDirectory()) {
                         File[] subDirs = genDir.listFiles(File::isDirectory);
                         if (subDirs != null) {
@@ -170,26 +153,21 @@ public class EditorUtils {
                             }
                         }
                     }
-
                     for (File rJavaFile : rJavaFiles) {
                         try {
                             String rContent = FileUtil.readFile(rJavaFile.getAbsolutePath());
-                            // Ambil nama kelas internal (id, layout, string, color, dll)
                             Matcher classMatcher = Pattern.compile("public\\s+static\\s+final\\s+class\\s+([a-zA-Z0-9_]+)\\s*\\{").matcher(rContent);
                             ArrayList<String> subClasses = new ArrayList<>();
                             while (classMatcher.find()) {
                                 subClasses.add(classMatcher.group(1));
                             }
-
                             for (String subClass : subClasses) {
-                                // Cari semua field int di dalam class internal tersebut
                                 Matcher fieldMatcher = Pattern.compile("public\\s+static\\s+class\\s+" + subClass + "\\s*\\{([^\\}]+)\\}").matcher(rContent);
                                 if (fieldMatcher.find()) {
                                     String classContent = fieldMatcher.group(1);
                                     Matcher m = Pattern.compile("public\\s+static\\s+final\\s+int\\s+([a-zA-Z0-9_]+)\\s*=").matcher(classContent);
                                     while (m.find()) {
                                         String fieldName = m.group(1);
-                                        // Suntikkan variasi autocomplete lengkap agar muncul saat diketik setelah titik
                                         String key1 = "R." + subClass + "." + fieldName;
                                         String key2 = subClass + "." + fieldName;
                                         if (!fullKeywords.contains(key1)) fullKeywords.add(key1);
@@ -199,7 +177,7 @@ public class EditorUtils {
                                 }
                             }
                         } catch (Exception e) {
-                            Log.e("EditorUtils", "Failed to parse R.java cache: " + rJavaFile.getPath(), e);
+                            Log.e("EditorUtils", "Failed to parse R.java: " + rJavaFile.getPath(), e);
                         }
                     }
                 }
@@ -209,34 +187,23 @@ public class EditorUtils {
         loadConfigByLanguage(editor, language, true);
     }
 
-    /** Kompatibilitas lama: pakai keyword gabungan (semua kategori). */
     public static void loadXmlConfig(CodeEditor editor) {
         loadXmlConfig(editor, null);
     }
 
-    /**
-     * @param pathOrFileName path lengkap atau nama file yang lagi dibuka,
-     *                        dipakai buat milih keyword autocomplete yang sesuai
-     *                        (layout / values-colors / values-strings / styles / attrs / manifest / drawable).
-     *                        Boleh null kalau gak tahu jenis filenya (bakal pakai keyword gabungan).
-     */
     public static void loadXmlConfig(CodeEditor editor, String pathOrFileName) {
         Language language = CodeEditorLanguages.loadTextMateLanguage(CodeEditorLanguages.SCOPE_NAME_XML);
         if (language instanceof TextMateLanguage tm) {
-            ArrayList<String> keywords = new ArrayList<>(Arrays.asList(IDXmlKeyword.forFile(pathOrFileName)));
-            
+            ArrayList<String> keywords = new ArrayList<>();
             if (editor instanceof SketchwareCodeEditor) {
                 String scId = ((SketchwareCodeEditor) editor).getScId();
                 if (scId != null && !scId.isEmpty()) {
                     String basePath = FileUtil.getExternalStorageDir() + "/.sketchware/data/" + scId + "/files/resource";
-                    
                     keywords.addAll(extractXmlResourceNames(basePath + "/values/colors.xml", "color", "@color/"));
                     keywords.addAll(extractXmlResourceNames(basePath + "/values/strings.xml", "string", "@string/"));
                     keywords.addAll(extractXmlResourceNames(basePath + "/values/dimens.xml", "dimen", "@dimen/"));
                     keywords.addAll(extractXmlResourceNames(basePath + "/values/styles.xml", "style", "@style/"));
-                    
                     keywords.addAll(extractDrawableNames(basePath + "/drawable/"));
-                    
                     String layoutDir = basePath + "/layout/";
                     ArrayList<String> layoutFiles = new ArrayList<>();
                     FileUtil.listDir(layoutDir, layoutFiles);
@@ -247,10 +214,8 @@ public class EditorUtils {
                                 Matcher m = Pattern.compile("android:id\\s*=\\s*\"@\\+id/([^\"]+)\"").matcher(content);
                                 while (m.find()) {
                                     String id = m.group(1);
-                                    String format1 = "@id/" + id;
-                                    String format2 = "@+id/" + id;
-                                    if (!keywords.contains(format1)) keywords.add(format1);
-                                    if (!keywords.contains(format2)) keywords.add(format2);
+                                    if (!keywords.contains("@id/" + id)) keywords.add("@id/" + id);
+                                    if (!keywords.contains("@+id/" + id)) keywords.add("@+id/" + id);
                                 }
                             } catch (Exception e) {
                                 Log.e("EditorUtils", "Failed to parse layout ids from " + lf, e);
@@ -335,14 +300,12 @@ public class EditorUtils {
     private static void loadConfigByLanguage(CodeEditor editor, Language language, boolean isTextMate) {
         editor.setEditorLanguage(language);
         boolean isDark = isDarkThemeEnabled(editor.getContext());
-
         if (isTextMate) {
             String theme = isDark ? CodeEditorColorSchemes.THEME_GITHUB_DARK : CodeEditorColorSchemes.THEME_GITHUB_LIGHT;
             editor.setColorScheme(CodeEditorColorSchemes.loadTextMateColorScheme(theme));
         } else {
             editor.setColorScheme(isDark ? new SchemeDarcula() : new SchemeGitHub());
         }
-
         getMaterialStyledScheme(editor, true);
         editor.setPinLineNumber(true);
         editor.rerunAnalysis();
