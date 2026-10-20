@@ -1315,6 +1315,11 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
                     }
 
                     @Override
+                    public void onTaskSkipped(@androidx.annotation.NonNull String taskName) {
+                        LogUtil.d("BuildTask", "> Task :app:" + taskName + " SKIPPED");
+                    }
+
+                    @Override
                     public void onTaskFailed(@androidx.annotation.NonNull String taskName, @androidx.annotation.NonNull Throwable error) {
                         LogUtil.e("BuildTask", "> Task :app:" + taskName + " FAILED", error);
                     }

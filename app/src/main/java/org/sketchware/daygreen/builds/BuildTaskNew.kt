@@ -31,13 +31,25 @@ class BuildTaskNew @JvmOverloads constructor(
     interface Listener {
         fun onTaskStart(taskName: String)
         fun onTaskDone(taskName: String, millis: Long)
+        fun onTaskSkipped(taskName: String)
         fun onTaskFailed(taskName: String, error: Throwable)
         fun onBuildFinished(result: Result, totalMillis: Long)
     }
 
-    private fun step(name: String, stepNo: Int, body: Step) {
+    private fun step(
+        name: String,
+        stepNo: Int,
+        skipIf: () -> Boolean = { false },
+        body: Step
+    ) {
         if (canceled.asBoolean) throw CancelledException()
-        receiver.onProgress(name, stepNo)
+
+        if (skipIf()) {
+            listener.onTaskSkipped(name)
+            return
+        }
+
+        receiver.onProgress("Task: $name", stepNo)
         listener.onTaskStart(name)
         val startTime = System.currentTimeMillis()
         try {
@@ -49,6 +61,9 @@ class BuildTaskNew @JvmOverloads constructor(
         }
     }
 
+    private fun hasFiles(dir: File): Boolean =
+        dir.isDirectory && dir.walkTopDown().any { it.isFile }
+
     private fun interface Step {
         @Throws(Exception::class)
         fun run()
@@ -56,12 +71,12 @@ class BuildTaskNew @JvmOverloads constructor(
 
     private class CancelledException : Exception()
 
+    private lateinit var builder: ProjectBuilder
+
     @Throws(Exception::class)
     fun run(): Boolean {
         val totalStartTime = System.currentTimeMillis()
         try {
-            val builder = ProjectBuilder(receiver, context, q)
-
             step("deleteTempFiles", 1) {
                 FileUtil.deleteFile(q.projectMyscPath)
             }
@@ -90,6 +105,8 @@ class BuildTaskNew @JvmOverloads constructor(
                 jC.d(scId).b(q.resDirectoryPath + File.separator + "drawable-xhdpi")
                 jC.d(scId).c(q.resDirectoryPath + File.separator + "raw")
                 jC.d(scId).a(q.assetsPath + File.separator + "fonts")
+                
+                builder = ProjectBuilder(receiver, context, q)
             }
 
             step("prepareProject", 3) {
@@ -109,51 +126,59 @@ class BuildTaskNew @JvmOverloads constructor(
                 BuiltInLibraries.extractCompileAssets(receiver)
             }
 
-            step("compileResources", 5) {
+            step(
+                name = "mergeAssets",
+                stepNo = 5,
+                skipIf = { !hasFiles(File(q.assetsPath)) }
+            ) {
+                // isi jika ada penyalinan aset tambahan
+            }
+
+            step("compileResources", 6) {
                 builder.compileResources()
             }
 
-            step("generateViewBinding", 6) {
+            step("generateViewBinding", 7) {
                 builder.generateViewBinding()
             }
 
-            step("compileKotlin", 7) {
+            step("compileKotlin", 8) {
                 KotlinCompilerBridge.compileKotlinCodeIfPossible(receiver, builder)
             }
 
-            step("compileAidl", 8) {
+            step("compileAidl", 9) {
                 builder.compileAidl()
             }
 
-            step("compileJavaCode", 9) {
+            step("compileJavaCode", 10) {
                 builder.compileJavaCode()
             }
 
-            step("compileNativeCode", 10) {
+            step("compileNativeCode", 11) {
                 builder.compileNativeCode()
             }
 
-            step("stringFog", 11) {
+            step("stringFog", 12) {
                 StringfogHandler(scId).start(receiver, builder)
             }
 
-            step("proguard", 12) {
+            step("proguard", 13) {
                 ProguardHandler(scId).start(receiver, builder)
             }
 
-            step("dexBuilderDebug", 13) {
+            step("dexBuilderDebug", 14) {
                 builder.createDexFilesFromClasses()
             }
 
-            step("mergeDexDebug", 14) {
+            step("mergeDexDebug", 15) {
                 builder.getDexFilesReady()
             }
 
-            step("packageDebug", 15) {
+            step("packageDebug", 16) {
                 builder.buildApk()
             }
 
-            step("signDebug", 16) {
+            step("signDebug", 17) {
                 builder.signDebugApk()
             }
 
