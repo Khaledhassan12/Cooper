@@ -18,6 +18,8 @@ import java.util.regex.Pattern;
 import java.util.Arrays;
 import pro.sketchware.utility.FileUtil;
 
+import extensions.fora2323.daygreen.keyword.IDXmlKeyword;
+
 import io.github.rosemoe.sora.lang.Language;
 import io.github.rosemoe.sora.langs.textmate.TextMateColorScheme;
 import io.github.rosemoe.sora.langs.textmate.TextMateLanguage;
@@ -82,53 +84,13 @@ public class EditorUtils {
     public static void loadJavaConfig(CodeEditor editor) {
         Language language = CodeEditorLanguages.loadTextMateLanguage(CodeEditorLanguages.SCOPE_NAME_JAVA);
         if (language instanceof TextMateLanguage tm) {
-            ArrayList<String> fullKeywords = new ArrayList<>();
+            ArrayList<String> keywords = new ArrayList<>();
             if (editor instanceof SketchwareCodeEditor) {
                 String scId = ((SketchwareCodeEditor) editor).getScId();
-                if (scId != null && !scId.isEmpty()) {
-                    File genDir = new File(FileUtil.getExternalStorageDir() + "/.sketchware/mysc/" + scId + "/gen/");
-                    List<File> rJavaFiles = new ArrayList<>();
-                    File mainR = new File(genDir, "R.java");
-                    if (mainR.exists()) rJavaFiles.add(mainR);
-                    if (genDir.exists() && genDir.isDirectory()) {
-                        File[] subDirs = genDir.listFiles(File::isDirectory);
-                        if (subDirs != null) {
-                            for (File subDir : subDirs) {
-                                File libR = new File(subDir, "R.java");
-                                if (libR.exists()) rJavaFiles.add(libR);
-                            }
-                        }
-                    }
-                    for (File rJavaFile : rJavaFiles) {
-                        try {
-                            String rContent = FileUtil.readFile(rJavaFile.getAbsolutePath());
-                            Matcher classMatcher = Pattern.compile("public\\s+static\\s+final\\s+class\\s+([a-zA-Z0-9_]+)\\s*\\{").matcher(rContent);
-                            ArrayList<String> subClasses = new ArrayList<>();
-                            while (classMatcher.find()) {
-                                subClasses.add(classMatcher.group(1));
-                            }
-                            for (String subClass : subClasses) {
-                                Matcher fieldMatcher = Pattern.compile("public\\s+static\\s+class\\s+" + subClass + "\\s*\\{([^\\}]+)\\}").matcher(rContent);
-                                if (fieldMatcher.find()) {
-                                    String classContent = fieldMatcher.group(1);
-                                    Matcher m = Pattern.compile("public\\s+static\\s+final\\s+int\\s+([a-zA-Z0-9_]+)\\s*=").matcher(classContent);
-                                    while (m.find()) {
-                                        String fieldName = m.group(1);
-                                        String key1 = "R." + subClass + "." + fieldName;
-                                        String key2 = subClass + "." + fieldName;
-                                        if (!fullKeywords.contains(key1)) fullKeywords.add(key1);
-                                        if (!fullKeywords.contains(key2)) fullKeywords.add(key2);
-                                        if (!fullKeywords.contains(fieldName)) fullKeywords.add(fieldName);
-                                    }
-                                }
-                            }
-                        } catch (Exception e) {
-                            Log.e("EditorUtils", "Failed to parse R.java: " + rJavaFile.getPath(), e);
-                        }
-                    }
-                }
+                keywords.addAll(getDynamicKeywords(scId, false));
             }
-            tm.setCompleterKeywords(fullKeywords.toArray(new String[0]));
+            keywords.addAll(extractDocumentWords(editor));
+            tm.setCompleterKeywords(keywords.toArray(new String[0]));
         }
         loadConfigByLanguage(editor, language, true);
     }
@@ -136,53 +98,13 @@ public class EditorUtils {
     public static void loadKotlinConfig(CodeEditor editor) {
         Language language = CodeEditorLanguages.loadTextMateLanguage(CodeEditorLanguages.SCOPE_NAME_KOTLIN);
         if (language instanceof TextMateLanguage tm) {
-            ArrayList<String> fullKeywords = new ArrayList<>();
+            ArrayList<String> keywords = new ArrayList<>();
             if (editor instanceof SketchwareCodeEditor) {
                 String scId = ((SketchwareCodeEditor) editor).getScId();
-                if (scId != null && !scId.isEmpty()) {
-                    File genDir = new File(FileUtil.getExternalStorageDir() + "/.sketchware/mysc/" + scId + "/gen/");
-                    List<File> rJavaFiles = new ArrayList<>();
-                    File mainR = new File(genDir, "R.java");
-                    if (mainR.exists()) rJavaFiles.add(mainR);
-                    if (genDir.exists() && genDir.isDirectory()) {
-                        File[] subDirs = genDir.listFiles(File::isDirectory);
-                        if (subDirs != null) {
-                            for (File subDir : subDirs) {
-                                File libR = new File(subDir, "R.java");
-                                if (libR.exists()) rJavaFiles.add(libR);
-                            }
-                        }
-                    }
-                    for (File rJavaFile : rJavaFiles) {
-                        try {
-                            String rContent = FileUtil.readFile(rJavaFile.getAbsolutePath());
-                            Matcher classMatcher = Pattern.compile("public\\s+static\\s+final\\s+class\\s+([a-zA-Z0-9_]+)\\s*\\{").matcher(rContent);
-                            ArrayList<String> subClasses = new ArrayList<>();
-                            while (classMatcher.find()) {
-                                subClasses.add(classMatcher.group(1));
-                            }
-                            for (String subClass : subClasses) {
-                                Matcher fieldMatcher = Pattern.compile("public\\s+static\\s+class\\s+" + subClass + "\\s*\\{([^\\}]+)\\}").matcher(rContent);
-                                if (fieldMatcher.find()) {
-                                    String classContent = fieldMatcher.group(1);
-                                    Matcher m = Pattern.compile("public\\s+static\\s+final\\s+int\\s+([a-zA-Z0-9_]+)\\s*=").matcher(classContent);
-                                    while (m.find()) {
-                                        String fieldName = m.group(1);
-                                        String key1 = "R." + subClass + "." + fieldName;
-                                        String key2 = subClass + "." + fieldName;
-                                        if (!fullKeywords.contains(key1)) fullKeywords.add(key1);
-                                        if (!fullKeywords.contains(key2)) fullKeywords.add(key2);
-                                        if (!fullKeywords.contains(fieldName)) fullKeywords.add(fieldName);
-                                    }
-                                }
-                            }
-                        } catch (Exception e) {
-                            Log.e("EditorUtils", "Failed to parse R.java: " + rJavaFile.getPath(), e);
-                        }
-                    }
-                }
+                keywords.addAll(getDynamicKeywords(scId, false));
             }
-            tm.setCompleterKeywords(fullKeywords.toArray(new String[0]));
+            keywords.addAll(extractDocumentWords(editor));
+            tm.setCompleterKeywords(keywords.toArray(new String[0]));
         }
         loadConfigByLanguage(editor, language, true);
     }
@@ -194,73 +116,21 @@ public class EditorUtils {
     public static void loadXmlConfig(CodeEditor editor, String pathOrFileName) {
         Language language = CodeEditorLanguages.loadTextMateLanguage(CodeEditorLanguages.SCOPE_NAME_XML);
         if (language instanceof TextMateLanguage tm) {
-            ArrayList<String> keywords = new ArrayList<>();
+            ArrayList<String> keywords = new ArrayList<>(Arrays.asList(IDXmlKeyword.forFile(pathOrFileName)));
             if (editor instanceof SketchwareCodeEditor) {
                 String scId = ((SketchwareCodeEditor) editor).getScId();
-                if (scId != null && !scId.isEmpty()) {
-                    String basePath = FileUtil.getExternalStorageDir() + "/.sketchware/data/" + scId + "/files/resource";
-                    keywords.addAll(extractXmlResourceNames(basePath + "/values/colors.xml", "color", "@color/"));
-                    keywords.addAll(extractXmlResourceNames(basePath + "/values/strings.xml", "string", "@string/"));
-                    keywords.addAll(extractXmlResourceNames(basePath + "/values/dimens.xml", "dimen", "@dimen/"));
-                    keywords.addAll(extractXmlResourceNames(basePath + "/values/styles.xml", "style", "@style/"));
-                    keywords.addAll(extractDrawableNames(basePath + "/drawable/"));
-                    String layoutDir = basePath + "/layout/";
-                    ArrayList<String> layoutFiles = new ArrayList<>();
-                    FileUtil.listDir(layoutDir, layoutFiles);
-                    for (String lf : layoutFiles) {
-                        if (lf.endsWith(".xml")) {
-                            try {
-                                String content = FileUtil.readFile(lf);
-                                Matcher m = Pattern.compile("android:id\\s*=\\s*\"@\\+id/([^\"]+)\"").matcher(content);
-                                while (m.find()) {
-                                    String id = m.group(1);
-                                    if (!keywords.contains("@id/" + id)) keywords.add("@id/" + id);
-                                    if (!keywords.contains("@+id/" + id)) keywords.add("@+id/" + id);
-                                }
-                            } catch (Exception e) {
-                                Log.e("EditorUtils", "Failed to parse layout ids from " + lf, e);
-                            }
-                        }
-                    }
-                }
+                keywords.addAll(getDynamicKeywords(scId, true));
             }
+            keywords.addAll(extractDocumentWords(editor));
             tm.setCompleterKeywords(keywords.toArray(new String[0]));
         }
         loadConfigByLanguage(editor, language, true);
     }
 
-    private static ArrayList<String> extractXmlResourceNames(String filePath, String tagName, String prefix) {
-        ArrayList<String> result = new ArrayList<>();
-        if (!FileUtil.isExistFile(filePath)) return result;
-        try {
-            String content = FileUtil.readFile(filePath);
-            Matcher m = Pattern.compile("<" + tagName + "[^>]+name\\s*=\\s*\"([^\"]+)\"").matcher(content);
-            while (m.find()) {
-                result.add(prefix + m.group(1));
-            }
-        } catch (Exception e) {
-            Log.e("EditorUtils", "Failed to parse " + filePath, e);
-        }
-        return result;
-    }
-
-    private static ArrayList<String> extractDrawableNames(String drawableDir) {
-        ArrayList<String> result = new ArrayList<>();
-        ArrayList<String> files = new ArrayList<>();
-        FileUtil.listDir(drawableDir, files);
-        for (String f : files) {
-            String name = new File(f).getName();
-            int dot = name.lastIndexOf('.');
-            if (dot > 0) name = name.substring(0, dot);
-            result.add("@drawable/" + name);
-        }
-        return result;
-    }
-
     public static void loadHtmlConfig(CodeEditor editor) {
         Language language = CodeEditorLanguages.loadTextMateLanguage(CodeEditorLanguages.SCOPE_NAME_HTML);
         if (language instanceof TextMateLanguage tm) {
-            tm.setCompleterKeywords(new String[0]);
+            tm.setCompleterKeywords(extractDocumentWords(editor).toArray(new String[0]));
         }
         loadConfigByLanguage(editor, language, true);
     }
@@ -268,7 +138,7 @@ public class EditorUtils {
     public static void loadCssConfig(CodeEditor editor) {
         Language language = CodeEditorLanguages.loadTextMateLanguage(CodeEditorLanguages.SCOPE_NAME_CSS);
         if (language instanceof TextMateLanguage tm) {
-            tm.setCompleterKeywords(new String[0]);
+            tm.setCompleterKeywords(extractDocumentWords(editor).toArray(new String[0]));
         }
         loadConfigByLanguage(editor, language, true);
     }
@@ -276,7 +146,7 @@ public class EditorUtils {
     public static void loadJsConfig(CodeEditor editor) {
         Language language = CodeEditorLanguages.loadTextMateLanguage(CodeEditorLanguages.SCOPE_NAME_JS);
         if (language instanceof TextMateLanguage tm) {
-            tm.setCompleterKeywords(new String[0]);
+            tm.setCompleterKeywords(extractDocumentWords(editor).toArray(new String[0]));
         }
         loadConfigByLanguage(editor, language, true);
     }
@@ -284,7 +154,7 @@ public class EditorUtils {
     public static void loadCppConfig(CodeEditor editor) {
         Language language = CodeEditorLanguages.loadTextMateLanguage(CodeEditorLanguages.SCOPE_NAME_CPP);
         if (language instanceof TextMateLanguage tm) {
-            tm.setCompleterKeywords(new String[0]);
+            tm.setCompleterKeywords(extractDocumentWords(editor).toArray(new String[0]));
         }
         loadConfigByLanguage(editor, language, true);
     }
@@ -292,20 +162,125 @@ public class EditorUtils {
     public static void loadCConfig(CodeEditor editor) {
         Language language = CodeEditorLanguages.loadTextMateLanguage(CodeEditorLanguages.SCOPE_NAME_C);
         if (language instanceof TextMateLanguage tm) {
-            tm.setCompleterKeywords(new String[0]);
+            tm.setCompleterKeywords(extractDocumentWords(editor).toArray(new String[0]));
         }
         loadConfigByLanguage(editor, language, true);
+    }
+
+    private static ArrayList<String> extractDocumentWords(CodeEditor editor) {
+        ArrayList<String> result = new ArrayList<>();
+        try {
+            if (editor != null && editor.getText() != null) {
+                String content = editor.getText().toString();
+                Matcher m = Pattern.compile("\\b[a-zA-Z_][a-zA-Z0-9_]{2,}\\b").matcher(content);
+                while (m.find()) {
+                    String word = m.group();
+                    if (!result.contains(word)) {
+                        result.add(word);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            Log.e("EditorUtils", "Failed to extract document words", e);
+        }
+        return result;
+    }
+
+    private static ArrayList<String> getDynamicKeywords(String scId, boolean isXml) {
+        ArrayList<String> keywords = new ArrayList<>();
+        if (scId == null || scId.isEmpty()) return keywords;
+
+        String basePath = FileUtil.getExternalStorageDir() + "/.sketchware/data/" + scId + "/files/resource";
+
+        processResourceNames(keywords, basePath + "/values/colors.xml", "color", isXml);
+        processResourceNames(keywords, basePath + "/values/strings.xml", "string", isXml);
+        processResourceNames(keywords, basePath + "/values/dimens.xml", "dimen", isXml);
+        processResourceNames(keywords, basePath + "/values/styles.xml", "style", isXml);
+
+        processFileNames(keywords, basePath + "/drawable/", "drawable", isXml);
+        processFileNames(keywords, basePath + "/layout/", "layout", isXml);
+
+        String layoutDir = basePath + "/layout/";
+        ArrayList<String> layoutFiles = new ArrayList<>();
+        FileUtil.listDir(layoutDir, layoutFiles);
+        for (String lf : layoutFiles) {
+            if (lf.endsWith(".xml")) {
+                try {
+                    String fileContent = FileUtil.readFile(lf);
+                    Matcher m = Pattern.compile("android:id\\s*=\\s*\"@\\+id/([^\"]+)\"").matcher(fileContent);
+                    while (m.find()) {
+                        String id = m.group(1);
+                        if (isXml) {
+                            String format1 = "@id/" + id;
+                            String format2 = "@+id/" + id;
+                            if (!keywords.contains(format1)) keywords.add(format1);
+                            if (!keywords.contains(format2)) keywords.add(format2);
+                        } else {
+                            addJavaRes(keywords, "id", id);
+                        }
+                    }
+                } catch (Exception e) {
+                    Log.e("EditorUtils", "Failed to parse layout ids from " + lf, e);
+                }
+            }
+        }
+        return keywords;
+    }
+
+    private static void addJavaRes(ArrayList<String> list, String type, String name) {
+        String key1 = "R." + type + "." + name;
+        String key2 = type + "." + name;
+        if (!list.contains(key1)) list.add(key1);
+        if (!list.contains(key2)) list.add(key2);
+        if (!list.contains(name)) list.add(name);
+    }
+
+    private static void processResourceNames(ArrayList<String> list, String filePath, String type, boolean isXml) {
+        if (!FileUtil.isExistFile(filePath)) return;
+        try {
+            String fileContent = FileUtil.readFile(filePath);
+            Matcher m = Pattern.compile("<" + type + "[^>]+name\\s*=\\s*\"([^\"]+)\"").matcher(fileContent);
+            while (m.find()) {
+                String name = m.group(1);
+                if (isXml) {
+                    String format = "@" + type + "/" + name;
+                    if (!list.contains(format)) list.add(format);
+                } else {
+                    addJavaRes(list, type, name);
+                }
+            }
+        } catch (Exception e) {
+            Log.e("EditorUtils", "Failed to parse " + filePath, e);
+        }
+    }
+
+    private static void processFileNames(ArrayList<String> list, String dir, String type, boolean isXml) {
+        ArrayList<String> files = new ArrayList<>();
+        FileUtil.listDir(dir, files);
+        for (String f : files) {
+            String name = new File(f).getName();
+            int dot = name.lastIndexOf('.');
+            if (dot > 0) name = name.substring(0, dot);
+            if (isXml) {
+                String format = "@" + type + "/" + name;
+                if (!list.contains(format)) list.add(format);
+            } else {
+                addJavaRes(list, type, name);
+            }
+        }
     }
 
     private static void loadConfigByLanguage(CodeEditor editor, Language language, boolean isTextMate) {
         editor.setEditorLanguage(language);
         boolean isDark = isDarkThemeEnabled(editor.getContext());
+
         if (isTextMate) {
             String theme = isDark ? CodeEditorColorSchemes.THEME_GITHUB_DARK : CodeEditorColorSchemes.THEME_GITHUB_LIGHT;
             editor.setColorScheme(CodeEditorColorSchemes.loadTextMateColorScheme(theme));
         } else {
             editor.setColorScheme(isDark ? new SchemeDarcula() : new SchemeGitHub());
         }
+
         getMaterialStyledScheme(editor, true);
         editor.setPinLineNumber(true);
         editor.rerunAnalysis();
