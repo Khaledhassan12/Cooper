@@ -15,10 +15,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.Arrays;
-import pro.sketchware.utility.FileUtil;
-
-import extensions.fora2323.daygreen.keyword.IDXmlKeyword;
 
 import io.github.rosemoe.sora.lang.Language;
 import io.github.rosemoe.sora.langs.textmate.TextMateColorScheme;
@@ -116,7 +112,7 @@ public class EditorUtils {
     public static void loadXmlConfig(CodeEditor editor, String pathOrFileName) {
         Language language = CodeEditorLanguages.loadTextMateLanguage(CodeEditorLanguages.SCOPE_NAME_XML);
         if (language instanceof TextMateLanguage tm) {
-            ArrayList<String> keywords = new ArrayList<>(Arrays.asList(IDXmlKeyword.forFile(pathOrFileName)));
+            ArrayList<String> keywords = new ArrayList<>();
             if (editor instanceof SketchwareCodeEditor) {
                 String scId = ((SketchwareCodeEditor) editor).getScId();
                 keywords.addAll(getDynamicKeywords(scId, true));
