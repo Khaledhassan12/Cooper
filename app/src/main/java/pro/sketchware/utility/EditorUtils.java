@@ -18,11 +18,6 @@ import java.util.regex.Pattern;
 import java.util.Arrays;
 import pro.sketchware.utility.FileUtil;
 
-import extensions.fora2323.daygreen.keyword.IDCKeyword;
-import extensions.fora2323.daygreen.keyword.IDCppKeyword;
-import extensions.fora2323.daygreen.keyword.IDCssKeyword;
-import extensions.fora2323.daygreen.keyword.IDHtmlKeyword;
-import extensions.fora2323.daygreen.keyword.IDJsKeyword;
 import extensions.fora2323.daygreen.keyword.IDXmlKeyword;
 
 import io.github.rosemoe.sora.lang.Language;
@@ -300,7 +295,7 @@ public class EditorUtils {
     public static void loadHtmlConfig(CodeEditor editor) {
         Language language = CodeEditorLanguages.loadTextMateLanguage(CodeEditorLanguages.SCOPE_NAME_HTML);
         if (language instanceof TextMateLanguage tm) {
-            tm.setCompleterKeywords(IDHtmlKeyword.KEYWORDS);
+            tm.setCompleterKeywords(new String[0]);
         }
         loadConfigByLanguage(editor, language, true);
     }
@@ -308,7 +303,7 @@ public class EditorUtils {
     public static void loadCssConfig(CodeEditor editor) {
         Language language = CodeEditorLanguages.loadTextMateLanguage(CodeEditorLanguages.SCOPE_NAME_CSS);
         if (language instanceof TextMateLanguage tm) {
-            tm.setCompleterKeywords(IDCssKeyword.KEYWORDS);
+            tm.setCompleterKeywords(new String[0]);
         }
         loadConfigByLanguage(editor, language, true);
     }
@@ -316,7 +311,7 @@ public class EditorUtils {
     public static void loadJsConfig(CodeEditor editor) {
         Language language = CodeEditorLanguages.loadTextMateLanguage(CodeEditorLanguages.SCOPE_NAME_JS);
         if (language instanceof TextMateLanguage tm) {
-            tm.setCompleterKeywords(IDJsKeyword.KEYWORDS);
+            tm.setCompleterKeywords(new String[0]);
         }
         loadConfigByLanguage(editor, language, true);
     }
@@ -324,7 +319,7 @@ public class EditorUtils {
     public static void loadCppConfig(CodeEditor editor) {
         Language language = CodeEditorLanguages.loadTextMateLanguage(CodeEditorLanguages.SCOPE_NAME_CPP);
         if (language instanceof TextMateLanguage tm) {
-            tm.setCompleterKeywords(IDCppKeyword.KEYWORDS);
+            tm.setCompleterKeywords(new String[0]);
         }
         loadConfigByLanguage(editor, language, true);
     }
@@ -332,7 +327,7 @@ public class EditorUtils {
     public static void loadCConfig(CodeEditor editor) {
         Language language = CodeEditorLanguages.loadTextMateLanguage(CodeEditorLanguages.SCOPE_NAME_C);
         if (language instanceof TextMateLanguage tm) {
-            tm.setCompleterKeywords(IDCKeyword.KEYWORDS);
+            tm.setCompleterKeywords(new String[0]);
         }
         loadConfigByLanguage(editor, language, true);
     }
