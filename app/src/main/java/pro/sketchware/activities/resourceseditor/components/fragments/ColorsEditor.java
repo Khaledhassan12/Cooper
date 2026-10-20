@@ -1,353 +1,301 @@
-package pro.sketchware.utility;
+package pro.sketchware.activities.resourceseditor.components.fragments;
 
-import static pro.sketchware.utility.ThemeUtils.isDarkThemeEnabled;
+import static pro.sketchware.utility.UI.animateLayoutChanges;
 
-import android.content.Context;
-import android.graphics.Typeface;
-import android.util.Log;
+import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextWatcher;
+import android.view.Gravity;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.fragment.app.Fragment;
 
-import com.google.android.material.color.MaterialColors;
+import com.besome.sketch.lib.ui.ColorPickerDialog;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
-import java.io.File;
 import java.util.ArrayList;
-import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Objects;
 
-import extensions.fora2323.daygreen.keyword.IDCKeyword;
-import extensions.fora2323.daygreen.keyword.IDCppKeyword;
-import extensions.fora2323.daygreen.keyword.IDCssKeyword;
-import extensions.fora2323.daygreen.keyword.IDHtmlKeyword;
-import extensions.fora2323.daygreen.keyword.IDJsKeyword;
-import extensions.fora2323.daygreen.keyword.IDXmlKeyword;
-
-import io.github.rosemoe.sora.lang.Language;
-import io.github.rosemoe.sora.langs.textmate.TextMateColorScheme;
-import io.github.rosemoe.sora.langs.textmate.TextMateLanguage;
-import io.github.rosemoe.sora.widget.CodeEditor;
-import io.github.rosemoe.sora.widget.schemes.EditorColorScheme;
-import io.github.rosemoe.sora.widget.schemes.SchemeDarcula;
-import io.github.rosemoe.sora.widget.schemes.SchemeGitHub;
-
-import mod.jbk.code.CodeEditorColorSchemes;
-import mod.jbk.code.CodeEditorLanguages;
+import mod.hey.studios.util.Helper;
+import mod.hey.studios.util.ProjectFile;
 import pro.sketchware.R;
-import pro.sketchware.editor.SketchwareCodeEditor;
+import pro.sketchware.activities.resourceseditor.ResourcesEditorActivity;
+import pro.sketchware.activities.resourceseditor.components.adapters.ColorsAdapter;
+import pro.sketchware.activities.resourceseditor.components.models.ColorModel;
+import pro.sketchware.activities.resourceseditor.components.utils.ColorsEditorManager;
+import pro.sketchware.databinding.ColorEditorAddBinding;
+import pro.sketchware.databinding.ResourcesEditorFragmentBinding;
+import pro.sketchware.utility.FileUtil;
+import pro.sketchware.utility.PropertiesUtil;
+import pro.sketchware.utility.SketchwareUtil;
+import pro.sketchware.utility.XmlUtil;
 
-public class EditorUtils {
-    EditorUtils() {
+public class ColorsEditor extends Fragment {
+
+    public static String contentPath;
+    public final ArrayList<ColorModel> colorList = new ArrayList<>();
+    public final HashMap<String, String> defaultColors = new HashMap<>();
+    private ResourcesEditorActivity activity;
+    public ColorsAdapter adapter;
+    public boolean hasUnsavedChanges;
+    public ColorsEditorManager colorsEditorManager;
+    private ResourcesEditorFragmentBinding binding;
+    private boolean isNightVariant;
+    private HashMap<Integer, String> notesMap = new HashMap<>();
+
+    @Override
+    public void onCreate(@Nullable Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        activity = (ResourcesEditorActivity) getActivity();
     }
 
-    @NonNull
-    public static EditorColorScheme getMaterialStyledScheme(CodeEditor editor) {
-        return getMaterialStyledScheme(editor, true);
+    @Nullable
+    @Override
+    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
+        binding = ResourcesEditorFragmentBinding.inflate(inflater, container, false);
+        initialize();
+        return binding.getRoot();
     }
 
-    @NonNull
-    public static EditorColorScheme getMaterialStyledScheme(CodeEditor editor, boolean fullOverride) {
-        var scheme = editor.getColorScheme();
-        var primary = MaterialColors.getColor(editor, R.attr.colorPrimary);
-        var surface = MaterialColors.getColor(editor, R.attr.colorSurface);
-        var surfaceContainer = MaterialColors.getColor(editor, R.attr.colorSurfaceContainer);
-        var surfaceContainerLow = MaterialColors.getColor(editor, R.attr.colorSurfaceContainerLow);
-        var surfaceContainerHighest = MaterialColors.getColor(editor, R.attr.colorSurfaceContainerHighest);
-        var onSurface = MaterialColors.getColor(editor, R.attr.colorOnSurface);
-        var onSurfaceVariant = MaterialColors.getColor(editor, R.attr.colorOnSurfaceVariant);
+    public void updateColorsList(String filePath, int updateMode, boolean hasUnsavedChangesStatus) {
+        hasUnsavedChanges = hasUnsavedChangesStatus;
+        contentPath = filePath;
+        colorsEditorManager.contentPath = contentPath;
 
-        if (fullOverride) {
-            scheme.setColor(EditorColorScheme.WHOLE_BACKGROUND, surface);
-            // Only override normal text color for non-TextMate schemes
-            // to avoid breaking syntax highlighting colors
-            if (!(scheme instanceof TextMateColorScheme)) {
-                scheme.setColor(EditorColorScheme.TEXT_NORMAL, onSurface);
-            }
-            scheme.setColor(EditorColorScheme.CURRENT_LINE, surfaceContainerLow);
-            scheme.setColor(EditorColorScheme.LINE_NUMBER_PANEL, surfaceContainer);
-            scheme.setColor(EditorColorScheme.LINE_NUMBER_BACKGROUND, surfaceContainer);
-        }
+        boolean isSkippingMode = updateMode == 1;
+        boolean isMergeAndReplace = updateMode == 2;
+        colorsEditorManager.isDefaultVariant = activity.variant.isEmpty();
+        isNightVariant = activity.variant.contains("night");
 
-        // Always style these to maintain IDE feel
-        scheme.setColor(EditorColorScheme.LINE_DIVIDER, surfaceContainerHighest);
-        scheme.setColor(EditorColorScheme.SELECTION_INSERT, onSurfaceVariant);
-        scheme.setColor(EditorColorScheme.HIGHLIGHTED_DELIMITERS_FOREGROUND, onSurface);
-        scheme.setColor(EditorColorScheme.HIGHLIGHTED_DELIMITERS_BACKGROUND, surfaceContainerHighest);
+        ArrayList<ColorModel> defaultColors = new ArrayList<>();
 
-        // Completion window styling - matches IDE panels
-        scheme.setColor(EditorColorScheme.COMPLETION_WND_BACKGROUND, surfaceContainer);
-        scheme.setColor(EditorColorScheme.COMPLETION_WND_TEXT_PRIMARY, onSurface);
-        scheme.setColor(EditorColorScheme.COMPLETION_WND_TEXT_SECONDARY, onSurfaceVariant);
-        scheme.setColor(EditorColorScheme.COMPLETION_WND_CORNER, primary);
-
-        return scheme;
-    }
-
-    @NonNull
-    public static Typeface getTypeface(Context context) {
-        return Typeface.createFromAsset(context.getAssets(), "fonts/jetbrainsmono-regular.ttf");
-    }
-
-    public static void loadJavaConfig(CodeEditor editor) {
-        Language language = CodeEditorLanguages.loadTextMateLanguage(CodeEditorLanguages.SCOPE_NAME_JAVA);
-        if (language instanceof TextMateLanguage tm) {
-            ArrayList<String> fullKeywords = new ArrayList<>();
-            if (editor instanceof SketchwareCodeEditor) {
-                String scId = ((SketchwareCodeEditor) editor).getScId();
-                if (scId != null && !scId.isEmpty()) {
-                    File genDir = new File(FileUtil.getExternalStorageDir() + "/.sketchware/mysc/" + scId + "/gen/");
-
-                    List<File> rJavaFiles = new ArrayList<>();
-
-                    File mainR = new File(genDir, "R.java");
-                    if (mainR.exists()) rJavaFiles.add(mainR);
-
-                    if (genDir.exists() && genDir.isDirectory()) {
-                        File[] subDirs = genDir.listFiles(File::isDirectory);
-                        if (subDirs != null) {
-                            for (File subDir : subDirs) {
-                                File libR = new File(subDir, "R.java");
-                                if (libR.exists()) rJavaFiles.add(libR);
-                            }
-                        }
-                    }
-
-                    for (File rJavaFile : rJavaFiles) {
-                        try {
-                            String rContent = FileUtil.readFile(rJavaFile.getAbsolutePath());
-                            // Ambil nama kelas internal (id, layout, string, color, dll)
-                            Matcher classMatcher = Pattern.compile("public\\s+static\\s+final\\s+class\\s+([a-zA-Z0-9_]+)\\s*\\{").matcher(rContent);
-                            ArrayList<String> subClasses = new ArrayList<>();
-                            while (classMatcher.find()) {
-                                subClasses.add(classMatcher.group(1));
-                            }
-
-                            for (String subClass : subClasses) {
-                                // Cari semua field int di dalam class internal tersebut
-                                Matcher fieldMatcher = Pattern.compile("public\\s+static\\s+class\\s+" + subClass + "\\s*\\{([^\\}]+)\\}").matcher(rContent);
-                                if (fieldMatcher.find()) {
-                                    String classContent = fieldMatcher.group(1);
-                                    Matcher m = Pattern.compile("public\\s+static\\s+final\\s+int\\s+([a-zA-Z0-9_]+)\\s*=").matcher(classContent);
-                                    while (m.find()) {
-                                        String fieldName = m.group(1);
-                                        // Suntikkan variasi autocomplete lengkap agar muncul saat diketik setelah titik
-                                        String key1 = "R." + subClass + "." + fieldName;
-                                        String key2 = subClass + "." + fieldName;
-                                        if (!fullKeywords.contains(key1)) fullKeywords.add(key1);
-                                        if (!fullKeywords.contains(key2)) fullKeywords.add(key2);
-                                        if (!fullKeywords.contains(fieldName)) fullKeywords.add(fieldName);
-                                    }
-                                }
-                            }
-                        } catch (Exception e) {
-                            Log.e("EditorUtils", "Failed to parse R.java cache: " + rJavaFile.getPath(), e);
-                        }
-                    }
-                }
-            }
-            tm.setCompleterKeywords(fullKeywords.toArray(new String[0]));
-        }
-        loadConfigByLanguage(editor, language, true);
-    }
-
-    public static void loadKotlinConfig(CodeEditor editor) {
-        Language language = CodeEditorLanguages.loadTextMateLanguage(CodeEditorLanguages.SCOPE_NAME_KOTLIN);
-        if (language instanceof TextMateLanguage tm) {
-            ArrayList<String> fullKeywords = new ArrayList<>();
-            if (editor instanceof SketchwareCodeEditor) {
-                String scId = ((SketchwareCodeEditor) editor).getScId();
-                if (scId != null && !scId.isEmpty()) {
-                    File genDir = new File(FileUtil.getExternalStorageDir() + "/.sketchware/mysc/" + scId + "/gen/");
-
-                    List<File> rJavaFiles = new ArrayList<>();
-
-                    File mainR = new File(genDir, "R.java");
-                    if (mainR.exists()) rJavaFiles.add(mainR);
-
-                    if (genDir.exists() && genDir.isDirectory()) {
-                        File[] subDirs = genDir.listFiles(File::isDirectory);
-                        if (subDirs != null) {
-                            for (File subDir : subDirs) {
-                                File libR = new File(subDir, "R.java");
-                                if (libR.exists()) rJavaFiles.add(libR);
-                            }
-                        }
-                    }
-
-                    for (File rJavaFile : rJavaFiles) {
-                        try {
-                            String rContent = FileUtil.readFile(rJavaFile.getAbsolutePath());
-                            // Ambil nama kelas internal (id, layout, string, color, dll)
-                            Matcher classMatcher = Pattern.compile("public\\s+static\\s+final\\s+class\\s+([a-zA-Z0-9_]+)\\s*\\{").matcher(rContent);
-                            ArrayList<String> subClasses = new ArrayList<>();
-                            while (classMatcher.find()) {
-                                subClasses.add(classMatcher.group(1));
-                            }
-
-                            for (String subClass : subClasses) {
-                                // Cari semua field int di dalam class internal tersebut
-                                Matcher fieldMatcher = Pattern.compile("public\\s+static\\s+class\\s+" + subClass + "\\s*\\{([^\\}]+)\\}").matcher(rContent);
-                                if (fieldMatcher.find()) {
-                                    String classContent = fieldMatcher.group(1);
-                                    Matcher m = Pattern.compile("public\\s+static\\s+final\\s+int\\s+([a-zA-Z0-9_]+)\\s*=").matcher(classContent);
-                                    while (m.find()) {
-                                        String fieldName = m.group(1);
-                                        // Suntikkan variasi autocomplete lengkap agar muncul saat diketik setelah titik
-                                        String key1 = "R." + subClass + "." + fieldName;
-                                        String key2 = subClass + "." + fieldName;
-                                        if (!fullKeywords.contains(key1)) fullKeywords.add(key1);
-                                        if (!fullKeywords.contains(key2)) fullKeywords.add(key2);
-                                        if (!fullKeywords.contains(fieldName)) fullKeywords.add(fieldName);
-                                    }
-                                }
-                            }
-                        } catch (Exception e) {
-                            Log.e("EditorUtils", "Failed to parse R.java cache: " + rJavaFile.getPath(), e);
-                        }
-                    }
-                }
-            }
-            tm.setCompleterKeywords(fullKeywords.toArray(new String[0]));
-        }
-        loadConfigByLanguage(editor, language, true);
-    }
-
-    /** Kompatibilitas lama: pakai keyword gabungan (semua kategori). */
-    public static void loadXmlConfig(CodeEditor editor) {
-        loadXmlConfig(editor, null);
-    }
-
-    /**
-     * @param pathOrFileName path lengkap atau nama file yang lagi dibuka,
-     *                        dipakai buat milih keyword autocomplete yang sesuai
-     *                        (layout / values-colors / values-strings / styles / attrs / manifest / drawable).
-     *                        Boleh null kalau gak tahu jenis filenya (bakal pakai keyword gabungan).
-     */
-    public static void loadXmlConfig(CodeEditor editor, String pathOrFileName) {
-        Language language = CodeEditorLanguages.loadTextMateLanguage(CodeEditorLanguages.SCOPE_NAME_XML);
-        if (language instanceof TextMateLanguage tm) {
-            ArrayList<String> keywords = new ArrayList<>(List.of(IDXmlKeyword.forFile(pathOrFileName)));
-            
-            if (editor instanceof SketchwareCodeEditor) {
-                String scId = ((SketchwareCodeEditor) editor).getScId();
-                if (scId != null && !scId.isEmpty()) {
-                    String basePath = FileUtil.getExternalStorageDir() + "/.sketchware/data/" + scId + "/files/resource";
-                    
-                    keywords.addAll(extractXmlResourceNames(basePath + "/values/colors.xml", "color", "@color/"));
-                    keywords.addAll(extractXmlResourceNames(basePath + "/values/strings.xml", "string", "@string/"));
-                    keywords.addAll(extractXmlResourceNames(basePath + "/values/dimens.xml", "dimen", "@dimen/"));
-                    keywords.addAll(extractXmlResourceNames(basePath + "/values/styles.xml", "style", "@style/"));
-                    
-                    keywords.addAll(extractDrawableNames(basePath + "/drawable/"));
-                    
-                    String layoutDir = basePath + "/layout/";
-                    ArrayList<String> layoutFiles = new ArrayList<>();
-                    FileUtil.listDir(layoutDir, layoutFiles);
-                    for (String lf : layoutFiles) {
-                        if (lf.endsWith(".xml")) {
-                            try {
-                                String content = FileUtil.readFile(lf);
-                                Matcher m = Pattern.compile("android:id\\s*=\\s*\"@\\+id/([^\"]+)\"").matcher(content);
-                                while (m.find()) {
-                                    String id = m.group(1);
-                                    String format1 = "@id/" + id;
-                                    String format2 = "@+id/" + id;
-                                    if (!keywords.contains(format1)) keywords.add(format1);
-                                    if (!keywords.contains(format2)) keywords.add(format2);
-                                }
-                            } catch (Exception e) {
-                                Log.e("EditorUtils", "Failed to parse layout ids from " + lf, e);
-                            }
-                        }
-                    }
-                }
-            }
-            tm.setCompleterKeywords(keywords.toArray(new String[0]));
-        }
-        loadConfigByLanguage(editor, language, true);
-    }
-
-    private static ArrayList<String> extractXmlResourceNames(String filePath, String tagName, String prefix) {
-        ArrayList<String> result = new ArrayList<>();
-        if (!FileUtil.isExistFile(filePath)) return result;
-        try {
-            String content = FileUtil.readFile(filePath);
-            Matcher m = Pattern.compile("<" + tagName + "[^>]+name\\s*=\\s*\"([^\"]+)\"").matcher(content);
-            while (m.find()) {
-                result.add(prefix + m.group(1));
-            }
-        } catch (Exception e) {
-            Log.e("EditorUtils", "Failed to parse " + filePath, e);
-        }
-        return result;
-    }
-
-    private static ArrayList<String> extractDrawableNames(String drawableDir) {
-        ArrayList<String> result = new ArrayList<>();
-        ArrayList<String> files = new ArrayList<>();
-        FileUtil.listDir(drawableDir, files);
-        for (String f : files) {
-            String name = new File(f).getName();
-            int dot = name.lastIndexOf('.');
-            if (dot > 0) name = name.substring(0, dot);
-            result.add("@drawable/" + name);
-        }
-        return result;
-    }
-
-    public static void loadHtmlConfig(CodeEditor editor) {
-        Language language = CodeEditorLanguages.loadTextMateLanguage(CodeEditorLanguages.SCOPE_NAME_HTML);
-        if (language instanceof TextMateLanguage tm) {
-            tm.setCompleterKeywords(IDHtmlKeyword.KEYWORDS);
-        }
-        loadConfigByLanguage(editor, language, true);
-    }
-
-    public static void loadCssConfig(CodeEditor editor) {
-        Language language = CodeEditorLanguages.loadTextMateLanguage(CodeEditorLanguages.SCOPE_NAME_CSS);
-        if (language instanceof TextMateLanguage tm) {
-            tm.setCompleterKeywords(IDCssKeyword.KEYWORDS);
-        }
-        loadConfigByLanguage(editor, language, true);
-    }
-
-    public static void loadJsConfig(CodeEditor editor) {
-        Language language = CodeEditorLanguages.loadTextMateLanguage(CodeEditorLanguages.SCOPE_NAME_JS);
-        if (language instanceof TextMateLanguage tm) {
-            tm.setCompleterKeywords(IDJsKeyword.KEYWORDS);
-        }
-        loadConfigByLanguage(editor, language, true);
-    }
-
-    public static void loadCppConfig(CodeEditor editor) {
-        Language language = CodeEditorLanguages.loadTextMateLanguage(CodeEditorLanguages.SCOPE_NAME_CPP);
-        if (language instanceof TextMateLanguage tm) {
-            tm.setCompleterKeywords(IDCppKeyword.KEYWORDS);
-        }
-        loadConfigByLanguage(editor, language, true);
-    }
-
-    public static void loadCConfig(CodeEditor editor) {
-        Language language = CodeEditorLanguages.loadTextMateLanguage(CodeEditorLanguages.SCOPE_NAME_C);
-        if (language instanceof TextMateLanguage tm) {
-            tm.setCompleterKeywords(IDCKeyword.KEYWORDS);
-        }
-        loadConfigByLanguage(editor, language, true);
-    }
-
-    private static void loadConfigByLanguage(CodeEditor editor, Language language, boolean isTextMate) {
-        editor.setEditorLanguage(language);
-        boolean isDark = isDarkThemeEnabled(editor.getContext());
-
-        if (isTextMate) {
-            String theme = isDark ? CodeEditorColorSchemes.THEME_GITHUB_DARK : CodeEditorColorSchemes.THEME_GITHUB_LIGHT;
-            editor.setColorScheme(CodeEditorColorSchemes.loadTextMateColorScheme(theme));
+        if ((activity.variant.isEmpty() || hasUnsavedChanges) && !FileUtil.isExistFile(contentPath)) {
+            String generatedContent = activity.yq.getXMLColor();
+            colorsEditorManager.parseColorsXML(defaultColors, generatedContent);
         } else {
-            editor.setColorScheme(isDark ? new SchemeDarcula() : new SchemeGitHub());
+            colorsEditorManager.parseColorsXML(defaultColors, FileUtil.readFileIfExist(contentPath));
+        }
+        notesMap = new HashMap<>(colorsEditorManager.notesMap);
+
+        if (isSkippingMode) {
+            HashSet<String> existingColorNames = new HashSet<>();
+            for (ColorModel existingModel : colorList) {
+                existingColorNames.add(existingModel.getColorName());
+            }
+
+            for (ColorModel colorModel : defaultColors) {
+                if (!existingColorNames.contains(colorModel.getColorName())) {
+                    colorList.add(colorModel);
+                }
+            }
+        } else {
+            if (isMergeAndReplace) {
+                HashSet<String> newColorNames = new HashSet<>();
+                for (ColorModel color : defaultColors) {
+                    newColorNames.add(color.getColorName());
+                }
+
+                colorList.removeIf(existingColor -> newColorNames.contains(existingColor.getColorName()));
+            } else {
+                colorList.clear();
+            }
+            colorList.addAll(defaultColors);
         }
 
-        getMaterialStyledScheme(editor, true);
-        editor.setPinLineNumber(true);
-        editor.rerunAnalysis();
+        activity.runOnUiThread(() -> {
+            adapter = new ColorsAdapter(colorsEditorManager, colorList, activity, notesMap);
+            binding.recyclerView.setAdapter(adapter);
+            activity.checkForInvalidResources();
+            updateNoContentLayout();
+            if (hasUnsavedChanges) {
+                contentPath = activity.colorsFilePath;
+            }
+        });
+    }
+
+    private void updateNoContentLayout() {
+        if (colorList.isEmpty()) {
+            binding.noContentLayout.setVisibility(View.VISIBLE);
+            binding.noContentTitle.setText(String.format(Helper.getResString(R.string.resource_manager_no_list_title), "Color"));
+            binding.noContentBody.setText(String.format(Helper.getResString(R.string.resource_manager_no_list_body), "color"));
+        } else {
+            binding.noContentLayout.setVisibility(View.GONE);
+        }
+    }
+
+    private void initialize() {
+
+        defaultColors.put("colorAccent", ProjectFile.COLOR_ACCENT);
+        defaultColors.put("colorPrimary", ProjectFile.COLOR_PRIMARY);
+        defaultColors.put("colorPrimaryDark", ProjectFile.COLOR_PRIMARY_DARK);
+        defaultColors.put("colorControlHighlight", ProjectFile.COLOR_CONTROL_HIGHLIGHT);
+        defaultColors.put("colorControlNormal", ProjectFile.COLOR_CONTROL_NORMAL);
+
+        colorsEditorManager = new ColorsEditorManager();
+        colorsEditorManager.defaultColors = defaultColors;
+    }
+
+    public void showColorEditDialog(ColorModel colorModel, int position) {
+        MaterialAlertDialogBuilder dialog = new MaterialAlertDialogBuilder(activity);
+        ColorEditorAddBinding dialogBinding = ColorEditorAddBinding.inflate(getLayoutInflater());
+
+        if (colorModel != null) {
+            dialogBinding.colorKeyInput.setText(colorModel.getColorName());
+            dialogBinding.colorValueInput.setText(colorModel.getColorValue());
+            if (defaultColors.containsKey(colorModel.getColorName())) {
+                dialogBinding.colorKeyInput.setEnabled(false);
+            }
+            dialogBinding.stringHeaderInput.setText(notesMap.getOrDefault(position, ""));
+            dialogBinding.colorPreview.setBackgroundColor(PropertiesUtil.parseColor(colorsEditorManager.getColorValue(activity.getApplicationContext(), colorModel.getColorValue(), 3, isNightVariant)));
+            dialogBinding.importantNote.setVisibility(defaultColors.containsKey(colorModel.getColorName()) ? View.VISIBLE : View.GONE);
+
+            dialog.setTitle("Edit color");
+
+        } else {
+            dialog.setTitle("Create new color");
+            dialogBinding.colorPreview.setBackgroundColor(0xFFFFFF);
+        }
+
+        dialogBinding.importantNote.setOnClickListener(view -> {
+            animateLayoutChanges(dialogBinding.getRoot());
+            dialogBinding.imgColorGuide.setVisibility(dialogBinding.imgColorGuide.getVisibility() == View.GONE ? View.VISIBLE : View.GONE);
+        });
+
+        dialogBinding.colorValueInput.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                String value = s.toString();
+                if (value.startsWith("#") && !PropertiesUtil.isHexColor(value)) {
+                    dialogBinding.colorValueInputLayout.setError("Invalid HEX color");
+                    return;
+                }
+                dialogBinding.colorValueInput.setError(null);
+                dialogBinding.colorPreview.setBackgroundColor(PropertiesUtil.parseColor(colorsEditorManager.getColorValue(activity.getApplicationContext(), s.toString(), 3, isNightVariant)));
+            }
+        });
+
+        dialogBinding.colorKeyInput.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                animateLayoutChanges(dialogBinding.getRoot());
+                dialogBinding.importantNote.setVisibility(defaultColors.containsKey(s.toString()) ? View.VISIBLE : View.GONE);
+            }
+        });
+
+        dialog.setPositiveButton("Save", (v1, which) -> {
+            String key = Objects.requireNonNull(dialogBinding.colorKeyInput.getText()).toString();
+            String value = Objects.requireNonNull(dialogBinding.colorValueInput.getText()).toString();
+
+            if (key.isEmpty() || value.isEmpty()) {
+                SketchwareUtil.toastError("Please fill in all fields", Toast.LENGTH_SHORT);
+                return;
+            }
+
+            if (value.startsWith("#")) {
+                if (!PropertiesUtil.isHexColor(value)) {
+                    SketchwareUtil.toastError("Please enter a valid HEX color");
+                    return;
+                }
+            }
+
+            if (colorModel != null) {
+                colorModel.setColorName(key);
+                colorModel.setColorValue(value);
+
+                String headerInput = Objects.requireNonNull(dialogBinding.stringHeaderInput.getText()).toString();
+                if (headerInput.isEmpty()) {
+                    notesMap.remove(position);
+                } else {
+                    notesMap.put(position, headerInput);
+                }
+                adapter.notifyItemChanged(position);
+
+            } else {
+                addColor(key, value, Objects.requireNonNull(dialogBinding.stringHeaderInput.getText()).toString());
+            }
+            hasUnsavedChanges = true;
+            updateNoContentLayout();
+        });
+
+        dialogBinding.colorPreviewCard.setOnClickListener(v -> {
+            ColorPickerDialog colorPicker = new ColorPickerDialog(activity, Objects.requireNonNull(dialogBinding.colorValueInput.getText()).toString(), false, false, activity.sc_id);
+            colorPicker.a(new ColorPickerDialog.b() {
+                @Override
+                public void a(int colorInt) {
+                    String selectedColorHex = String.format("#%06X", colorInt & 0x00FFFFFF);
+                    dialogBinding.colorPreviewCard.setCardBackgroundColor(PropertiesUtil.parseColor(selectedColorHex));
+                    dialogBinding.colorValueInput.setText(selectedColorHex);
+                }
+
+                @Override
+                public void a(String var1, int var2) {
+                }
+            });
+            colorPicker.materialColorAttr((attr, attrColor) -> dialogBinding.colorValueInput.setText("?" + attr));
+            colorPicker.showAtLocation(v, Gravity.CENTER, 0, 0);
+        });
+
+        if (colorModel != null && !defaultColors.containsKey(colorModel.getColorName())) {
+            dialog.setNeutralButton("Delete", (v1, which) -> {
+                colorList.remove(position);
+                adapter.notifyItemRemoved(position);
+                adapter.notifyItemRangeChanged(position, colorList.size());
+                updateNoContentLayout();
+                hasUnsavedChanges = true;
+                saveColorsFile();
+                v1.dismiss();
+            });
+        }
+
+        dialog.setNegativeButton(getString(R.string.cancel), null);
+        dialog.setView(dialogBinding.getRoot());
+        dialog.show();
+    }
+
+    private void addColor(String name, String value, String note) {
+        ColorModel newItem = new ColorModel(name, value);
+        for (int i = 0; i < colorList.size(); i++) {
+            if (colorList.get(i).getColorName().equals(name)) {
+                SketchwareUtil.toastError("\"" + name + "\" is already exist");
+                return;
+            }
+        }
+        colorList.add(newItem);
+        int notifyPosition = colorList.size() - 1;
+        if (!note.isEmpty()) {
+            notesMap.put(notifyPosition, note);
+        }
+        adapter.notifyItemInserted(notifyPosition);
+        SketchwareUtil.toast(Helper.getResString(R.string.common_word_saved));
+    }
+
+    public void saveColorsFile() {
+        if (hasUnsavedChanges) {
+            XmlUtil.saveXml(contentPath, colorsEditorManager.convertListToXml(colorList, notesMap));
+            hasUnsavedChanges = false;
+        }
     }
 }

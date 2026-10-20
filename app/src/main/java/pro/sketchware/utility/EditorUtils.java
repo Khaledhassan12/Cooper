@@ -20,9 +20,7 @@ import extensions.fora2323.daygreen.keyword.IDCKeyword;
 import extensions.fora2323.daygreen.keyword.IDCppKeyword;
 import extensions.fora2323.daygreen.keyword.IDCssKeyword;
 import extensions.fora2323.daygreen.keyword.IDHtmlKeyword;
-import extensions.fora2323.daygreen.keyword.IDJavaKeyword;
 import extensions.fora2323.daygreen.keyword.IDJsKeyword;
-import extensions.fora2323.daygreen.keyword.IDKotlinKeyword;
 import extensions.fora2323.daygreen.keyword.IDXmlKeyword;
 
 import io.github.rosemoe.sora.lang.Language;
@@ -93,16 +91,32 @@ public class EditorUtils {
     public static void loadJavaConfig(CodeEditor editor) {
         Language language = CodeEditorLanguages.loadTextMateLanguage(CodeEditorLanguages.SCOPE_NAME_JAVA);
         if (language instanceof TextMateLanguage tm) {
-            ArrayList<String> fullKeywords = new ArrayList<>(List.of(IDJavaKeyword.KEYWORDS));
+            ArrayList<String> fullKeywords = new ArrayList<>();
             if (editor instanceof SketchwareCodeEditor) {
                 String scId = ((SketchwareCodeEditor) editor).getScId();
                 if (scId != null && !scId.isEmpty()) {
-                    File rJavaFile = new File(FileUtil.getExternalStorageDir() + "/.sketchware/mysc/" + scId + "/gen/R.java");
-                    if (rJavaFile.exists()) {
+                    File genDir = new File(FileUtil.getExternalStorageDir() + "/.sketchware/mysc/" + scId + "/gen/");
+
+                    List<File> rJavaFiles = new ArrayList<>();
+
+                    File mainR = new File(genDir, "R.java");
+                    if (mainR.exists()) rJavaFiles.add(mainR);
+
+                    if (genDir.exists() && genDir.isDirectory()) {
+                        File[] subDirs = genDir.listFiles(File::isDirectory);
+                        if (subDirs != null) {
+                            for (File subDir : subDirs) {
+                                File libR = new File(subDir, "R.java");
+                                if (libR.exists()) rJavaFiles.add(libR);
+                            }
+                        }
+                    }
+
+                    for (File rJavaFile : rJavaFiles) {
                         try {
-                            String content = FileUtil.readFile(rJavaFile.getAbsolutePath());
+                            String rContent = FileUtil.readFile(rJavaFile.getAbsolutePath());
                             // Ambil nama kelas internal (id, layout, string, color, dll)
-                            Matcher classMatcher = Pattern.compile("public\\s+static\\s+final\\s+class\\s+([a-zA-Z0-9_]+)\\s*\\{").matcher(content);
+                            Matcher classMatcher = Pattern.compile("public\\s+static\\s+final\\s+class\\s+([a-zA-Z0-9_]+)\\s*\\{").matcher(rContent);
                             ArrayList<String> subClasses = new ArrayList<>();
                             while (classMatcher.find()) {
                                 subClasses.add(classMatcher.group(1));
@@ -110,7 +124,7 @@ public class EditorUtils {
 
                             for (String subClass : subClasses) {
                                 // Cari semua field int di dalam class internal tersebut
-                                Matcher fieldMatcher = Pattern.compile("public\\s+static\\s+class\\s+" + subClass + "\\s*\\{([^\\}]+)\\}").matcher(content);
+                                Matcher fieldMatcher = Pattern.compile("public\\s+static\\s+class\\s+" + subClass + "\\s*\\{([^\\}]+)\\}").matcher(rContent);
                                 if (fieldMatcher.find()) {
                                     String classContent = fieldMatcher.group(1);
                                     Matcher m = Pattern.compile("public\\s+static\\s+final\\s+int\\s+([a-zA-Z0-9_]+)\\s*=").matcher(classContent);
@@ -126,7 +140,7 @@ public class EditorUtils {
                                 }
                             }
                         } catch (Exception e) {
-                            Log.e("EditorUtils", "Failed to parse R.java cache", e);
+                            Log.e("EditorUtils", "Failed to parse R.java cache: " + rJavaFile.getPath(), e);
                         }
                     }
                 }
@@ -139,16 +153,32 @@ public class EditorUtils {
     public static void loadKotlinConfig(CodeEditor editor) {
         Language language = CodeEditorLanguages.loadTextMateLanguage(CodeEditorLanguages.SCOPE_NAME_KOTLIN);
         if (language instanceof TextMateLanguage tm) {
-            ArrayList<String> fullKeywords = new ArrayList<>(List.of(IDKotlinKeyword.KEYWORDS));
+            ArrayList<String> fullKeywords = new ArrayList<>();
             if (editor instanceof SketchwareCodeEditor) {
                 String scId = ((SketchwareCodeEditor) editor).getScId();
                 if (scId != null && !scId.isEmpty()) {
-                    File rJavaFile = new File(FileUtil.getExternalStorageDir() + "/.sketchware/mysc/" + scId + "/gen/R.java");
-                    if (rJavaFile.exists()) {
+                    File genDir = new File(FileUtil.getExternalStorageDir() + "/.sketchware/mysc/" + scId + "/gen/");
+
+                    List<File> rJavaFiles = new ArrayList<>();
+
+                    File mainR = new File(genDir, "R.java");
+                    if (mainR.exists()) rJavaFiles.add(mainR);
+
+                    if (genDir.exists() && genDir.isDirectory()) {
+                        File[] subDirs = genDir.listFiles(File::isDirectory);
+                        if (subDirs != null) {
+                            for (File subDir : subDirs) {
+                                File libR = new File(subDir, "R.java");
+                                if (libR.exists()) rJavaFiles.add(libR);
+                            }
+                        }
+                    }
+
+                    for (File rJavaFile : rJavaFiles) {
                         try {
-                            String content = FileUtil.readFile(rJavaFile.getAbsolutePath());
+                            String rContent = FileUtil.readFile(rJavaFile.getAbsolutePath());
                             // Ambil nama kelas internal (id, layout, string, color, dll)
-                            Matcher classMatcher = Pattern.compile("public\\s+static\\s+final\\s+class\\s+([a-zA-Z0-9_]+)\\s*\\{").matcher(content);
+                            Matcher classMatcher = Pattern.compile("public\\s+static\\s+final\\s+class\\s+([a-zA-Z0-9_]+)\\s*\\{").matcher(rContent);
                             ArrayList<String> subClasses = new ArrayList<>();
                             while (classMatcher.find()) {
                                 subClasses.add(classMatcher.group(1));
@@ -156,7 +186,7 @@ public class EditorUtils {
 
                             for (String subClass : subClasses) {
                                 // Cari semua field int di dalam class internal tersebut
-                                Matcher fieldMatcher = Pattern.compile("public\\s+static\\s+class\\s+" + subClass + "\\s*\\{([^\\}]+)\\}").matcher(content);
+                                Matcher fieldMatcher = Pattern.compile("public\\s+static\\s+class\\s+" + subClass + "\\s*\\{([^\\}]+)\\}").matcher(rContent);
                                 if (fieldMatcher.find()) {
                                     String classContent = fieldMatcher.group(1);
                                     Matcher m = Pattern.compile("public\\s+static\\s+final\\s+int\\s+([a-zA-Z0-9_]+)\\s*=").matcher(classContent);
@@ -172,7 +202,7 @@ public class EditorUtils {
                                 }
                             }
                         } catch (Exception e) {
-                            Log.e("EditorUtils", "Failed to parse R.java cache", e);
+                            Log.e("EditorUtils", "Failed to parse R.java cache: " + rJavaFile.getPath(), e);
                         }
                     }
                 }
@@ -196,9 +226,73 @@ public class EditorUtils {
     public static void loadXmlConfig(CodeEditor editor, String pathOrFileName) {
         Language language = CodeEditorLanguages.loadTextMateLanguage(CodeEditorLanguages.SCOPE_NAME_XML);
         if (language instanceof TextMateLanguage tm) {
-            tm.setCompleterKeywords(IDXmlKeyword.forFile(pathOrFileName));
+            ArrayList<String> keywords = new ArrayList<>(List.of(IDXmlKeyword.forFile(pathOrFileName)));
+            
+            if (editor instanceof SketchwareCodeEditor) {
+                String scId = ((SketchwareCodeEditor) editor).getScId();
+                if (scId != null && !scId.isEmpty()) {
+                    String basePath = FileUtil.getExternalStorageDir() + "/.sketchware/data/" + scId + "/files/resource";
+                    
+                    keywords.addAll(extractXmlResourceNames(basePath + "/values/colors.xml", "color", "@color/"));
+                    keywords.addAll(extractXmlResourceNames(basePath + "/values/strings.xml", "string", "@string/"));
+                    keywords.addAll(extractXmlResourceNames(basePath + "/values/dimens.xml", "dimen", "@dimen/"));
+                    keywords.addAll(extractXmlResourceNames(basePath + "/values/styles.xml", "style", "@style/"));
+                    
+                    keywords.addAll(extractDrawableNames(basePath + "/drawable/"));
+                    
+                    String layoutDir = basePath + "/layout/";
+                    ArrayList<String> layoutFiles = new ArrayList<>();
+                    FileUtil.listDir(layoutDir, layoutFiles);
+                    for (String lf : layoutFiles) {
+                        if (lf.endsWith(".xml")) {
+                            try {
+                                String content = FileUtil.readFile(lf);
+                                Matcher m = Pattern.compile("android:id\\s*=\\s*\"@\\+id/([^\"]+)\"").matcher(content);
+                                while (m.find()) {
+                                    String id = m.group(1);
+                                    String format1 = "@id/" + id;
+                                    String format2 = "@+id/" + id;
+                                    if (!keywords.contains(format1)) keywords.add(format1);
+                                    if (!keywords.contains(format2)) keywords.add(format2);
+                                }
+                            } catch (Exception e) {
+                                Log.e("EditorUtils", "Failed to parse layout ids from " + lf, e);
+                            }
+                        }
+                    }
+                }
+            }
+            tm.setCompleterKeywords(keywords.toArray(new String[0]));
         }
         loadConfigByLanguage(editor, language, true);
+    }
+
+    private static ArrayList<String> extractXmlResourceNames(String filePath, String tagName, String prefix) {
+        ArrayList<String> result = new ArrayList<>();
+        if (!FileUtil.isExistFile(filePath)) return result;
+        try {
+            String content = FileUtil.readFile(filePath);
+            Matcher m = Pattern.compile("<" + tagName + "[^>]+name\\s*=\\s*\"([^\"]+)\"").matcher(content);
+            while (m.find()) {
+                result.add(prefix + m.group(1));
+            }
+        } catch (Exception e) {
+            Log.e("EditorUtils", "Failed to parse " + filePath, e);
+        }
+        return result;
+    }
+
+    private static ArrayList<String> extractDrawableNames(String drawableDir) {
+        ArrayList<String> result = new ArrayList<>();
+        ArrayList<String> files = new ArrayList<>();
+        FileUtil.listDir(drawableDir, files);
+        for (String f : files) {
+            String name = new File(f).getName();
+            int dot = name.lastIndexOf('.');
+            if (dot > 0) name = name.substring(0, dot);
+            result.add("@drawable/" + name);
+        }
+        return result;
     }
 
     public static void loadHtmlConfig(CodeEditor editor) {
