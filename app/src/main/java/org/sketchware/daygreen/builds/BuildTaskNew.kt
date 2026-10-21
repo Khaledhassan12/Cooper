@@ -16,6 +16,7 @@ import a.a.a.lC
 import a.a.a.wq
 import a.a.a.yB
 import a.a.a.yq
+import mod.hey.studios.build.BuildSettings
 
 class BuildTaskNew @JvmOverloads constructor(
     private val context: Context,
@@ -72,10 +73,19 @@ class BuildTaskNew @JvmOverloads constructor(
     private class CancelledException : Exception()
 
     private lateinit var builder: ProjectBuilder
+    
+    // Silent receiver untuk menyembunyikan log dari compiler internal
+    private val silentReceiver = BuildProgressReceiver { _, _ -> }
 
     @Throws(Exception::class)
     fun run(): Boolean {
         val totalStartTime = System.currentTimeMillis()
+        
+        // Membaca pengaturan build (Debug atau Release)
+        val buildSettings = BuildSettings(scId)
+        val isRelease = buildSettings.getValue(BuildSettings.SETTING_BUILD_MODE, BuildSettings.BUILD_MODE_DEBUG) == BuildSettings.BUILD_MODE_RELEASE
+        val modeName = if (isRelease) "Release" else "Debug"
+
         try {
             step("deleteTempFiles", 1) {
                 FileUtil.deleteFile(q.projectMyscPath)
@@ -106,7 +116,7 @@ class BuildTaskNew @JvmOverloads constructor(
                 jC.d(scId).c(q.resDirectoryPath + File.separator + "raw")
                 jC.d(scId).a(q.assetsPath + File.separator + "fonts")
                 
-                builder = ProjectBuilder(receiver, context, q)
+                builder = ProjectBuilder(silentReceiver, context, q)
             }
 
             step("prepareProject", 3) {
@@ -123,7 +133,7 @@ class BuildTaskNew @JvmOverloads constructor(
             }
 
             step("extractBuiltInLibraries", 4) {
-                BuiltInLibraries.extractCompileAssets(receiver)
+                BuiltInLibraries.extractCompileAssets(silentReceiver)
             }
 
             step(
@@ -143,7 +153,7 @@ class BuildTaskNew @JvmOverloads constructor(
             }
 
             step("compileKotlin", 8) {
-                KotlinCompilerBridge.compileKotlinCodeIfPossible(receiver, builder)
+                KotlinCompilerBridge.compileKotlinCodeIfPossible(silentReceiver, builder)
             }
 
             step("compileAidl", 9) {
@@ -159,27 +169,31 @@ class BuildTaskNew @JvmOverloads constructor(
             }
 
             step("stringFog", 12) {
-                StringfogHandler(scId).start(receiver, builder)
+                StringfogHandler(scId).start(silentReceiver, builder)
             }
 
             step("proguard", 13) {
-                ProguardHandler(scId).start(receiver, builder)
+                ProguardHandler(scId).start(silentReceiver, builder)
             }
 
-            step("dexBuilderDebug", 14) {
+            step("dexBuilder$modeName", 14) {
                 builder.createDexFilesFromClasses()
             }
 
-            step("mergeDexDebug", 15) {
+            step("mergeDex$modeName", 15) {
                 builder.getDexFilesReady()
             }
 
-            step("packageDebug", 16) {
+            step("package$modeName", 16) {
                 builder.buildApk()
             }
 
-            step("signDebug", 17) {
-                builder.signDebugApk()
+            step("sign$modeName", 17) {
+                if (isRelease) {
+                    builder.signReleaseApk()
+                } else {
+                    builder.signDebugApk()
+                }
             }
 
         } catch (e: CancelledException) {

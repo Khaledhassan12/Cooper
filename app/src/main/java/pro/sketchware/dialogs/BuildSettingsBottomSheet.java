@@ -1,29 +1,8 @@
 package pro.sketchware.dialogs;
 
-import static mod.hey.studios.build.BuildSettings.SETTING_ANDROID_JAR_PATH;
-import static mod.hey.studios.build.BuildSettings.SETTING_CLASSPATH;
-import static mod.hey.studios.build.BuildSettings.SETTING_CMAKE_ABIS;
-import static mod.hey.studios.build.BuildSettings.SETTING_CMAKE_ABI_ARM64_V8A;
-import static mod.hey.studios.build.BuildSettings.SETTING_CMAKE_ABI_ARMEABI_V7A;
-import static mod.hey.studios.build.BuildSettings.SETTING_CMAKE_ABI_X86;
-import static mod.hey.studios.build.BuildSettings.SETTING_CMAKE_ABI_X86_64;
-import static mod.hey.studios.build.BuildSettings.ABI_ARM64_V8A;
-import static mod.hey.studios.build.BuildSettings.ABI_ARMEABI_V7A;
-import static mod.hey.studios.build.BuildSettings.ABI_X86;
-import static mod.hey.studios.build.BuildSettings.ABI_X86_64;
-import static mod.hey.studios.build.BuildSettings.SETTING_DEXER;
-import static mod.hey.studios.build.BuildSettings.SETTING_ENABLE_LOGCAT;
-import static mod.hey.studios.build.BuildSettings.SETTING_JAVA_VERSION;
-import static mod.hey.studios.build.BuildSettings.SETTING_JAVA_VERSION_15;
-import static mod.hey.studios.build.BuildSettings.SETTING_JAVA_VERSION_16;
-import static mod.hey.studios.build.BuildSettings.SETTING_JAVA_VERSION_1_7;
-import static mod.hey.studios.build.BuildSettings.SETTING_JAVA_VERSION_1_8;
-import static mod.hey.studios.build.BuildSettings.SETTING_JAVA_VERSION_11;
-import static mod.hey.studios.build.BuildSettings.SETTING_JAVA_VERSION_17;
-import static mod.hey.studios.build.BuildSettings.SETTING_JAVA_VERSION_20;
-import static mod.hey.studios.build.BuildSettings.SETTING_NO_HTTP_LEGACY;
-import static mod.hey.studios.build.BuildSettings.SETTING_NO_WARNINGS;
+import static mod.hey.studios.build.BuildSettings.*;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.LayoutInflater;
@@ -40,7 +19,6 @@ import com.google.android.material.bottomsheet.BottomSheetDialogFragment;
 import java.util.ArrayList;
 import java.util.List;
 
-import extensions.anbui.daydream.configs.Configs;
 import extensions.anbui.daydream.library.DRFeatureManager;
 import mod.hey.studios.build.BuildSettings;
 import mod.hey.studios.project.ProjectSettings;
@@ -62,6 +40,19 @@ public class BuildSettingsBottomSheet extends BottomSheetDialogFragment {
     private static final int VIEW_ABI_ARMEABI_V7A = totalViews++;
     private static final int VIEW_ABI_X86 = totalViews++;
     private static final int VIEW_ABI_X86_64 = totalViews++;
+    
+    // ====== VIEWS BARU ======
+    private static final int VIEW_BUILD_MODE = totalViews++;
+    private static final int VIEW_DEBUG_KEYSTORE_PATH = totalViews++;
+    private static final int VIEW_DEBUG_KEYSTORE_ALIAS = totalViews++;
+    private static final int VIEW_DEBUG_STORE_PASS = totalViews++;
+    private static final int VIEW_DEBUG_KEY_PASS = totalViews++;
+    private static final int VIEW_RELEASE_KEYSTORE_PATH = totalViews++;
+    private static final int VIEW_RELEASE_KEYSTORE_ALIAS = totalViews++;
+    private static final int VIEW_RELEASE_STORE_PASS = totalViews++;
+    private static final int VIEW_RELEASE_KEY_PASS = totalViews++;
+    // ========================
+    
     private View[] views;
 
     private ProjectConfigLayoutBinding binding;
@@ -107,6 +98,7 @@ public class BuildSettingsBottomSheet extends BottomSheetDialogFragment {
         super.onViewCreated(view, savedInstanceState);
 
         initializeViews();
+        setupKeystorePickers();
 
         binding.noWarnings.setOnClickListener(v -> binding.cbNoWarnings.performClick());
         binding.noHttpLegacy.setOnClickListener(v -> binding.cbNoHttpLegacy.performClick());
@@ -117,7 +109,18 @@ public class BuildSettingsBottomSheet extends BottomSheetDialogFragment {
 
         setRadioGroupOptions(binding.rgDexer, new String[]{"Dx", "D8"}, SETTING_DEXER, "Dx");
         setRadioGroupOptions(binding.rgJavaVersion, getAvailableJavaVersions(), SETTING_JAVA_VERSION, "1.7");
+        setRadioGroupOptions(binding.rgBuildMode, new String[]{BUILD_MODE_DEBUG, BUILD_MODE_RELEASE}, SETTING_BUILD_MODE, BUILD_MODE_DEBUG);
+
+        binding.tilDebugKeystorePath.getEditText().setText(projectSettings.getValue(SETTING_DEBUG_KEYSTORE_PATH, ""));
+        binding.tilDebugKeystoreAlias.getEditText().setText(projectSettings.getValue(SETTING_DEBUG_KEYSTORE_ALIAS, ""));
+        binding.tilDebugStorePass.getEditText().setText(projectSettings.getValue(SETTING_DEBUG_STORE_PASS, ""));
+        binding.tilDebugKeyPass.getEditText().setText(projectSettings.getValue(SETTING_DEBUG_KEY_PASS, ""));
         
+        binding.tilReleaseKeystorePath.getEditText().setText(projectSettings.getValue(SETTING_RELEASE_KEYSTORE_PATH, ""));
+        binding.tilReleaseKeystoreAlias.getEditText().setText(projectSettings.getValue(SETTING_RELEASE_KEYSTORE_ALIAS, ""));
+        binding.tilReleaseStorePass.getEditText().setText(projectSettings.getValue(SETTING_RELEASE_STORE_PASS, ""));
+        binding.tilReleaseKeyPass.getEditText().setText(projectSettings.getValue(SETTING_RELEASE_KEY_PASS, ""));
+
         boolean nativeEnable = new ProjectSettings(getArguments().getString("sc_id")).getValue(ProjectSettings.SETTING_ENABLE_NATIVE, "false").equals("true");
         binding.cmakeSection.setVisibility(nativeEnable ? View.VISIBLE : View.GONE);
 
@@ -153,6 +156,44 @@ public class BuildSettingsBottomSheet extends BottomSheetDialogFragment {
         });
     }
 
+    private void setupKeystorePickers() {
+        binding.tilDebugKeystorePath.setEndIconMode(com.google.android.material.textfield.TextInputLayout.END_ICON_CUSTOM);
+        binding.tilDebugKeystorePath.setEndIconDrawable(android.R.drawable.ic_menu_search);
+        binding.tilDebugKeystorePath.setEndIconOnClickListener(v -> {
+            Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+            intent.setType("*/*");
+            startActivityForResult(intent, 123);
+        });
+
+        binding.tilReleaseKeystorePath.setEndIconMode(com.google.android.material.textfield.TextInputLayout.END_ICON_CUSTOM);
+        binding.tilReleaseKeystorePath.setEndIconDrawable(android.R.drawable.ic_menu_search);
+        binding.tilReleaseKeystorePath.setEndIconOnClickListener(v -> {
+            Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+            intent.setType("*/*");
+            startActivityForResult(intent, 124);
+        });
+    }
+
+    @Override
+    public void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (resultCode == android.app.Activity.RESULT_OK && data != null && data.getData() != null) {
+            String path = data.getData().getPath();
+            if (path != null) {
+                if (path.contains("primary:")) {
+                    path = android.os.Environment.getExternalStorageDirectory() + "/" + path.split("primary:")[1];
+                } else if (path.contains("raw:")) {
+                    path = path.replaceFirst(".*raw:", "");
+                }
+                if (requestCode == 123) {
+                    binding.tilDebugKeystorePath.getEditText().setText(path);
+                } else if (requestCode == 124) {
+                    binding.tilReleaseKeystorePath.getEditText().setText(path);
+                }
+            }
+        }
+    }
+
     @Override
     public void onDestroyView() {
         super.onDestroyView();
@@ -172,6 +213,16 @@ public class BuildSettingsBottomSheet extends BottomSheetDialogFragment {
         binding.chipAbiX86.setTag(SETTING_CMAKE_ABI_X86);
         binding.chipAbiX8664.setTag(SETTING_CMAKE_ABI_X86_64);
 
+        binding.rgBuildMode.setTag(SETTING_BUILD_MODE);
+        binding.tilDebugKeystorePath.getEditText().setTag(SETTING_DEBUG_KEYSTORE_PATH);
+        binding.tilDebugKeystoreAlias.getEditText().setTag(SETTING_DEBUG_KEYSTORE_ALIAS);
+        binding.tilDebugStorePass.getEditText().setTag(SETTING_DEBUG_STORE_PASS);
+        binding.tilDebugKeyPass.getEditText().setTag(SETTING_DEBUG_KEY_PASS);
+        binding.tilReleaseKeystorePath.getEditText().setTag(SETTING_RELEASE_KEYSTORE_PATH);
+        binding.tilReleaseKeystoreAlias.getEditText().setTag(SETTING_RELEASE_KEYSTORE_ALIAS);
+        binding.tilReleaseStorePass.getEditText().setTag(SETTING_RELEASE_STORE_PASS);
+        binding.tilReleaseKeyPass.getEditText().setTag(SETTING_RELEASE_KEY_PASS);
+
         views[VIEW_ANDROIR_JAR_PATH] = binding.tilAndroidJar.getEditText();
         views[VIEW_CLASS_PATH] = binding.tilClasspath.getEditText();
         views[VIEW_DEXER] = binding.rgDexer;
@@ -183,6 +234,16 @@ public class BuildSettingsBottomSheet extends BottomSheetDialogFragment {
         views[VIEW_ABI_ARMEABI_V7A] = binding.chipAbiArmeabiV7a;
         views[VIEW_ABI_X86] = binding.chipAbiX86;
         views[VIEW_ABI_X86_64] = binding.chipAbiX8664;
+        
+        views[VIEW_BUILD_MODE] = binding.rgBuildMode;
+        views[VIEW_DEBUG_KEYSTORE_PATH] = binding.tilDebugKeystorePath.getEditText();
+        views[VIEW_DEBUG_KEYSTORE_ALIAS] = binding.tilDebugKeystoreAlias.getEditText();
+        views[VIEW_DEBUG_STORE_PASS] = binding.tilDebugStorePass.getEditText();
+        views[VIEW_DEBUG_KEY_PASS] = binding.tilDebugKeyPass.getEditText();
+        views[VIEW_RELEASE_KEYSTORE_PATH] = binding.tilReleaseKeystorePath.getEditText();
+        views[VIEW_RELEASE_KEYSTORE_ALIAS] = binding.tilReleaseKeystoreAlias.getEditText();
+        views[VIEW_RELEASE_STORE_PASS] = binding.tilReleaseStorePass.getEditText();
+        views[VIEW_RELEASE_KEY_PASS] = binding.tilReleaseKeyPass.getEditText();
 
         if (DRFeatureManager.getForMinSDK() < 33)
             binding.lnNote.setVisibility(View.GONE);

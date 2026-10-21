@@ -13,6 +13,23 @@ public class BuildSettings extends ProjectSettings implements Serializable {
     public static final String SETTING_JAVA_VERSION = "java_ver";
     public static final String SETTING_NO_HTTP_LEGACY = "no_http_legacy";
     public static final String SETTING_NO_WARNINGS = "no_warn";
+    
+    // ====== CUSTOM SETTINGS (BARU DITAMBAHKAN) ======
+    public static final String SETTING_BUILD_MODE = "build_mode";
+    public static final String BUILD_MODE_DEBUG = "Debug";
+    public static final String BUILD_MODE_RELEASE = "Release";
+
+    public static final String SETTING_DEBUG_KEYSTORE_PATH = "debug_keystore_path";
+    public static final String SETTING_DEBUG_KEYSTORE_ALIAS = "debug_keystore_alias";
+    public static final String SETTING_DEBUG_STORE_PASS = "debug_store_pass";
+    public static final String SETTING_DEBUG_KEY_PASS = "debug_key_pass";
+
+    public static final String SETTING_RELEASE_KEYSTORE_PATH = "release_keystore_path";
+    public static final String SETTING_RELEASE_KEYSTORE_ALIAS = "release_keystore_alias";
+    public static final String SETTING_RELEASE_STORE_PASS = "release_store_pass";
+    public static final String SETTING_RELEASE_KEY_PASS = "release_key_pass";
+    // ===============================================
+
     public static final String SETTING_ENABLE_LOGCAT = "enable_logcat";
     public static final String SETTING_CMAKE_ABIS = "cmake_abis";
     public static final String SETTING_CMAKE_ABI_ARM64_V8A = "cmake_abi_arm64_v8a";
