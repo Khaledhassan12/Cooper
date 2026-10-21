@@ -32,6 +32,7 @@ import java.util.ArrayList;
 
 import a.a.a.jC;
 import a.a.a.mB;
+import pro.sketchware.R;
 import pro.sketchware.databinding.ActivityLayoutPreviewBinding;
 import pro.sketchware.tools.ViewBeanParser;
 import pro.sketchware.utility.SketchwareUtil;
