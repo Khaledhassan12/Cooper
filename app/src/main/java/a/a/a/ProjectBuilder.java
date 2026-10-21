@@ -65,6 +65,7 @@ import mod.agus.jcoderz.dex.Dex;
 import mod.agus.jcoderz.dex.FieldId;
 import mod.agus.jcoderz.dex.MethodId;
 import mod.agus.jcoderz.dex.ProtoId;
+import mod.agus.jcoderz.dex.TypeId;
 import mod.agus.jcoderz.dx.command.dexer.DxContext;
 import mod.agus.jcoderz.dx.command.dexer.Main;
 import mod.agus.jcoderz.dx.merge.CollisionPolicy;
@@ -1052,10 +1053,6 @@ public class ProjectBuilder {
         return builtInLibraryManager;
     }
 
-    public void signDebugApk() throws GeneralSecurityException, IOException, ClassNotFoundException, IllegalAccessException, InstantiationException {
-        TestkeySignBridge.signWithTestkey(yq.unsignedUnalignedApkPath, yq.finalToInstallApkPath);
-    }
-
     public void compileNativeCode() throws Exception {
         String val = settings.getValue(ProjectSettings.SETTING_ENABLE_NATIVE, "false");
         if (!val.equals("true")) return;
@@ -1244,5 +1241,62 @@ public class ProjectBuilder {
 
     public void setBuildAppBundle(boolean buildAppBundle) {
         this.buildAppBundle = buildAppBundle;
+    }
+
+    public void signApk(String keystorePath, String alias, String storePass, String keyPass, String inPath, String outPath) throws Exception {
+        try {
+            java.security.Security.addProvider(new org.spongycastle.jce.provider.BouncyCastleProvider());
+            kellinwood.security.zipsigner.optional.CustomKeySigner.signZip(
+                    new kellinwood.security.zipsigner.ZipSigner(),
+                    keystorePath,
+                    storePass.toCharArray(),
+                    alias,
+                    keyPass.toCharArray(),
+                    "SHA256withRSA",
+                    inPath,
+                    outPath
+            );
+        } catch (kellinwood.security.zipsigner.optional.LoadKeystoreException e) {
+            throw new Exception("Keystore error: Password salah atau alias tidak ditemukan (" + e.getMessage() + ")", e);
+        } catch (Exception e) {
+            throw new Exception("Gagal sign APK: " + e.getMessage(), e);
+        }
+    }
+
+    public void signDebugApk() throws Exception {
+        String keystorePath = build_settings.getValue(BuildSettings.SETTING_DEBUG_KEYSTORE_PATH, "");
+        String alias = build_settings.getValue(BuildSettings.SETTING_DEBUG_KEYSTORE_ALIAS, "");
+        String storePass = build_settings.getValue(BuildSettings.SETTING_DEBUG_STORE_PASS, "");
+        String keyPass = build_settings.getValue(BuildSettings.SETTING_DEBUG_KEY_PASS, "");
+
+        boolean isAnyFilled = !keystorePath.isEmpty() || !alias.isEmpty() || !storePass.isEmpty() || !keyPass.isEmpty();
+        boolean isAllFilled = !keystorePath.isEmpty() && !alias.isEmpty() && !storePass.isEmpty() && !keyPass.isEmpty();
+
+        if (isAnyFilled) {
+            if (!isAllFilled) {
+                throw new Exception("Keystore Debug tidak lengkap! Pastikan Path, Alias, Store Password, dan Key Password terisi semua.");
+            }
+            if (!new java.io.File(keystorePath).exists()) {
+                throw new Exception("File keystore debug tidak ditemukan: " + keystorePath);
+            }
+            signApk(keystorePath, alias, storePass, keyPass, yq.unsignedUnalignedApkPath, yq.finalToInstallApkPath);
+        } else {
+            TestkeySignBridge.signWithTestkey(yq.unsignedUnalignedApkPath, yq.finalToInstallApkPath);
+        }
+    }
+
+    public void signReleaseApk() throws Exception {
+        String keystorePath = build_settings.getValue(BuildSettings.SETTING_RELEASE_KEYSTORE_PATH, "");
+        String alias = build_settings.getValue(BuildSettings.SETTING_RELEASE_KEYSTORE_ALIAS, "");
+        String storePass = build_settings.getValue(BuildSettings.SETTING_RELEASE_STORE_PASS, "");
+        String keyPass = build_settings.getValue(BuildSettings.SETTING_RELEASE_KEY_PASS, "");
+
+        if (keystorePath.isEmpty() || alias.isEmpty() || storePass.isEmpty() || keyPass.isEmpty()) {
+            throw new Exception("Keystore Release belum dikonfigurasi lengkap di Build Settings.");
+        }
+        if (!new java.io.File(keystorePath).exists()) {
+            throw new Exception("File keystore release tidak ditemukan: " + keystorePath);
+        }
+        signApk(keystorePath, alias, storePass, keyPass, yq.unsignedUnalignedApkPath, yq.finalToInstallApkPath);
     }
 }
