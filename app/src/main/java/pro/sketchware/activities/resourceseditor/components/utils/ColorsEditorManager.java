@@ -1,7 +1,5 @@
 package pro.sketchware.activities.resourceseditor.components.utils;
 
-import static mod.hey.studios.util.ProjectFile.getDefaultColor;
-
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.view.ContextThemeWrapper;
@@ -21,15 +19,11 @@ import org.xml.sax.InputSource;
 import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Set;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 
-import a.a.a.lC;
 import a.a.a.wq;
-import a.a.a.yB;
 import pro.sketchware.R;
 import pro.sketchware.SketchApplication;
 import pro.sketchware.activities.resourceseditor.components.models.ColorModel;
@@ -162,7 +156,6 @@ public class ColorsEditorManager {
 
     public void parseColorsXML(ArrayList<ColorModel> colorList, String colorXml) {
         isDataLoadingFailed = false;
-        ArrayList<String> foundPrimaryColors = new ArrayList<>();
         ArrayList<ColorModel> colorOrderList = new ArrayList<>();
         ArrayList<ColorModel> otherColors = new ArrayList<>();
         boolean hasChanges = false; // Flag to track changes
@@ -194,7 +187,6 @@ public class ColorsEditorManager {
                         colorList.add(colorModel);
 
                         if (defaultColors != null && defaultColors.containsKey(colorName)) {
-                            foundPrimaryColors.add(colorName);
                             colorOrderList.add(colorModel);
                         } else {
                             otherColors.add(colorModel);
@@ -203,20 +195,7 @@ public class ColorsEditorManager {
                 }
             }
 
-            if (isDefaultVariant && defaultColors != null && sc_id != null) {
-                HashMap<String, Object> metadata = lC.b(sc_id);
-                Set<String> missingKeys = new HashSet<>(defaultColors.keySet());
-                foundPrimaryColors.forEach(missingKeys::remove);
-
-                if (!missingKeys.isEmpty()) {
-                    for (String missingColor : missingKeys) {
-                        String colorHex = String.format("#%06X", yB.a(metadata, defaultColors.get(missingColor), getDefaultColor(defaultColors.get(missingColor))) & 0xffffff);
-                        ColorModel missingColorModel = new ColorModel(missingColor, colorHex);
-                        colorOrderList.add(missingColorModel);
-                        hasChanges = true;
-                    }
-                }
-            }
+            // Warna bawaan yang sudah dihapus user TIDAK ditambahkan kembali.
 
             // Reorder colors
             ArrayList<ColorModel> previousColorList = new ArrayList<>(colorList); // Save the original list for comparison
