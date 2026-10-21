@@ -361,6 +361,20 @@ public class ViewPane extends RelativeLayout {
         addView(rootLayout);
     }
 
+    public void setPreviewRoot(View rootView) {
+        if (rootLayout != null) {
+            removeView(rootLayout);
+        }
+        rootLayout = (ViewGroup) rootView;
+        
+        RelativeLayout.LayoutParams lp = new RelativeLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, 
+            ViewGroup.LayoutParams.MATCH_PARENT);
+        rootLayout.setLayoutParams(lp);
+        
+        addView(rootLayout);
+    }
+
     private void updateItemView(View view, ViewBean viewBean) {
         ImageBean imageBean;
         String str;
@@ -455,7 +469,7 @@ public class ViewPane extends RelativeLayout {
                     Drawable customD = DrawablePreviewRenderer.getDrawableFromProject(sc_id, backgroundResource, 0, material3LibraryManager.canUseNightVariantColors());
                     if (customD != null) {
                         view.setBackground(customD);
-                    } else if (resourcesManager != null) { // Fallback ke logic lama
+                    } else if (resourcesManager != null) { 
                         String backgroundRes = resourcesManager.f(backgroundResource);
                         if (backgroundRes.endsWith(".9.png")) {
                             Bitmap decodedBitmap = zB.a(backgroundRes);
@@ -991,12 +1005,14 @@ public class ViewPane extends RelativeLayout {
         ViewBean bean = ((ItemView) view).getBean();
         if (rootLayout != null) {
             ViewGroup viewGroup = rootLayout.findViewWithTag(bean.parent);
-            viewGroup.addView(view, bean.index);
-            if (bean.parentType == ViewBean.VIEW_TYPE_LAYOUT_RELATIVE) {
-                updateRelativeParentViews(view, new InjectAttributeHandler(bean));
-            }
-            if (viewGroup instanceof ScrollContainer scrollContainer) {
-                scrollContainer.reindexChildren();
+            if (viewGroup != null) {
+                viewGroup.addView(view, bean.index);
+                if (bean.parentType == ViewBean.VIEW_TYPE_LAYOUT_RELATIVE) {
+                    updateRelativeParentViews(view, new InjectAttributeHandler(bean));
+                }
+                if (viewGroup instanceof ScrollContainer scrollContainer) {
+                    scrollContainer.reindexChildren();
+                }
             }
         }
     }

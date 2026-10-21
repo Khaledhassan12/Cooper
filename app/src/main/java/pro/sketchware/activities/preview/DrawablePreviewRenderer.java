@@ -18,14 +18,11 @@ import org.xmlpull.v1.XmlPullParserFactory;
 import java.io.File;
 import java.io.StringReader;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
 
 import a.a.a.wq;
 import mod.bobur.VectorDrawableParser;
 import pro.sketchware.SketchApplication;
 import pro.sketchware.activities.resourceseditor.components.utils.ColorsEditorManager;
-import pro.sketchware.activities.resourceseditor.components.utils.DimensEditorManager;
 import pro.sketchware.utility.FileUtil;
 import pro.sketchware.utility.PropertiesUtil;
 
@@ -68,7 +65,7 @@ public class DrawablePreviewRenderer {
             }
         }
         
-        return null; // Fallback jika tidak didukung
+        return null;
     }
 
     public static Drawable getDrawableFromProject(String sc_id, String name, int depth, boolean isNightMode) {
@@ -87,7 +84,6 @@ public class DrawablePreviewRenderer {
             }
         }
         
-        // Urutkan folder: drawable-night prioritas jika isNightMode, lalu drawable-v24, dll. drawable (base) paling akhir
         candidates.sort((f1, f2) -> {
             String n1 = f1.getName();
             String n2 = f2.getName();
@@ -95,7 +91,7 @@ public class DrawablePreviewRenderer {
                 if (n1.contains("-night") && !n2.contains("-night")) return -1;
                 if (!n1.contains("-night") && n2.contains("-night")) return 1;
             }
-            return n2.compareTo(n1); // Reverse alphabetical favors suffixes over base 'drawable'
+            return n2.compareTo(n1); 
         });
 
         String[] extensions = {".xml", ".png", ".jpg", ".webp", ".9.png", ".svg"};
@@ -164,7 +160,6 @@ public class DrawablePreviewRenderer {
             return gd;
         } catch (Exception e) {
             Log.e(TAG, "Failed parsing basic shape", e);
-            // Fallback
             GradientDrawable fallback = new GradientDrawable();
             fallback.setColor(Color.LTGRAY);
             return fallback;

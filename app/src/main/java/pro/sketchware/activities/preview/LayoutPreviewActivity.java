@@ -32,7 +32,6 @@ import java.util.ArrayList;
 
 import a.a.a.jC;
 import a.a.a.mB;
-import pro.sketchware.R;
 import pro.sketchware.databinding.ActivityLayoutPreviewBinding;
 import pro.sketchware.tools.ViewBeanParser;
 import pro.sketchware.utility.SketchwareUtil;
@@ -105,12 +104,12 @@ public class LayoutPreviewActivity extends BaseAppCompatActivity {
                 previewMenuToolbar.setVisibility(View.GONE);
                 
                 pane.initialize(sc_id, true);
-                pane.updateRootLayout(sc_id, getIntent().getStringExtra("title"));
                 pane.setVerticalScrollBarEnabled(true);
                 pane.setResourceManager(jC.d(sc_id));
                 UI.addSystemWindowInsetToPadding(pane, false, false, false, true);
                 
                 ViewBeanParser parser = new ViewBeanParser(content);
+                parser.setSkipRoot(false);
                 loadViews(parser.parse());
                 
             } else if (previewType.equals("drawable") || previewType.equals("svg")) {
@@ -194,7 +193,6 @@ public class LayoutPreviewActivity extends BaseAppCompatActivity {
             phoneFrame.setCardBackgroundColor(0xFFFFFFFF); // Light Surface
         }
         
-        // Update Drawable dynamically if it's currently showing
         if (previewType.equals("drawable") || previewType.equals("svg")) {
             try {
                 File sourceFile = new File(getIntent().getStringExtra("content"));
@@ -221,27 +219,22 @@ public class LayoutPreviewActivity extends BaseAppCompatActivity {
         return checker;
     }
 
-    private ItemView loadView(ViewBean view) {
-        var itemView = pane.createItemView(view);
-        pane.addViewAndUpdateIndex(itemView);
-        if (itemView instanceof ItemView sy) {
-            sy.setFixed(true);
-            return sy;
-        }
-        return null;
-    }
-
     private ItemView loadViews(ArrayList<ViewBean> views) {
         ItemView itemView = null;
         for (ViewBean view : views) {
             if (views.indexOf(view) == 0) {
                 view.parent = "root";
-                view.parentType = 0;
+                view.parentType = 1; // ViewBean.VIEW_TYPE_LAYOUT_RELATIVE (ViewPane itself is RelativeLayout)
                 view.preParent = null;
                 view.preParentType = -1;
-                itemView = loadView(view);
+                itemView = (ItemView) pane.createItemView(view);
+                if (itemView != null) {
+                    itemView.setFixed(true);
+                    pane.setPreviewRoot((View) itemView);
+                }
             } else {
-                loadView(view);
+                ItemView child = (ItemView) pane.createItemView(view);
+                pane.addViewAndUpdateIndex((View) child);
             }
         }
         return itemView;
