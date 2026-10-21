@@ -211,7 +211,7 @@ public class ProjectBuilder {
         return true;
     }
 
-    public void compileResources() throws Exception {
+    public boolean compileResources() throws Exception {
         timestampResourceCompilationStarted = System.currentTimeMillis();
 
         String inputHash = BuildCache.combine(
@@ -241,7 +241,7 @@ public class ProjectBuilder {
                 FileUtil.copyFile(cachedApk.getAbsolutePath(), yq.resourcesApkPath);
                 FileUtil.copyDirectory(cachedGen, new File(yq.rJavaDirectoryPath));
                 LogUtil.d(TAG, "Resources UP-TO-DATE");
-                return;
+                return true;
             }
         } else {
             if (progressReceiver != null) progressReceiver.onProgress("AAPT2 is running...", 8);
@@ -257,6 +257,7 @@ public class ProjectBuilder {
             FileUtil.copyDirectory(new File(yq.rJavaDirectoryPath), new File(cached, "gen"));
             buildCache.markUpToDate("resources", inputHash);
         }
+        return false;
     }
 
     public void generateViewBinding() throws IOException, SAXException {
@@ -281,9 +282,9 @@ public class ProjectBuilder {
         return (isD8Enabled() ? "D8" : "Dx") + " is running...";
     }
 
-    public void createDexFilesFromClasses() throws Exception {
+    public boolean createDexFilesFromClasses() throws Exception {
         FileUtil.makeDir(yq.binDirectoryPath + File.separator + "dex");
-        if (proguard.isShrinkingEnabled() && proguard.isR8Enabled()) return;
+        if (proguard.isShrinkingEnabled() && proguard.isR8Enabled()) return false;
 
         String dexSourcePath = proguard.isShrinkingEnabled() ? yq.proguardClassesPath : yq.compiledClassesPath;
         String dexInputHash = BuildCache.combine(
@@ -300,7 +301,7 @@ public class ProjectBuilder {
                 FileUtil.copyDirectory(cachedDex, dexOutputDir);
                 if (progressReceiver != null) progressReceiver.onProgress("Dex UP-TO-DATE", 17);
                 LogUtil.d(TAG, "Dex UP-TO-DATE");
-                return;
+                return true;
             }
         }
 
@@ -347,6 +348,7 @@ public class ProjectBuilder {
             FileUtil.copyDirectory(dexOutputDir, cachedDex);
             buildCache.markUpToDate("dex", dexInputHash);
         }
+        return false;
     }
 
     public String getClasspath() {
@@ -631,7 +633,7 @@ public class ProjectBuilder {
     /**
      * Run Eclipse Compiler to compile Java files.
      */
-    public void compileJavaCode() throws zy, IOException {
+    public boolean compileJavaCode() throws zy, IOException {
         String classpathForHash = getClasspath();
         String javaInputHash = BuildCache.combine(
                 BuildCache.hashDirectory(yq.javaFilesPath, yq.rJavaDirectoryPath,
@@ -650,7 +652,7 @@ public class ProjectBuilder {
                 FileUtil.deleteFile(yq.compiledClassesPath);
                 FileUtil.copyDirectory(cachedClasses, new File(yq.compiledClassesPath));
                 LogUtil.d(TAG, "Java compile UP-TO-DATE");
-                return;
+                return true;
             }
         } else {
             if (progressReceiver != null) progressReceiver.onProgress("Java is compiling...", 13);
@@ -745,17 +747,39 @@ public class ProjectBuilder {
                 throw new zy(errOutputStream.getOut());
             }
         }
+        return false;
     }
 
     private File filterMultiplatformJunkFromJar(File originalJar) {
+        String key = BuildCache.hashStrings(
+                originalJar.getAbsolutePath(),
+                String.valueOf(originalJar.length()),
+                String.valueOf(originalJar.lastModified())
+        );
+
+        File cacheDir = new File(context.getCacheDir(), "filtered_jars");
+        cacheDir.mkdirs();
+
+        if (key != null) {
+            File cleanMarker = new File(cacheDir, key + ".clean");
+            if (cleanMarker.exists()) {
+                return originalJar;
+            }
+            File cachedJar = new File(cacheDir, key + ".jar");
+            if (cachedJar.exists() && cachedJar.length() > 0) {
+                return cachedJar;
+            }
+        }
+
+        String tmpName = (key != null) ? key + ".tmp" : "nokey_" + originalJar.getName();
+        File tmpFile = new File(cacheDir, tmpName);
+
         try {
-            File filteredJar = new File(context.getCacheDir(), "filtered_" + originalJar.getName());
+            boolean foundJunk = false;
             try (ZipFile zipIn = new ZipFile(originalJar);
-                 ZipOutputStream zipOut = new ZipOutputStream(new FileOutputStream(filteredJar))) {
+                 ZipOutputStream zipOut = new ZipOutputStream(new FileOutputStream(tmpFile))) {
 
                 Enumeration<? extends ZipEntry> entries = zipIn.entries();
-                boolean foundJunk = false;
-
                 while (entries.hasMoreElements()) {
                     ZipEntry entry = entries.nextElement();
                     String name = entry.getName();
@@ -781,16 +805,32 @@ public class ProjectBuilder {
                     }
                     zipOut.closeEntry();
                 }
+            }
 
-                if (!foundJunk) {
-                    filteredJar.delete();
-                    return originalJar;
+            if (!foundJunk) {
+                tmpFile.delete();
+                if (key != null) {
+                    new File(cacheDir, key + ".clean").createNewFile();
+                }
+                return originalJar;
+            } else {
+                if (key != null) {
+                    File targetJar = new File(cacheDir, key + ".jar");
+                    if (tmpFile.renameTo(targetJar)) {
+                        LogUtil.d(TAG, "Filtered Kotlin Multiplatform metadata from " + originalJar.getName());
+                        return targetJar;
+                    } else {
+                        tmpFile.delete();
+                        return originalJar;
+                    }
+                } else {
+                    LogUtil.d(TAG, "Filtered Kotlin Multiplatform metadata from " + originalJar.getName() + " (no cache)");
+                    return tmpFile;
                 }
             }
-            LogUtil.d(TAG, "Filtered Kotlin Multiplatform metadata from " + originalJar.getName());
-            return filteredJar;
         } catch (IOException e) {
             LogUtil.e(TAG, "Failed to filter multiplatform junk from " + originalJar.getName(), e);
+            tmpFile.delete();
             return originalJar;
         }
     }
@@ -852,7 +892,7 @@ public class ProjectBuilder {
                 (System.currentTimeMillis() - timestampResourceCompilationStarted) + " ms");
     }
 
-    public void getDexFilesReady() throws Exception {
+    public boolean getDexFilesReady() throws Exception {
         long savedTimeMillis = System.currentTimeMillis();
         ArrayList<File> dexes = new ArrayList<>();
 
@@ -910,11 +950,19 @@ public class ProjectBuilder {
             }
         }
 
+        List<File> libraryDexes = new ArrayList<>(dexes);
+        List<File> projectDexes = new ArrayList<>();
+
         for (String file : FileUtil.listFiles(yq.binDirectoryPath + File.separator + "dex", "dex")) {
-            dexes.add(new File(file));
+            File f = new File(file);
+            dexes.add(f);
+            projectDexes.add(f);
         }
 
-        String mergeInputHash = BuildCache.hashFiles(dexes);
+        String mergeInputHash = BuildCache.combine(
+                BuildCache.hashFilesQuick(libraryDexes),
+                BuildCache.hashFiles(projectDexes)
+        );
 
         if (buildCache.isUpToDate("merge", mergeInputHash)) {
             File cachedMerge = buildCache.stageOutputDir("merge");
@@ -925,7 +973,7 @@ public class ProjectBuilder {
                 }
                 if (progressReceiver != null) progressReceiver.onProgress("Dex merge UP-TO-DATE", 18);
                 LogUtil.d(TAG, "Dex merge UP-TO-DATE");
-                return;
+                return true;
             }
         }
 
@@ -946,6 +994,7 @@ public class ProjectBuilder {
             }
             buildCache.markUpToDate("merge", mergeInputHash);
         }
+        return false;
     }
 
     public void maybeExtractAapt2() throws By {

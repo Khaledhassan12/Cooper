@@ -54,8 +54,13 @@ class BuildTaskNew @JvmOverloads constructor(
         listener.onTaskStart(name)
         val startTime = System.currentTimeMillis()
         try {
-            body.run()
-            listener.onTaskDone(name, System.currentTimeMillis() - startTime)
+            val isUpToDate = body.run()
+            if (isUpToDate) {
+                receiver.onProgress("Task: $name (UP-TO-DATE)", stepNo)
+                listener.onTaskSkipped(name)
+            } else {
+                listener.onTaskDone(name, System.currentTimeMillis() - startTime)
+            }
         } catch (e: Exception) {
             listener.onTaskFailed(name, e)
             throw e
@@ -67,7 +72,7 @@ class BuildTaskNew @JvmOverloads constructor(
 
     private fun interface Step {
         @Throws(Exception::class)
-        fun run()
+        fun run(): Boolean
     }
 
     private class CancelledException : Exception()
@@ -89,6 +94,7 @@ class BuildTaskNew @JvmOverloads constructor(
         try {
             step("deleteTempFiles", 1) {
                 FileUtil.deleteFile(q.projectMyscPath)
+                false
             }
 
             step("generateSourceCode", 2) {
@@ -117,6 +123,7 @@ class BuildTaskNew @JvmOverloads constructor(
                 jC.d(scId).a(q.assetsPath + File.separator + "fonts")
                 
                 builder = ProjectBuilder(silentReceiver, context, q)
+                false
             }
 
             step("prepareProject", 3) {
@@ -130,10 +137,12 @@ class BuildTaskNew @JvmOverloads constructor(
                 q.f()
                 q.e()
                 builder.maybeExtractAapt2()
+                false
             }
 
             step("extractBuiltInLibraries", 4) {
                 BuiltInLibraries.extractCompileAssets(silentReceiver)
+                false
             }
 
             step(
@@ -141,7 +150,7 @@ class BuildTaskNew @JvmOverloads constructor(
                 stepNo = 5,
                 skipIf = { !hasFiles(File(q.assetsPath)) }
             ) {
-                // isi jika ada penyalinan aset tambahan
+                false
             }
 
             step("compileResources", 6) {
@@ -150,14 +159,17 @@ class BuildTaskNew @JvmOverloads constructor(
 
             step("generateViewBinding", 7) {
                 builder.generateViewBinding()
+                false
             }
 
             step("compileKotlin", 8) {
                 KotlinCompilerBridge.compileKotlinCodeIfPossible(silentReceiver, builder)
+                false
             }
 
             step("compileAidl", 9) {
                 builder.compileAidl()
+                false
             }
 
             step("compileJavaCode", 10) {
@@ -166,14 +178,17 @@ class BuildTaskNew @JvmOverloads constructor(
 
             step("compileNativeCode", 11) {
                 builder.compileNativeCode()
+                false
             }
 
             step("stringFog", 12) {
                 StringfogHandler(scId).start(silentReceiver, builder)
+                false
             }
 
             step("proguard", 13) {
                 ProguardHandler(scId).start(silentReceiver, builder)
+                false
             }
 
             step("dexBuilder$modeName", 14) {
@@ -186,6 +201,7 @@ class BuildTaskNew @JvmOverloads constructor(
 
             step("package$modeName", 16) {
                 builder.buildApk()
+                false
             }
 
             step("sign$modeName", 17) {
@@ -194,6 +210,7 @@ class BuildTaskNew @JvmOverloads constructor(
                 } else {
                     builder.signDebugApk()
                 }
+                false
             }
 
         } catch (e: CancelledException) {

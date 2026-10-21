@@ -8,6 +8,7 @@ import android.graphics.NinePatch;
 import android.graphics.Rect;
 import android.graphics.Typeface;
 import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
 import android.graphics.drawable.NinePatchDrawable;
 import android.text.TextUtils;
 import android.util.AttributeSet;
@@ -106,6 +107,7 @@ import mod.agus.jcoderz.editor.view.item.ItemVideoView;
 import mod.bobur.VectorDrawableLoader;
 import mod.hey.studios.util.ProjectFile;
 import pro.sketchware.R;
+import pro.sketchware.activities.preview.DrawablePreviewRenderer;
 import pro.sketchware.activities.resourceseditor.components.utils.ColorsEditorManager;
 import pro.sketchware.activities.resourceseditor.components.utils.DimensEditorManager;
 import pro.sketchware.activities.resourceseditor.components.utils.StringsEditorManager;
@@ -119,11 +121,9 @@ import pro.sketchware.utility.ResourceUtil;
 import pro.sketchware.utility.SvgUtils;
 import pro.sketchware.utility.ThemeUtils;
 
-//DR
 public class ViewPane extends RelativeLayout {
     private final String stringsStart = "@string/";
     private final String dimensStart = "@dimen/";
-//    private final FirebaseCrashlytics crashlytics = FirebaseCrashlytics.getInstance();
     private Context context;
     private ViewGroup rootLayout;
     private int b = 99;
@@ -134,9 +134,11 @@ public class ViewPane extends RelativeLayout {
     private String sc_id;
     private SvgUtils svgUtils;
     private ColorsEditorManager colorsEditorManager;
-    private int defaultTextColor = 0; // need to save the original color before changes, cause using getDefaultColor() returns the current text color
+    private int defaultTextColor = 0;
     private int defaultHintColor = 0;
     private Material3LibraryManager material3LibraryManager;
+    
+    public static final boolean PREVIEW_CARD_ANDROID_BACKGROUND = false;
 
     public ViewPane(Context context) {
         super(context);
@@ -232,7 +234,7 @@ public class ViewPane extends RelativeLayout {
     public void initialize(String sc_id, boolean isPreviewMode) {
         this.sc_id = sc_id;
         material3LibraryManager = new Material3LibraryManager(getContext(), sc_id);
-        colorsEditorManager = new ColorsEditorManager();
+        colorsEditorManager = new ColorsEditorManager(sc_id);
         int viewEditorThemeOverlay = material3LibraryManager.getViewEditorThemeOverlay();
         context = new ContextThemeWrapper(getContext(), viewEditorThemeOverlay);
         svgUtils = new SvgUtils(context);
@@ -244,7 +246,6 @@ public class ViewPane extends RelativeLayout {
         } else {
             setBackground(AppCompatResources.getDrawable(context, R.drawable.bg_view_pane));
         }
-        //addRootLayout();
         initTextView();
     }
 
@@ -397,9 +398,8 @@ public class ViewPane extends RelativeLayout {
             view.setLayoutParams(layoutParams);
             if (viewBean.getClassInfo().b("FloatingActionButton") && (imageBean = viewBean.image) != null && (str = imageBean.resName) != null && !str.isEmpty()) {
                 try {
-//                    crashlytics.log("ViewPane: trying to set image to FAB");
                     FloatingActionButton fab = (FloatingActionButton) view;
-                    if (resourcesManager.h(viewBean.image.resName) == ProjectResourceBean.PROJECT_RES_TYPE_RESOURCE) {
+                    if (resourcesManager != null && resourcesManager.h(viewBean.image.resName) == ProjectResourceBean.PROJECT_RES_TYPE_RESOURCE) {
                         int resourceId = getContext().getResources().getIdentifier(viewBean.image.resName, "drawable", getContext().getPackageName());
                         if (resourceId != 0) {
                             fab.setImageResource(resourceId);
@@ -407,48 +407,10 @@ public class ViewPane extends RelativeLayout {
                     } else if (viewBean.image.resName.equals("default_image")) {
                         fab.setImageResource(R.drawable.default_image);
                     } else {
-                        String imagePath = resourcesManager.f(viewBean.image.resName);
-                        File imageFile = new File(imagePath);
-
-                        if (imageFile.exists()) {
-                            int scaleFactor = Math.round(getResources().getDisplayMetrics().density / 2.0f);
-
-                            if (imagePath.endsWith(".xml")) {
-//                                crashlytics.log("ViewPane: loading scaled XML/SVG image");
-                                FilePathUtil fpu = new FilePathUtil();
-                                svgUtils.loadScaledSvgIntoImageView(new AppCompatImageView(getContext()) {
-                                    @Override
-                                    public void setImageBitmap(Bitmap bitmap) {
-                                        fab.setImageBitmap(bitmap);
-                                    }
-                                }, fpu.getSvgFullPath(sc_id, viewBean.image.resName), scaleFactor);
-                            } else {
-                                Bitmap bitmap = BitmapFactory.decodeFile(imagePath);
-                                if (bitmap != null) {
-                                    Bitmap scaledBitmap = Bitmap.createScaledBitmap(
-                                            bitmap,
-                                            bitmap.getWidth() * scaleFactor,
-                                            bitmap.getHeight() * scaleFactor,
-                                            true
-                                    );
-                                    fab.setImageBitmap(scaledBitmap);
-                                }
-                            }
-                        } else {
-//                            crashlytics.log("ViewPane: converting XML to SVG for FAB");
-                            VectorDrawableLoader vectorDrawableLoader = new VectorDrawableLoader();
-                            ImageView tempImageView = new AppCompatImageView(getContext()) {
-                                @Override
-                                public void setImageDrawable(android.graphics.drawable.Drawable drawable) {
-                                    fab.setImageDrawable(drawable);
-                                }
-                            };
-                            vectorDrawableLoader.setImageVectorFromFile(tempImageView, vectorDrawableLoader.getVectorFullPath(DesignActivity.sc_id, viewBean.image.resName));
-                        }
+                        Drawable d = DrawablePreviewRenderer.getDrawableFromProject(sc_id, viewBean.image.resName, 0, material3LibraryManager.canUseNightVariantColors());
+                        if (d != null) fab.setImageDrawable(d);
                     }
-                } catch (Exception exception) {
-//                    crashlytics.recordException(exception);
-                }
+                } catch (Exception exception) {}
             }
             float rotation = resolveDimenToFloat(viewBean.image.resRotate, (float) viewBean.image.rotate);
             view.setRotation(rotation);
@@ -465,7 +427,9 @@ public class ViewPane extends RelativeLayout {
             view.setVisibility(View.VISIBLE);
             return;
         }
+        
         updateLayout(view, viewBean);
+        
         float rotation = resolveDimenToFloat(viewBean.image.resRotate, (float) viewBean.image.rotate);
         view.setRotation(rotation);
         float alpha = resolveDimenToFloat(viewBean.resAlpha, viewBean.alpha);
@@ -478,31 +442,41 @@ public class ViewPane extends RelativeLayout {
         view.setTranslationY(resolveDimenToPx(viewBean.resTranslationY, viewBean.translationY));
         view.setScaleX(resolveDimenToFloat(viewBean.resScaleX, viewBean.scaleX));
         view.setScaleY(resolveDimenToFloat(viewBean.resScaleY, viewBean.scaleY));
+        
         String backgroundResource = viewBean.layout.backgroundResource;
-        if (backgroundResource != null) {
+        boolean isLinear = viewBean.type == ViewBean.VIEW_TYPE_LAYOUT_LINEAR;
+        boolean isCard = viewBean.type == ViewBeans.VIEW_TYPE_LAYOUT_CARDVIEW;
+        
+        if (backgroundResource != null && !backgroundResource.isEmpty() && (isLinear || (PREVIEW_CARD_ANDROID_BACKGROUND && isCard))) {
             try {
-                if (resourcesManager.h(backgroundResource) == ProjectResourceBean.PROJECT_RES_TYPE_RESOURCE) {
-                    view.setBackgroundResource(getContext().getResources().getIdentifier(viewBean.layout.backgroundResource, "drawable", getContext().getPackageName()));
+                if (resourcesManager != null && resourcesManager.h(backgroundResource) == ProjectResourceBean.PROJECT_RES_TYPE_RESOURCE) {
+                    view.setBackgroundResource(getContext().getResources().getIdentifier(backgroundResource, "drawable", getContext().getPackageName()));
                 } else {
-                    String backgroundRes = resourcesManager.f(viewBean.layout.backgroundResource);
-                    if (backgroundRes.endsWith(".9.png")) {
-                        Bitmap decodedBitmap = zB.a(backgroundRes);
-                        byte[] ninePatchChunk = decodedBitmap.getNinePatchChunk();
-                        if (NinePatch.isNinePatchChunk(ninePatchChunk)) {
-                            view.setBackground(new NinePatchDrawable(getResources(), decodedBitmap, ninePatchChunk, new Rect(), null));
+                    Drawable customD = DrawablePreviewRenderer.getDrawableFromProject(sc_id, backgroundResource, 0, material3LibraryManager.canUseNightVariantColors());
+                    if (customD != null) {
+                        view.setBackground(customD);
+                    } else if (resourcesManager != null) { // Fallback ke logic lama
+                        String backgroundRes = resourcesManager.f(backgroundResource);
+                        if (backgroundRes.endsWith(".9.png")) {
+                            Bitmap decodedBitmap = zB.a(backgroundRes);
+                            byte[] ninePatchChunk = decodedBitmap.getNinePatchChunk();
+                            if (NinePatch.isNinePatchChunk(ninePatchChunk)) {
+                                view.setBackground(new NinePatchDrawable(getResources(), decodedBitmap, ninePatchChunk, new Rect(), null));
+                            } else {
+                                view.setBackground(new BitmapDrawable(getResources(), backgroundRes));
+                            }
                         } else {
-                            view.setBackground(new BitmapDrawable(getResources(), backgroundRes));
+                            Bitmap decodeFile2 = BitmapFactory.decodeFile(backgroundRes);
+                            int round2 = Math.round(getResources().getDisplayMetrics().density / 2.0f);
+                            view.setBackground(new BitmapDrawable(getResources(), Bitmap.createScaledBitmap(decodeFile2, decodeFile2.getWidth() * round2, decodeFile2.getHeight() * round2, true)));
                         }
-                    } else {
-                        Bitmap decodeFile2 = BitmapFactory.decodeFile(backgroundRes);
-                        int round2 = Math.round(getResources().getDisplayMetrics().density / 2.0f);
-                        view.setBackground(new BitmapDrawable(getResources(), Bitmap.createScaledBitmap(decodeFile2, decodeFile2.getWidth() * round2, decodeFile2.getHeight() * round2, true)));
                     }
                 }
             } catch (Exception e) {
                 Log.e("DEBUG", e.getMessage(), e);
             }
         }
+        
         Gx classInfo = viewBean.getClassInfo();
         if (classInfo.a("LinearLayout")) {
             LinearLayout linearLayout = (LinearLayout) view;
@@ -533,30 +507,33 @@ public class ViewPane extends RelativeLayout {
             updateEditText((EditText) view, viewBean);
         }
         if (classInfo.a("ImageView")) {
-            if (resourcesManager.h(viewBean.image.resName) == ProjectResourceBean.PROJECT_RES_TYPE_RESOURCE) {
+            if (resourcesManager != null && resourcesManager.h(viewBean.image.resName) == ProjectResourceBean.PROJECT_RES_TYPE_RESOURCE) {
                 ((ImageView) view).setImageResource(getContext().getResources().getIdentifier(viewBean.image.resName, "drawable", getContext().getPackageName()));
             } else if (viewBean.image.resName.equals("default_image")) {
                 ((ImageView) view).setImageResource(R.drawable.default_image);
             } else {
                 try {
-                    String imagelocation = resourcesManager.f(viewBean.image.resName);
-                    File file = new File(imagelocation);
-                    if (file.exists() && file.length() > 0) {
-                        int round3 = Math.round(getResources().getDisplayMetrics().density / 2.0f);
-                        if (imagelocation.endsWith(".xml")) {
-                            FilePathUtil fpu = new FilePathUtil();
-                            svgUtils.loadScaledSvgIntoImageView((ImageView) view, fpu.getSvgFullPath(sc_id, viewBean.image.resName), round3);
+                    Drawable customD = DrawablePreviewRenderer.getDrawableFromProject(sc_id, viewBean.image.resName, 0, material3LibraryManager.canUseNightVariantColors());
+                    if (customD != null) {
+                        ((ImageView) view).setImageDrawable(customD);
+                    } else if (resourcesManager != null) {
+                        String imagelocation = resourcesManager.f(viewBean.image.resName);
+                        File file = new File(imagelocation);
+                        if (file.exists() && file.length() > 0) {
+                            int round3 = Math.round(getResources().getDisplayMetrics().density / 2.0f);
+                            if (imagelocation.endsWith(".xml")) {
+                                FilePathUtil fpu = new FilePathUtil();
+                                svgUtils.loadScaledSvgIntoImageView((ImageView) view, fpu.getSvgFullPath(sc_id, viewBean.image.resName), round3);
+                            } else {
+                                Bitmap decodeFile3 = BitmapFactory.decodeFile(imagelocation);
+                                ((ImageView) view).setImageBitmap(Bitmap.createScaledBitmap(decodeFile3, decodeFile3.getWidth() * round3, decodeFile3.getHeight() * round3, true));
+                            }
                         } else {
-                            Bitmap decodeFile3 = BitmapFactory.decodeFile(imagelocation);
-                            ((ImageView) view).setImageBitmap(Bitmap.createScaledBitmap(decodeFile3, decodeFile3.getWidth() * round3, decodeFile3.getHeight() * round3, true));
+                            VectorDrawableLoader vectorDrawableLoader = new VectorDrawableLoader();
+                            vectorDrawableLoader.setImageVectorFromFile((ImageView) view, vectorDrawableLoader.getVectorFullPath(DesignActivity.sc_id, viewBean.image.resName));
                         }
-                    } else {
-                        VectorDrawableLoader vectorDrawableLoader = new VectorDrawableLoader();
-                        vectorDrawableLoader.setImageVectorFromFile((ImageView) view, vectorDrawableLoader.getVectorFullPath(DesignActivity.sc_id, viewBean.image.resName));
                     }
                 } catch (Exception unused2) {
-//                    crashlytics.recordException(unused2);
-                    FileUtil.deleteFile(new VectorDrawableLoader().getVectorFullPath(DesignActivity.sc_id, viewBean.image.resName));
                     viewBean.image.resName = "default_image";
                     ((ImageView) view).setImageResource(R.drawable.default_image);
                 }
@@ -651,17 +628,13 @@ public class ViewPane extends RelativeLayout {
             String listitem = injectHandler.getAttributeValueOf("listitem");
             String itemCount = injectHandler.getAttributeValueOf("itemCount");
             if (!TextUtils.isEmpty(listitem)) {
-                //lmao use simple_list_item_1 for now
                 listItem.setListItem(android.R.layout.simple_list_item_1);
             }
-//            crashlytics.log("ViewPane: setting item count to EditorListItem");
             if (!TextUtils.isEmpty(itemCount)) {
                 if (TextUtils.isEmpty(listitem)) {
                     try {
                         listItem.setItemCount(Integer.parseInt(itemCount));
-                    } catch (Exception exception) {
-//                        crashlytics.recordException(exception);
-                    }
+                    } catch (Exception exception) {}
                 }
             }
         }
@@ -1124,7 +1097,6 @@ public class ViewPane extends RelativeLayout {
     }
 
     private void updateLayout(View view, ViewBean viewBean) {
-//        crashlytics.log("ViewPane: Updating layout");
         LayoutBean layoutBean = viewBean.layout;
         int width = resolveDimenToPx(layoutBean.resWidth, layoutBean.width);
         int height = resolveDimenToPx(layoutBean.resHeight, layoutBean.height);
@@ -1484,12 +1456,12 @@ public class ViewPane extends RelativeLayout {
         } else {
             cardView.setCardBackgroundColor(PropertiesUtil.parseColor(colorsEditorManager.getColorValue(context, cardBackgroundColor, 3, material3LibraryManager.canUseNightVariantColors())));
         }
-
-        cardView.setCardElevation(PropertiesUtil.resolveSize(cardElevation, 4));
-        cardView.setRadius(PropertiesUtil.resolveSize(cardCornerRadius, 8));
+        
+        cardView.setCardElevation(PropertiesUtil.resolveSize(cardElevation, 2));
+        cardView.setRadius(PropertiesUtil.resolveSize(cardCornerRadius, bean.convert.contains("Material") ? 12 : 0));
         cardView.setUseCompatPadding(Boolean.parseBoolean(TextUtils.isEmpty(compatPadding) ? "false" : compatPadding));
         cardView.setStrokeWidth(PropertiesUtil.resolveSize(strokeWidth, 0));
-        cardView.setStrokeColor(PropertiesUtil.isHexColor(strokeColor) ? PropertiesUtil.parseColor(strokeColor) : Color.WHITE);
+        cardView.setStrokeColor(PropertiesUtil.isHexColor(strokeColor) ? PropertiesUtil.parseColor(strokeColor) : Color.TRANSPARENT);
     }
 
     private void updateCircleImageView(ItemCircleImageView imageView, InjectAttributeHandler handler) {

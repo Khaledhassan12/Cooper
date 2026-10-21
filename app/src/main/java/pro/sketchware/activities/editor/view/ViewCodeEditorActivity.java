@@ -19,6 +19,8 @@ import com.besome.sketch.beans.ViewBean;
 import com.besome.sketch.lib.base.BaseAppCompatActivity;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
+import java.io.File;
+
 import a.a.a.cC;
 import a.a.a.jC;
 import io.github.rosemoe.sora.widget.CodeEditor;
@@ -121,7 +123,7 @@ public class ViewCodeEditorActivity extends BaseAppCompatActivity {
         editor.setTypefaceText(EditorUtils.getTypeface(this));
         editor.setTextSize(14);
         editor.setText(content);
-        EditorUtils.loadXmlConfig(editor, "layout/" + title); // <-- DIUBAH: dulunya loadXmlConfig(editor) tanpa parameter
+        EditorUtils.loadXmlConfig(editor, "layout/" + title);
         if (projectFile.fileType == ProjectFileBean.PROJECT_FILE_TYPE_ACTIVITY
                 && projectLibrary.isEnabled()) {
             setNote("Use AppCompat Manager to modify attributes for CoordinatorLayout, Toolbar, and other appcompat layout/widget.");
@@ -137,6 +139,22 @@ public class ViewCodeEditorActivity extends BaseAppCompatActivity {
     public void onSaveInstanceState(Bundle outState) {
         outState.putString("sc_id", sc_id);
         super.onSaveInstanceState(outState);
+    }
+    
+    private String getPreviewType(String path) {
+        if (path == null) return null;
+        File f = new File(path);
+        File parent = f.getParentFile();
+        if (parent == null) return null;
+        String dirName = parent.getName().toLowerCase();
+        
+        if (dirName.startsWith("layout")) return "layout";
+        if (dirName.startsWith("menu")) return "menu";
+        if (dirName.startsWith("drawable")) {
+            if (f.getName().toLowerCase().endsWith(".svg")) return "svg";
+            return "drawable";
+        }
+        return null;
     }
 
     @Override
@@ -154,7 +172,18 @@ public class ViewCodeEditorActivity extends BaseAppCompatActivity {
                 && projectLibrary.isEnabled()) {
             menu.add(Menu.NONE, 3, Menu.NONE, "Edit AppCompat");
         }
-        menu.add(Menu.NONE, 5, Menu.NONE, "Layout Preview");
+        
+        String previewType = getPreviewType(getIntent().getStringExtra("content"));
+        if (previewType != null) {
+            String menuTitle = "Preview";
+            switch (previewType) {
+                case "layout": menuTitle = "Layout Preview"; break;
+                case "drawable": menuTitle = "Drawable Preview"; break;
+                case "menu": menuTitle = "Menu Preview"; break;
+                case "svg": menuTitle = "SVG Preview"; break;
+            }
+            menu.add(Menu.NONE, 5, Menu.NONE, menuTitle);
+        }
         menu.add(Menu.NONE, 6, Menu.NONE, "Find & Replace");
         return true;
     }
@@ -179,7 +208,8 @@ public class ViewCodeEditorActivity extends BaseAppCompatActivity {
                 return true;
             }
             case 5 -> {
-                toLayoutPreview();
+                String type = getPreviewType(getIntent().getStringExtra("content"));
+                if (type != null) toLayoutPreview(type);
                 return true;
             }
             case 6 -> {
@@ -199,10 +229,11 @@ public class ViewCodeEditorActivity extends BaseAppCompatActivity {
         startActivity(intent);
     }
 
-    private void toLayoutPreview() {
+    private void toLayoutPreview(String type) {
         var intent = new Intent(getApplicationContext(), LayoutPreviewActivity.class);
         intent.putExtras(getIntent());
         intent.putExtra("xml", editor.getText().toString());
+        intent.putExtra("type", type);
         startActivity(intent);
     }
 
@@ -226,7 +257,6 @@ public class ViewCodeEditorActivity extends BaseAppCompatActivity {
                     XmlSyncHelper.syncXml(this, sc_id, title, editor.getText().toString());
                 }
 
-                // Update content only after validation (if any)
                 content = editor.getText().toString();
                 if (!isEdited) {
                     isEdited = true;
@@ -261,7 +291,6 @@ public class ViewCodeEditorActivity extends BaseAppCompatActivity {
             }
             cc.a(filename);
             cc.a(filename, bean);
-            // Replace the view beans with the parsed layout
             jC.a(sc_id).c.put(filename, parsedLayout);
             setResult(RESULT_OK);
         } catch (Exception e) {

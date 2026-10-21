@@ -96,6 +96,27 @@ class BuildCache(sc_id: String) {
         }
 
         @JvmStatic
+        fun hashFilesQuick(files: List<File>): String? {
+            return try {
+                val digest = MessageDigest.getInstance("SHA-256")
+                val sorted = files.sortedBy { it.absolutePath }
+                
+                for (f in sorted) {
+                    digest.update(f.absolutePath.toByteArray(StandardCharsets.UTF_8))
+                    digest.update(0.toByte())
+                    digest.update(f.length().toString().toByteArray(StandardCharsets.UTF_8))
+                    digest.update(0.toByte())
+                    digest.update(f.lastModified().toString().toByteArray(StandardCharsets.UTF_8))
+                    digest.update(0.toByte())
+                }
+                bytesToHex(digest.digest())
+            } catch (e: Exception) {
+                LogUtil.e(TAG, "Failed to quick hash file list", e)
+                null
+            }
+        }
+
+        @JvmStatic
         fun hashStrings(vararg extra: String?): String? {
             return try {
                 val digest = MessageDigest.getInstance("SHA-256")
@@ -149,7 +170,9 @@ class BuildCache(sc_id: String) {
 
         @JvmStatic
         private fun bytesToHex(bytes: ByteArray): String {
-            return bytes.joinToString("") { "%02x".format(it) }
+            return bytes.joinToString("") {
+                "%02x".format(it) 
+            }
         }
     }
 }

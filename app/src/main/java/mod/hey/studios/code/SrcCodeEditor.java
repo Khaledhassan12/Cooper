@@ -18,36 +18,16 @@ import androidx.appcompat.content.res.AppCompatResources;
 import com.besome.sketch.lib.base.BaseAppCompatActivity;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
-import org.w3c.dom.Document;
-import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
-import org.xml.sax.InputSource;
-
-import java.io.ByteArrayInputStream;
 import java.io.File;
-import java.io.StringWriter;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.transform.OutputKeys;
-import javax.xml.transform.Transformer;
-import javax.xml.transform.TransformerFactory;
-import javax.xml.transform.dom.DOMSource;
-import javax.xml.transform.stream.StreamResult;
-import javax.xml.xpath.XPath;
-import javax.xml.xpath.XPathConstants;
-import javax.xml.xpath.XPathFactory;
-
 import a.a.a.Lx;
 import io.github.rosemoe.sora.lang.Language;
 import io.github.rosemoe.sora.langs.java.JavaLanguage;
 import io.github.rosemoe.sora.langs.textmate.TextMateColorScheme;
-import io.github.rosemoe.sora.langs.textmate.TextMateLanguage;
 import io.github.rosemoe.sora.widget.CodeEditor;
 import io.github.rosemoe.sora.widget.component.EditorAutoCompletion;
 import io.github.rosemoe.sora.widget.schemes.EditorColorScheme;
@@ -156,8 +136,6 @@ public class SrcCodeEditor extends BaseAppCompatActivity {
             StringBuilder formatted = new StringBuilder();
             int depth = 0;
 
-            // We'll use a simple state to track if we just opened a tag and might
-            // want to keep the content on the same line.
             boolean justOpenedTag = false;
 
             java.util.regex.Matcher m = java.util.regex.Pattern
@@ -185,9 +163,6 @@ public class SrcCodeEditor extends BaseAppCompatActivity {
 
                 if (!between.isEmpty()) {
                     if (justOpenedTag) {
-                        // Content immediately following an opening tag.
-                        // For simple text values (no newlines in 'between'),
-                        // don't add a newline/indent yet.
                         if (!between.contains("\n")) {
                             formatted.append(between);
                         } else {
@@ -208,15 +183,12 @@ public class SrcCodeEditor extends BaseAppCompatActivity {
                     justOpenedTag = false;
                 } else if (isClosing) {
                     if (justOpenedTag && !between.contains("\n")) {
-                        // If we just opened this tag and the content was simple,
-                        // append the closing tag on the same line.
                         formatted.append(tag).append("\n");
                     } else {
                         formatted.append(indentUnit.repeat(depth)).append(tag).append("\n");
                     }
                     justOpenedTag = false;
                 } else {
-                    // Opening tag
                     if (justOpenedTag) {
                         formatted.append("\n");
                     }
@@ -238,20 +210,10 @@ public class SrcCodeEditor extends BaseAppCompatActivity {
         }
     }
 
-    // Max characters allowed on one line before an opening tag's attributes get
-    // wrapped onto separate lines, matching Android Studio's default right margin.
     private static final int PRETTIFY_MAX_LINE_LENGTH = 100;
 
     private static final java.util.Set<String> ALWAYS_WRAP_TAGS = java.util.Set.of(
-            "manifest", // <-- DITAMBAHKAN: biar <manifest xmlns:android=... package=...> ikut dipecah baris
-            "uses-library",
-            "meta-data",
-            "activity",
-            "activity-alias",
-            "service",
-            "receiver",
-            "provider",
-            "intent-filter"
+            "manifest", "uses-library", "meta-data", "activity", "activity-alias", "service", "receiver", "provider", "intent-filter"
     );
 
     private static final java.util.Map<String, Integer> CUSTOM_LINE_LENGTH = java.util.Map.of(
@@ -313,9 +275,6 @@ public class SrcCodeEditor extends BaseAppCompatActivity {
         }
     }
 
-    /**
-     * Adds a specified amount of tabs.
-     */
     public static void a(StringBuilder code, int tabAmount) {
         for (int i = 0; i < tabAmount; ++i) {
             code.append('\t');
@@ -338,13 +297,12 @@ public class SrcCodeEditor extends BaseAppCompatActivity {
                     .findFirst()
                     .orElse(-1);
 
-            // Add Default to items if not there
             List<String> items = new ArrayList<>();
             items.add("Default (Dynamic)");
             items.addAll(KNOWN_COLOR_SCHEMES.stream().map(pair -> pair.first).toList());
             themeItems = items.toArray(new String[0]);
 
-            if (selectedThemeIndex != -1) selectedThemeIndex++; // Shift for Default
+            if (selectedThemeIndex != -1) selectedThemeIndex++; 
         }
 
         new MaterialAlertDialogBuilder(activity)
@@ -498,6 +456,22 @@ public class SrcCodeEditor extends BaseAppCompatActivity {
             dialog.show();
         }
     }
+    
+    private String getPreviewType(String path) {
+        if (path == null) return null;
+        File f = new File(path);
+        File parent = f.getParentFile();
+        if (parent == null) return null;
+        String dirName = parent.getName().toLowerCase();
+        
+        if (dirName.startsWith("layout")) return "layout";
+        if (dirName.startsWith("menu")) return "menu";
+        if (dirName.startsWith("drawable")) {
+            if (f.getName().toLowerCase().endsWith(".svg")) return "svg";
+            return "drawable";
+        }
+        return null;
+    }
 
     private void loadToolbar() {
         {
@@ -509,9 +483,19 @@ public class SrcCodeEditor extends BaseAppCompatActivity {
             toolbarMenu.add(Menu.NONE, Menu.NONE, Menu.NONE, "Undo").setIcon(AppCompatResources.getDrawable(this, R.drawable.ic_mtrl_undo)).setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
             toolbarMenu.add(Menu.NONE, Menu.NONE, Menu.NONE, "Redo").setIcon(AppCompatResources.getDrawable(this, R.drawable.ic_mtrl_redo)).setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
             toolbarMenu.add(Menu.NONE, Menu.NONE, Menu.NONE, "Save").setIcon(AppCompatResources.getDrawable(this, R.drawable.ic_mtrl_save)).setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
-            if (isFileInLayoutFolder() && getIntent().hasExtra("sc_id")) {
-                toolbarMenu.add(Menu.NONE, Menu.NONE, Menu.NONE, "Layout Preview");
+            
+            String previewType = getPreviewType(getIntent().getStringExtra("content"));
+            if (previewType != null && getIntent().hasExtra("sc_id")) {
+                String menuTitle = "Preview";
+                switch (previewType) {
+                    case "layout": menuTitle = "Layout Preview"; break;
+                    case "drawable": menuTitle = "Drawable Preview"; break;
+                    case "menu": menuTitle = "Menu Preview"; break;
+                    case "svg": menuTitle = "SVG Preview"; break;
+                }
+                toolbarMenu.add(Menu.NONE, 999, Menu.NONE, menuTitle);
             }
+            
             toolbarMenu.add(Menu.NONE, Menu.NONE, Menu.NONE, "Find & Replace");
             toolbarMenu.add(Menu.NONE, Menu.NONE, Menu.NONE, "Word wrap").setCheckable(true).setChecked(local_pref.getBoolean("act_ww", false));
             toolbarMenu.add(Menu.NONE, Menu.NONE, Menu.NONE, "Pretty print");
@@ -520,6 +504,11 @@ public class SrcCodeEditor extends BaseAppCompatActivity {
             toolbarMenu.add(Menu.NONE, Menu.NONE, Menu.NONE, "Auto complete symbol pair").setCheckable(true).setChecked(local_pref.getBoolean("act_acsp", true));
 
             binding.toolbar.setOnMenuItemClickListener(item -> {
+                if (item.getItemId() == 999) {
+                    toLayoutPreview(previewType);
+                    return true;
+                }
+                
                 String title1 = item.getTitle().toString();
                 switch (title1) {
                     case "Undo":
@@ -603,10 +592,6 @@ public class SrcCodeEditor extends BaseAppCompatActivity {
                         pref.edit().putBoolean("act_ac", item.isChecked()).apply();
                         break;
 
-                    case "Layout Preview":
-                        toLayoutPreview();
-                        break;
-
                     default:
                         return false;
                 }
@@ -623,22 +608,11 @@ public class SrcCodeEditor extends BaseAppCompatActivity {
         pref.edit().putInt("act_ts", (int) (binding.editor.getTextSizePx() / scaledDensity)).apply();
     }
 
-    private boolean isFileInLayoutFolder() {
-        String content = getIntent().getStringExtra("content");
-        if (content != null) {
-            File file = new File(content);
-            if (content.contains("/resource/layout/")) {
-                String layoutFolder = file.getParent();
-                return layoutFolder != null && layoutFolder.endsWith("/resource/layout");
-            }
-        }
-        return false;
-    }
-
-    private void toLayoutPreview() {
+    private void toLayoutPreview(String type) {
         Intent intent = new Intent(getApplicationContext(), LayoutPreviewActivity.class);
         intent.putExtras(getIntent());
         intent.putExtra("xml", binding.editor.getText().toString());
+        intent.putExtra("type", type);
         startActivity(intent);
     }
 }
