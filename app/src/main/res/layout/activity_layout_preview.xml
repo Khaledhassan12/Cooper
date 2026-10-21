@@ -32,7 +32,7 @@
                     android:layout_width="48dp"
                     android:layout_height="48dp"
                     android:padding="12dp"
-                    android:src="?attr/actionModeWebSearchDrawable"
+                    android:src="@drawable/ic_preview_theme_toggle"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:contentDescription="Toggle Theme" />
             </LinearLayout>
