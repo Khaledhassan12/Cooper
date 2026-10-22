@@ -39,6 +39,7 @@ import pro.sketchware.utility.UI;
 
 public class LayoutPreviewActivity extends BaseAppCompatActivity {
 
+    private ActivityLayoutPreviewBinding binding;
     private ViewPane pane;
     private String content;
     private String previewType;
@@ -50,7 +51,7 @@ public class LayoutPreviewActivity extends BaseAppCompatActivity {
     public void onCreate(Bundle savedInstanceState) {
         enableEdgeToEdgeNoContrast();
         super.onCreate(savedInstanceState);
-        ActivityLayoutPreviewBinding binding = ActivityLayoutPreviewBinding.inflate(getLayoutInflater());
+        binding = ActivityLayoutPreviewBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
         
         MaterialToolbar toolbar = binding.toolbar;
@@ -188,17 +189,17 @@ public class LayoutPreviewActivity extends BaseAppCompatActivity {
 
     private void applyThemePreview(MaterialCardView phoneFrame) {
         if (isNightMode) {
-            phoneFrame.setCardBackgroundColor(0xFF121212); // Dark Surface
+            phoneFrame.setCardBackgroundColor(0xFF121212);
         } else {
-            phoneFrame.setCardBackgroundColor(0xFFFFFFFF); // Light Surface
+            phoneFrame.setCardBackgroundColor(0xFFFFFFFF);
         }
         
-        if (previewType.equals("drawable") || previewType.equals("svg")) {
+        if (previewType != null && (previewType.equals("drawable") || previewType.equals("svg"))) {
             try {
                 File sourceFile = new File(getIntent().getStringExtra("content"));
                 Drawable d = DrawablePreviewRenderer.renderFromContent(sc_id, sourceFile, content, isNightMode);
                 if (d != null) {
-                    ((ImageView) findViewById(R.id.preview_image)).setImageDrawable(d);
+                    binding.previewImage.setImageDrawable(d);
                 }
             } catch (Exception ignored) {}
         }
@@ -224,7 +225,7 @@ public class LayoutPreviewActivity extends BaseAppCompatActivity {
         for (ViewBean view : views) {
             if (views.indexOf(view) == 0) {
                 view.parent = "root";
-                view.parentType = 1; // ViewBean.VIEW_TYPE_LAYOUT_RELATIVE (ViewPane itself is RelativeLayout)
+                view.parentType = 1;
                 view.preParent = null;
                 view.preParentType = -1;
                 itemView = (ItemView) pane.createItemView(view);
