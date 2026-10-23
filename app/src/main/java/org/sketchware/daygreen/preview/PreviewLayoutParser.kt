@@ -42,7 +42,7 @@ class PreviewLayoutParser(
                     }
                     rawValue.startsWith("@color/") || rawValue.startsWith("?") -> {
                         val color = res.resolveColor(rawValue)
-                        if (color != -1) String.format("#%08X", color) else rawValue
+                        if (color != null) String.format("#%08X", color) else rawValue
                     }
                     rawValue.startsWith("@string/") -> {
                         res.resolveString(rawValue) ?: rawValue

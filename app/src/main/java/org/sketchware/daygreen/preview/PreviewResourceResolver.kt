@@ -71,7 +71,6 @@ class PreviewResourceResolver private constructor(
     private fun parseValuesDir() {
         parseValuesSubdir("values")
         if (nightMode) {
-            // Override colors with values-night if available
             parseValuesSubdir("values-night", colorsOnly = true)
         }
     }
@@ -126,11 +125,9 @@ class PreviewResourceResolver private constructor(
                         }
                     }
                 } catch (_: Exception) {
-                    // Ignore malformed individual XML file so preview doesn't crash
                 }
             }
         } catch (_: Exception) {
-            // Ignore directory read error
         }
     }
 
@@ -145,7 +142,6 @@ class PreviewResourceResolver private constructor(
             trimmed
         }
 
-        // Handle chained @dimen/ reference (1 level)
         val resolvedStr = if (rawDimen.startsWith("@dimen/")) {
             dimenCache[rawDimen.removePrefix("@dimen/")] ?: return null
         } else {
@@ -211,8 +207,8 @@ class PreviewResourceResolver private constructor(
         }
     }
 
-    fun resolveColor(value: String?): Int {
-        if (value.isNullOrBlank()) return -1
+    fun resolveColor(value: String?): Int? {
+        if (value.isNullOrBlank()) return null
         val trimmed = value.trim()
 
         try {
@@ -225,7 +221,7 @@ class PreviewResourceResolver private constructor(
                 var depth = 0
                 while (colorRef.startsWith("@color/") && depth < 5) {
                     val key = colorRef.removePrefix("@color/")
-                    colorRef = colorCache[key] ?: return -1
+                    colorRef = colorCache[key] ?: return null
                     depth++
                 }
                 if (colorRef.startsWith("#")) {
@@ -239,17 +235,17 @@ class PreviewResourceResolver private constructor(
                     .removePrefix("?")
                     .substringAfterLast(":")
 
-                val attrResId = ATTR_COLOR_MAP[attrName] ?: return -1
+                val attrResId = ATTR_COLOR_MAP[attrName] ?: return null
                 val context = SketchApplication.getContext()
                 val m3 = Material3LibraryManager(context, scId)
                 val themed = ContextThemeWrapper(context, m3.viewEditorThemeOverlay)
                 return ThemeUtils.getColor(themed, attrResId)
             }
         } catch (_: Exception) {
-            return -1
+            return null
         }
 
-        return -1
+        return null
     }
 
     fun resolveString(value: String?): String? {

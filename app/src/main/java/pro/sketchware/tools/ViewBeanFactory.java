@@ -34,7 +34,6 @@ public class ViewBeanFactory {
             case "MaterialSwitch" -> ViewBean.VIEW_TYPE_WIDGET_SWITCH;
             case "MaterialCardView", "CardView" -> ViewBeans.VIEW_TYPE_LAYOUT_CARDVIEW;
             case "TextInputEditText" -> ViewBean.VIEW_TYPE_WIDGET_EDITTEXT;
-            //idk should I use ImageView(ViewBean.VIEW_TYPE_WIDGET_IMAGEVIEW) or Button(ViewBean.VIEW_TYPE_WIDGET_BUTTON)?
             case "ImageButton" -> ViewBean.VIEW_TYPE_WIDGET_IMAGEVIEW;
             case "NestedScrollView" -> ViewBean.VIEW_TYPE_LAYOUT_VSCROLLVIEW;
             default -> def;
@@ -43,15 +42,11 @@ public class ViewBeanFactory {
 
     public void applyAttributes(Map<String, String> attributes) {
         Map<String, String> injectAttributes = new LinkedHashMap<>();
-        // Skip processing if the convert type is "include,"
-        // because a.a.a.Ox doesn't generate all the attributes below.
-        // Instead, the `inject` property will handle the attributes.
         if ("include".equals(bean.convert)) {
             StringBuilder injectProperty = new StringBuilder();
             for (Map.Entry<String, String> entry : attributes.entrySet()) {
                 var attrName = entry.getKey();
                 var attrValue = entry.getValue();
-                // Skip this because ViewBeanParser has already handled it as the ID of the include for ViewBean.
                 if (attrName.equals("layout")) {
                     continue;
                 }
@@ -153,13 +148,10 @@ public class ViewBeanFactory {
             boolean isTextFallback = textAttributes.contains(reference) && !bean.getClassInfo().a("TextView");
 
             if (!AttributeConstants.BUILT_IN_ATTRIBUTES.contains(reference) || isTextFallback) {
-                // This attribute wasn't included in built-in attributes intentionally
                 if (attrName.equals("style")
                         && bean.type == ViewBean.VIEW_TYPE_WIDGET_PROGRESSBAR) {
-                    // Skip this since only progressbar have this attribute in ViewBean
                     continue;
                 }
-                // Skip and handle relative parent attributes separately
                 if (isRelativeAttr(attrName)) {
                     bean.parentAttributes.put(attrName, parseReferName(attrValue, "/"));
                     continue;
@@ -167,7 +159,6 @@ public class ViewBeanFactory {
                 if (attrName.equals("tools:listitem")) {
                     continue;
                 }
-                // add attributes for inject property
                 injectAttributes.put(attrName, attrValue);
             }
         }
@@ -197,6 +188,11 @@ public class ViewBeanFactory {
                         .append("\"")
                         .append("\n"));
         bean.inject = injectProperty.toString().trim();
+    }
+
+    private Float resolveDimenFloatPreview(String value) {
+        if (value == null || resourceResolver == null) return null;
+        return resourceResolver.resolveDimenToDp(value);
     }
 
     private void applyView(Map<String, String> attributes, Map<String, String> injectAttributes) {
@@ -354,8 +350,7 @@ public class ViewBeanFactory {
                 }
             }
             case ViewBean.VIEW_TYPE_WIDGET_LISTVIEW -> {
-                var dividerHeight =
-                        getDimen("android:dividerHeight", attributes, injectAttributes);
+                var dividerHeight = getDimen("android:dividerHeight", attributes, injectAttributes);
                 if (dividerHeight > 1) {
                     bean.dividerHeight = dividerHeight;
                 }
@@ -379,18 +374,16 @@ public class ViewBeanFactory {
             case ViewBean.VIEW_TYPE_WIDGET_ADVIEW -> {
                 var adSize = attributes.getOrDefault("app:adSize", null);
                 bean.adSize = Objects.requireNonNullElse(adSize, "SMART_BANNER");
-                var adUnitId = attributes.getOrDefault("app:adUnitId", null);
-                //noinspection StatementWithEmptyBody
-                if (adUnitId != null) {
-                    // This can probably be ignored since it's auto-generated
-                    // bean.adUnitId = "debug : " + adUnitId;
-                }
             }
         }
     }
 
-    private void applyPadding(
-            Map<String, String> attributes, Map<String, String> injectAttributes) {
+    private void applyPadding(Map<String, String> attributes, Map<String, String> injectAttributes) {
+        if (resourceResolver != null) {
+            applyPaddingPreview(attributes, injectAttributes);
+            return;
+        }
+
         var bean = this.bean.layout;
         String padding = attributes.getOrDefault("android:padding", null);
         if (padding != null) {
@@ -407,18 +400,10 @@ public class ViewBeanFactory {
             int paddingRight = getDimen("android:paddingRight", attributes, injectAttributes);
             int paddingBottom = getDimen("android:paddingBottom", attributes, injectAttributes);
 
-            if (paddingLeft > -1) {
-                bean.paddingLeft = paddingLeft;
-            }
-            if (paddingTop > -1) {
-                bean.paddingTop = paddingTop;
-            }
-            if (paddingRight > -1) {
-                bean.paddingRight = paddingRight;
-            }
-            if (paddingBottom > -1) {
-                bean.paddingBottom = paddingBottom;
-            }
+            if (paddingLeft > -1) bean.paddingLeft = paddingLeft;
+            if (paddingTop > -1) bean.paddingTop = paddingTop;
+            if (paddingRight > -1) bean.paddingRight = paddingRight;
+            if (paddingBottom > -1) bean.paddingBottom = paddingBottom;
         }
 
         String contentPadding = attributes.getOrDefault("app:contentPadding", null);
@@ -434,25 +419,68 @@ public class ViewBeanFactory {
             int paddingLeft = getDimen("app:contentPaddingLeft", attributes, injectAttributes);
             int paddingTop = getDimen("app:contentPaddingTop", attributes, injectAttributes);
             int paddingRight = getDimen("app:contentPaddingRight", attributes, injectAttributes);
-            int paddingBottom =
-                    getDimen("app:contentPaddingBottom", attributes, injectAttributes);
+            int paddingBottom = getDimen("app:contentPaddingBottom", attributes, injectAttributes);
 
-            if (paddingLeft > -1) {
-                bean.paddingLeft = paddingLeft;
-            }
-            if (paddingTop > -1) {
-                bean.paddingTop = paddingTop;
-            }
-            if (paddingRight > -1) {
-                bean.paddingRight = paddingRight;
-            }
-            if (paddingBottom > -1) {
-                bean.paddingBottom = paddingBottom;
-            }
+            if (paddingLeft > -1) bean.paddingLeft = paddingLeft;
+            if (paddingTop > -1) bean.paddingTop = paddingTop;
+            if (paddingRight > -1) bean.paddingRight = paddingRight;
+            if (paddingBottom > -1) bean.paddingBottom = paddingBottom;
         }
     }
 
+    private void applyPaddingPreview(Map<String, String> attributes, Map<String, String> injectAttributes) {
+        var bean = this.bean.layout;
+
+        Float padAll = resolveDimenFloatPreview(attributes.get("android:padding"));
+        Float padH = resolveDimenFloatPreview(attributes.get("android:paddingHorizontal"));
+        Float padV = resolveDimenFloatPreview(attributes.get("android:paddingVertical"));
+
+        Float padLeft = resolveDimenFloatPreview(attributes.get("android:paddingLeft"));
+        Float padStart = resolveDimenFloatPreview(attributes.get("android:paddingStart"));
+        Float padRight = resolveDimenFloatPreview(attributes.get("android:paddingRight"));
+        Float padEnd = resolveDimenFloatPreview(attributes.get("android:paddingEnd"));
+        Float padTop = resolveDimenFloatPreview(attributes.get("android:paddingTop"));
+        Float padBottom = resolveDimenFloatPreview(attributes.get("android:paddingBottom"));
+
+        Float cPadAll = resolveDimenFloatPreview(attributes.get("app:contentPadding"));
+        Float cPadLeft = resolveDimenFloatPreview(attributes.get("app:contentPaddingLeft"));
+        Float cPadRight = resolveDimenFloatPreview(attributes.get("app:contentPaddingRight"));
+        Float cPadTop = resolveDimenFloatPreview(attributes.get("app:contentPaddingTop"));
+        Float cPadBottom = resolveDimenFloatPreview(attributes.get("app:contentPaddingBottom"));
+
+        Float finalLeft = cPadLeft != null ? cPadLeft :
+                          (cPadAll != null ? cPadAll :
+                          (padLeft != null ? padLeft :
+                          (padStart != null ? padStart :
+                          (padH != null ? padH : padAll))));
+        if (finalLeft != null) bean.paddingLeft = Math.max(0, Math.round(finalLeft));
+
+        Float finalTop = cPadTop != null ? cPadTop :
+                         (cPadAll != null ? cPadAll :
+                         (padTop != null ? padTop :
+                         (padV != null ? padV : padAll)));
+        if (finalTop != null) bean.paddingTop = Math.max(0, Math.round(finalTop));
+
+        Float finalRight = cPadRight != null ? cPadRight :
+                           (cPadAll != null ? cPadAll :
+                           (padRight != null ? padRight :
+                           (padEnd != null ? padEnd :
+                           (padH != null ? padH : padAll))));
+        if (finalRight != null) bean.paddingRight = Math.max(0, Math.round(finalRight));
+
+        Float finalBottom = cPadBottom != null ? cPadBottom :
+                            (cPadAll != null ? cPadAll :
+                            (padBottom != null ? padBottom :
+                            (padV != null ? padV : padAll)));
+        if (finalBottom != null) bean.paddingBottom = Math.max(0, Math.round(finalBottom));
+    }
+
     private void applyMargin(Map<String, String> attributes, Map<String, String> injectAttributes) {
+        if (resourceResolver != null) {
+            applyMarginPreview(attributes, injectAttributes);
+            return;
+        }
+
         var bean = this.bean.layout;
         String margin = attributes.getOrDefault("android:layout_margin", null);
         if (margin != null) {
@@ -466,31 +494,44 @@ public class ViewBeanFactory {
         } else {
             int marginLeft = getDimen("android:layout_marginLeft", attributes, injectAttributes);
             int marginTop = getDimen("android:layout_marginTop", attributes, injectAttributes);
-            int marginRight =
-                    getDimen("android:layout_marginRight", attributes, injectAttributes);
-            int marginBottom =
-                    getDimen("android:layout_marginBottom", attributes, injectAttributes);
+            int marginRight = getDimen("android:layout_marginRight", attributes, injectAttributes);
+            int marginBottom = getDimen("android:layout_marginBottom", attributes, injectAttributes);
 
-            if (marginLeft > -1) {
-                bean.marginLeft = marginLeft;
-            }
-
-            if (marginTop > -1) {
-                bean.marginTop = marginTop;
-            }
-
-            if (marginRight > -1) {
-                bean.marginRight = marginRight;
-            }
-
-            if (marginBottom > -1) {
-                bean.marginBottom = marginBottom;
-            }
+            if (marginLeft > -1) bean.marginLeft = marginLeft;
+            if (marginTop > -1) bean.marginTop = marginTop;
+            if (marginRight > -1) bean.marginRight = marginRight;
+            if (marginBottom > -1) bean.marginBottom = marginBottom;
         }
     }
 
-    private void applyGravity(
-            Map<String, String> attributes, Map<String, String> injectAttributes) {
+    private void applyMarginPreview(Map<String, String> attributes, Map<String, String> injectAttributes) {
+        var bean = this.bean.layout;
+
+        Float mAll = resolveDimenFloatPreview(attributes.get("android:layout_margin"));
+        Float mH = resolveDimenFloatPreview(attributes.get("android:layout_marginHorizontal"));
+        Float mV = resolveDimenFloatPreview(attributes.get("android:layout_marginVertical"));
+
+        Float mLeft = resolveDimenFloatPreview(attributes.get("android:layout_marginLeft"));
+        Float mStart = resolveDimenFloatPreview(attributes.get("android:layout_marginStart"));
+        Float mRight = resolveDimenFloatPreview(attributes.get("android:layout_marginRight"));
+        Float mEnd = resolveDimenFloatPreview(attributes.get("android:layout_marginEnd"));
+        Float mTop = resolveDimenFloatPreview(attributes.get("android:layout_marginTop"));
+        Float mBottom = resolveDimenFloatPreview(attributes.get("android:layout_marginBottom"));
+
+        Float finalLeft = mLeft != null ? mLeft : (mStart != null ? mStart : (mH != null ? mH : mAll));
+        if (finalLeft != null) bean.marginLeft = Math.round(finalLeft);
+
+        Float finalTop = mTop != null ? mTop : (mV != null ? mV : mAll);
+        if (finalTop != null) bean.marginTop = Math.round(finalTop);
+
+        Float finalRight = mRight != null ? mRight : (mEnd != null ? mEnd : (mH != null ? mH : mAll));
+        if (finalRight != null) bean.marginRight = Math.round(finalRight);
+
+        Float finalBottom = mBottom != null ? mBottom : (mV != null ? mV : mAll);
+        if (finalBottom != null) bean.marginBottom = Math.round(finalBottom);
+    }
+
+    private void applyGravity(Map<String, String> attributes, Map<String, String> injectAttributes) {
         var bean = this.bean.layout;
         var layoutGravity = attributes.getOrDefault("android:layout_gravity", null);
         if (layoutGravity != null) {
@@ -509,8 +550,7 @@ public class ViewBeanFactory {
         }
     }
 
-    private void applyBackgroundResource(
-            Map<String, String> attributes, Map<String, String> injectAttributes) {
+    private void applyBackgroundResource(Map<String, String> attributes, Map<String, String> injectAttributes) {
         var background = attributes.getOrDefault("android:background", null);
         applyBackground("android:background", background, injectAttributes);
         var cardBackgroundColor = attributes.getOrDefault("app:cardBackgroundColor", null);
@@ -552,9 +592,7 @@ public class ViewBeanFactory {
                  ViewBeans.VIEW_TYPE_WIDGET_AUTOCOMPLETETEXTVIEW,
                  ViewBeans.VIEW_TYPE_WIDGET_MULTIAUTOCOMPLETETEXTVIEW -> {
                 var hint = attributes.getOrDefault("android:hint", null);
-                if (hint != null) {
-                    bean.hint = hint;
-                }
+                if (hint != null) bean.hint = hint;
 
                 var hintColor = attributes.getOrDefault("android:textColorHint", null);
                 if (hintColor != null) {
@@ -587,22 +625,19 @@ public class ViewBeanFactory {
                 var inputType = attributes.getOrDefault("android:inputType", null);
                 if (inputType != null) {
                     var value = getFlag("android:inputType", inputType, injectAttributes);
-                    if (value > -1) {
-                        bean.inputType = value;
-                    }
+                    if (value > -1) bean.inputType = value;
                 }
                 var imeOptions = attributes.getOrDefault("android:imeOptions", null);
                 if (imeOptions != null) {
-                    var value =
-                            switch (imeOptions) {
-                                case "actionNone" -> TextBean.IME_OPTION_NONE;
-                                case "actionGo" -> TextBean.IME_OPTION_GO;
-                                case "actionSearch" -> TextBean.IME_OPTION_SEARCH;
-                                case "actionSend" -> TextBean.IME_OPTION_SEND;
-                                case "actionNext" -> TextBean.IME_OPTION_NEXT;
-                                case "actionDone" -> TextBean.IME_OPTION_DONE;
-                                default -> -1;
-                            };
+                    var value = switch (imeOptions) {
+                        case "actionNone" -> TextBean.IME_OPTION_NONE;
+                        case "actionGo" -> TextBean.IME_OPTION_GO;
+                        case "actionSearch" -> TextBean.IME_OPTION_SEARCH;
+                        case "actionSend" -> TextBean.IME_OPTION_SEND;
+                        case "actionNext" -> TextBean.IME_OPTION_NEXT;
+                        case "actionDone" -> TextBean.IME_OPTION_DONE;
+                        default -> -1;
+                    };
                     if (value > 1) {
                         bean.imeOption = value;
                     } else {
@@ -656,42 +691,31 @@ public class ViewBeanFactory {
         }
     }
 
-    private String getDimenValue(
-            String attributeName,
-            Map<String, String> attributes,
-            Map<String, String> injectAttributes) {
+    private String getDimenValue(String attributeName, Map<String, String> attributes, Map<String, String> injectAttributes) {
         String value = attributes.getOrDefault(attributeName, null);
         if (value != null) {
             var size = resolveDimenSize(value);
-            if (size != null) {
-                return size;
-            } else {
-                injectAttributes.put(attributeName, value);
-            }
+            if (size != null) return size;
+            else injectAttributes.put(attributeName, value);
         }
         return null;
     }
 
-    private int getDimen(
-            String attributeName,
-            Map<String, String> attributes,
-            Map<String, String> injectAttributes) {
+    private int getDimen(String attributeName, Map<String, String> attributes, Map<String, String> injectAttributes) {
         String value = attributes.getOrDefault(attributeName, null);
         if (value != null) {
             var size = resolveDimenSize(value);
             if (size != null) {
                 try {
                     return Integer.parseInt(size);
-                } catch (NumberFormatException ignored) {
-                }
+                } catch (NumberFormatException ignored) {}
             }
             injectAttributes.put(attributeName, value);
         }
         return -1;
     }
 
-    private void applyBackground(
-            String name, String background, Map<String, String> injectAttributes) {
+    private void applyBackground(String name, String background, Map<String, String> injectAttributes) {
         var bean = this.bean.layout;
         if (background != null) {
             if (PropertiesUtil.isHexColor(background)) {
@@ -723,9 +747,7 @@ public class ViewBeanFactory {
 
     private boolean isRelativeAttr(String attr) {
         for (String relativeAttr : AttributeConstants.RELATIVE_ATTRIBUTES) {
-            if (relativeAttr.equals(attr)) {
-                return true;
-            }
+            if (relativeAttr.equals(attr)) return true;
         }
         return false;
     }
@@ -745,9 +767,7 @@ public class ViewBeanFactory {
         Map<String, Integer> map = AttributeConstants.MAP_ATTR_FLAG.get(name);
         var flags = value.split("\\|");
         for (String flag : flags) {
-            if (!map.containsKey(flag)) {
-                return false;
-            }
+            if (!map.containsKey(flag)) return false;
         }
         return true;
     }
@@ -766,11 +786,8 @@ public class ViewBeanFactory {
             if (!f.trim().isEmpty()) {
                 Integer v = map.get(f);
                 if (v != null) {
-                    if (flag == -1) {
-                        flag = v;
-                    } else {
-                        flag |= v;
-                    }
+                    if (flag == -1) flag = v;
+                    else flag |= v;
                 }
             }
         }
@@ -791,9 +808,7 @@ public class ViewBeanFactory {
         }
         if (hasDimensionSuffix(value)) {
             var reference = PropertiesUtil.getUnitOrPrefix(value);
-            if (reference != null) {
-                return reference.second;
-            }
+            if (reference != null) return reference.second;
         }
         return null;
     }
