@@ -190,6 +190,7 @@ public class mq {
             case "mactv" -> "MultiAutoCompleteTextView";
             case "tablayout" -> "TabLayout";
             case "viewpager" -> "ViewPager";
+            case "viewpager2" -> "ViewPager2";
             case "badgeview" -> "BadgeView";
             case "bottomnavigation" -> "BottomNavigationView";
             case "patternview" -> "PatternLockView";
@@ -492,7 +493,12 @@ public class mq {
                 importList.add("androidx.viewpager.widget.ViewPager.OnPageChangeListener");
                 importList.add("androidx.viewpager.widget.ViewPager.OnAdapterChangeListener");
                 return importList;
-
+                
+            case "ViewPager2":
+                importList.add("androidx.viewpager2.widget.ViewPager2");
+                importList.add("androidx.viewpager2.widget.ViewPager2.OnPageChangeCallback");
+                return importList;
+        
             case "CollapsingToolbarLayout":
                 importList.add("com.google.android.material.appbar.CollapsingToolbarLayout");
                 return importList;

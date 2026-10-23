@@ -132,6 +132,7 @@ public class wq {
             case 29 -> "digitalclock";
             case 30 -> "tablayout";
             case 31 -> "viewpager";
+            case 49 -> "viewpager2";
             case 32 -> "bottomnavigation";
             case 33 -> "badgeview";
             case 34 -> "patternlockview";

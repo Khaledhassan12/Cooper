@@ -1096,6 +1096,10 @@ public class Jx {
 			String adapterCode;
 			if (viewBean.type == ViewBeans.VIEW_TYPE_LAYOUT_VIEWPAGER) {
 				adapterCode = Lx.pagerAdapter(ox, viewBean.id, viewBean.customView, projectDataManager.d(xmlName), adapterLogic, isViewBindingEnabled);
+			} else if (viewBean.type == ViewBeans.VIEW_TYPE_LAYOUT_VIEWPAGER2) {
+				adapterCode = Lx.recyclerViewAdapter(ox, viewBean.id, viewBean.customView, projectDataManager.d(xmlName), adapterLogic, isViewBindingEnabled);
+				addImport("androidx.viewpager2.widget.ViewPager2");
+				addImport("androidx.recyclerview.widget.RecyclerView");
 			} else if (viewBean.type == ViewBeans.VIEW_TYPE_WIDGET_RECYCLERVIEW) {
 				adapterCode = Lx.recyclerViewAdapter(ox, viewBean.id, viewBean.customView, projectDataManager.d(xmlName), adapterLogic, isViewBindingEnabled);
 				addImport("androidx.recyclerview.widget.LinearLayoutManager");

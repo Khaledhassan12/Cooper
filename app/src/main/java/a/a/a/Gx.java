@@ -221,6 +221,10 @@ public class Gx {
             case "ViewPager":
                 classInfos = "View.ViewGroup.ViewPager";
                 break;
+                
+            case "ViewPager2":
+                classInfos = "View.ViewGroup.ViewPager2";
+                break;    
 
             case "BottomNavigationView":
                 classInfos = "View.ViewGroup.BottomNavigationView";

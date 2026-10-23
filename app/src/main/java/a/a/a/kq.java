@@ -165,6 +165,7 @@ public class kq {
             case "patternview" -> "PatternLockView";
             case "objectanimator" -> "ObjectAnimator";
             case "viewpager" -> "ViewPager";
+            case "viewpager2" -> "ViewPager2";
             case "adview" -> "AdView";
             case "progressdialog" -> "ProgressDialog";
             case "camera" -> "Camera";
