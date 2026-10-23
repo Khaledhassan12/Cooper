@@ -591,7 +591,7 @@ public class MyProjectSettingActivity extends BaseAppCompatActivity implements V
         selectedTemplate = index;
         for (int i = 0; i < cards.length; i++) {
             if (i == index) {
-                cards[i].setStrokeColor(getAttrColor(com.google.android.material.R.attr.colorPrimary));
+                cards[i].setStrokeColor(getAttrColor(androidx.appcompat.R.attr.colorPrimary));
                 cards[i].setStrokeWidth(3);
                 cards[i].setCardBackgroundColor(getAttrColor(com.google.android.material.R.attr.colorSecondaryContainer));
             } else {

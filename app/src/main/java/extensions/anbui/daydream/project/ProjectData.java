@@ -5,10 +5,9 @@ import android.util.Log;
 import androidx.annotation.Nullable;
 
 import com.besome.sketch.beans.ProjectFileBean;
-import a.a.a.lC;
+import a.a.a.jC;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -56,11 +55,15 @@ public class ProjectData {
                         | ProjectFileBean.OPTION_ACTIVITY_DRAWER
                         | ProjectFileBean.OPTION_ACTIVITY_FAB;
             }
-            List<HashMap<String, Object>> activities = lC.e(projectID);
-            if (activities != null && !activities.isEmpty()) {
-                HashMap<String, Object> mainActivity = activities.get(0);
-                mainActivity.put("options", activityOptions);
-                lC.f(projectID, activities);
+            var fileManager = jC.b(projectID);
+            ProjectFileBean mainActivity = fileManager.b(ProjectFileBean.DEFAULT_XML_NAME);
+            if (mainActivity != null) {
+                mainActivity.setActivityOptions(activityOptions);
+                if (mainActivity.hasActivityOption(ProjectFileBean.OPTION_ACTIVITY_DRAWER)
+                        && fileManager.b(mainActivity.getDrawerXmlName()) == null) {
+                    fileManager.a(2, mainActivity.getDrawerName());
+                }
+                fileManager.j(); // simpan perubahan
                 Log.i(TAG, "applyProjectTemplate: set options=" + activityOptions);
             }
         } catch (Exception e) {
