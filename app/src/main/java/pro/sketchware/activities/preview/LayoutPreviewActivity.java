@@ -32,10 +32,10 @@ import java.util.ArrayList;
 
 import a.a.a.jC;
 import a.a.a.mB;
+import org.sketchware.daygreen.preview.PreviewLayoutParser;
+import org.sketchware.daygreen.preview.PreviewResourceResolver;
 import pro.sketchware.databinding.ActivityLayoutPreviewBinding;
-import pro.sketchware.tools.ViewBeanParser;
 import pro.sketchware.utility.SketchwareUtil;
-import pro.sketchware.utility.UI;
 
 public class LayoutPreviewActivity extends BaseAppCompatActivity {
 
@@ -46,6 +46,7 @@ public class LayoutPreviewActivity extends BaseAppCompatActivity {
     private String sc_id;
     private boolean isNightMode = false;
     private Drawable checkerboardDrawable;
+    private PreviewResourceResolver resourceResolver;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -100,20 +101,23 @@ public class LayoutPreviewActivity extends BaseAppCompatActivity {
 
         try {
             if (previewType.equals("layout")) {
+                binding.phoneFrame.setVisibility(View.VISIBLE);
                 pane.setVisibility(View.VISIBLE);
                 previewImage.setVisibility(View.GONE);
                 previewMenuToolbar.setVisibility(View.GONE);
                 
                 pane.initialize(sc_id, true);
+                pane.setPadding(0, 0, 0, 0);
                 pane.setVerticalScrollBarEnabled(true);
                 pane.setResourceManager(jC.d(sc_id));
-                UI.addSystemWindowInsetToPadding(pane, false, false, false, true);
                 
-                ViewBeanParser parser = new ViewBeanParser(content);
-                parser.setSkipRoot(false);
-                loadViews(parser.parse());
+                resourceResolver = PreviewResourceResolver.init(sc_id, isNightMode);
+                ArrayList<ViewBean> views =
+                        new PreviewLayoutParser(content, resourceResolver).parse();
+                loadViews(views);
                 
             } else if (previewType.equals("drawable") || previewType.equals("svg")) {
+                binding.phoneFrame.setVisibility(View.GONE);
                 pane.setVisibility(View.GONE);
                 previewImage.setVisibility(View.VISIBLE);
                 previewMenuToolbar.setVisibility(View.GONE);
@@ -128,6 +132,7 @@ public class LayoutPreviewActivity extends BaseAppCompatActivity {
                 }
                 
             } else if (previewType.equals("menu")) {
+                binding.phoneFrame.setVisibility(View.VISIBLE);
                 pane.setVisibility(View.GONE);
                 previewImage.setVisibility(View.GONE);
                 previewMenuToolbar.setVisibility(View.VISIBLE);

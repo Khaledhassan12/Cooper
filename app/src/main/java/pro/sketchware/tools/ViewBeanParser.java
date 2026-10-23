@@ -31,6 +31,8 @@ import java.util.Set;
 import java.util.Stack;
 
 import a.a.a.wq;
+import org.sketchware.daygreen.preview.PreviewResourceResolver;
+import org.sketchware.daygreen.preview.PreviewViewRegistry;
 import pro.sketchware.utility.InvokeUtil;
 
 public class ViewBeanParser {
@@ -39,6 +41,7 @@ public class ViewBeanParser {
     private final XmlPullParser parser;
     private boolean skipRoot;
     private Pair<String, Map<String, String>> rootAttributes;
+    private PreviewResourceResolver resourceResolver = null;
 
     public ViewBeanParser(String xml) throws XmlPullParserException {
         this(new StringReader(xml));
@@ -53,6 +56,10 @@ public class ViewBeanParser {
         parser = factory.newPullParser();
         parser.setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, false);
         parser.setInput(reader);
+    }
+
+    public void setResourceResolver(PreviewResourceResolver resourceResolver) {
+        this.resourceResolver = resourceResolver;
     }
 
     public static String generateUniqueId(Set<String> ids, int type, String className) {
@@ -123,6 +130,9 @@ public class ViewBeanParser {
     public static int getViewTypeByTag(String tag, int defaultType) {
         // Special case for other views that can be considered built-in views by type
         var type = ViewBeanFactory.getConsideredTypeViewByName(getNameFromTag(tag), defaultType);
+        if (type == ViewBean.VIEW_TYPE_LAYOUT_LINEAR) {
+            type = PreviewViewRegistry.typeOf(getNameFromTag(tag), type);
+        }
         if (type == ViewBean.VIEW_TYPE_LAYOUT_LINEAR) {
             var view = InvokeUtil.createView(getContext(), tag);
             if (view != null) {
@@ -238,7 +248,9 @@ public class ViewBeanParser {
         for (ViewBean bean : beans) {
             var attr = beansAttributes.getOrDefault(bean.id, null);
             if (attr != null) {
-                new ViewBeanFactory(bean).applyAttributes(attr);
+                ViewBeanFactory factory = new ViewBeanFactory(bean);
+                factory.setResourceResolver(resourceResolver);
+                factory.applyAttributes(attr);
             }
         }
         return beans;

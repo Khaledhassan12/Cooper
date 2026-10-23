@@ -19,14 +19,14 @@
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
             app:navigationIcon="?attr/homeAsUpIndicator">
-            
+
             <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="match_parent"
                 android:layout_gravity="end"
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
-                
+
                 <ImageView
                     android:id="@+id/btn_theme_toggle"
                     android:layout_width="48dp"
@@ -45,16 +45,25 @@
         android:fillViewport="true"
         android:background="#E0E0E0"
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
-        
+
         <FrameLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content">
-            
+            android:layout_height="match_parent">
+
+            <!-- Fullscreen ImageView for Drawables/SVG (Outside phone_frame) -->
+            <ImageView
+                android:id="@+id/preview_image"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_gravity="center"
+                android:scaleType="centerInside"
+                android:visibility="gone" />
+
             <!-- Phone Frame Container -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/phone_frame"
                 android:layout_width="360dp"
-                android:layout_height="760dp"
+                android:layout_height="780dp"
                 android:layout_gravity="center"
                 android:layout_margin="16dp"
                 app:cardCornerRadius="32dp"
@@ -62,20 +71,46 @@
                 app:strokeWidth="8dp"
                 app:strokeColor="#212121"
                 app:cardBackgroundColor="?attr/colorSurface">
-                
-                <LinearLayout
+
+                <FrameLayout
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
-                    android:orientation="vertical">
-                    
-                    <!-- Fake Status Bar (Realistic Vector Look) -->
+                    android:clipChildren="true">
+
+                    <!-- [LAYER 1] Content Area (Edge-to-Edge) -->
+                    <FrameLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:clipChildren="true">
+
+                        <!-- Fake Toolbar for Menu Preview (Child pertama) -->
+                        <com.google.android.material.appbar.MaterialToolbar
+                            android:id="@+id/preview_menu_toolbar"
+                            android:layout_width="match_parent"
+                            android:layout_height="?attr/actionBarSize"
+                            android:layout_marginTop="28dp"
+                            android:background="?attr/colorPrimary"
+                            app:titleTextColor="?attr/colorOnPrimary"
+                            android:visibility="gone" />
+
+                        <!-- ViewPane for Layouts -->
+                        <com.besome.sketch.editor.view.ViewPane
+                            android:id="@+id/pane"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent" />
+
+                    </FrameLayout>
+
+                    <!-- [LAYER 2] Status Bar Overlay -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="28dp"
+                        android:layout_gravity="top"
                         android:orientation="horizontal"
                         android:gravity="center_vertical"
                         android:paddingHorizontal="16dp"
-                        android:background="#10000000">
+                        android:background="#33000000">
+
                         <TextView
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
@@ -84,8 +119,8 @@
                             android:textSize="12sp"
                             android:textStyle="bold"
                             android:textColor="?attr/colorOnSurface"
-                            android:alpha="0.8"/>
-                            
+                            android:alpha="0.85" />
+
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
@@ -94,100 +129,66 @@
                             android:textStyle="bold"
                             android:textColor="?attr/colorOnSurface"
                             android:layout_marginEnd="6dp"
-                            android:alpha="0.8"/>
-                            
+                            android:alpha="0.85" />
+
                         <!-- Fake Signal -->
                         <LinearLayout
                             android:layout_width="wrap_content"
-                            android:layout_height="14dp"
+                            android:layout_height="12dp"
                             android:orientation="horizontal"
                             android:gravity="bottom"
                             android:layout_marginEnd="8dp">
-                            <View android:layout_width="3dp" android:layout_height="4dp" android:background="?attr/colorOnSurface" android:layout_marginEnd="2dp" android:alpha="0.8"/>
-                            <View android:layout_width="3dp" android:layout_height="7dp" android:background="?attr/colorOnSurface" android:layout_marginEnd="2dp" android:alpha="0.8"/>
-                            <View android:layout_width="3dp" android:layout_height="10dp" android:background="?attr/colorOnSurface" android:layout_marginEnd="2dp" android:alpha="0.8"/>
-                            <View android:layout_width="3dp" android:layout_height="14dp" android:background="?attr/colorOnSurface" android:alpha="0.8"/>
-                        </LinearLayout>
-                        
-                        <!-- Fake Battery -->
-                        <LinearLayout
-                            android:layout_width="wrap_content"
-                            android:layout_height="match_parent"
-                            android:orientation="horizontal"
-                            android:gravity="center_vertical">
-                            <com.google.android.material.card.MaterialCardView
-                                android:layout_width="22dp"
-                                android:layout_height="12dp"
-                                app:cardCornerRadius="2dp"
-                                app:cardElevation="0dp"
-                                app:strokeWidth="1.5dp"
-                                app:strokeColor="?attr/colorOnSurface"
-                                app:cardBackgroundColor="@android:color/transparent"
-                                android:alpha="0.8">
-                                <View
-                                    android:layout_width="16dp"
-                                    android:layout_height="match_parent"
-                                    android:layout_margin="1.5dp"
-                                    android:background="?attr/colorOnSurface" />
-                            </com.google.android.material.card.MaterialCardView>
                             <View
-                                android:layout_width="1.5dp"
-                                android:layout_height="5dp"
+                                android:layout_width="2.5dp"
+                                android:layout_height="3.5dp"
                                 android:background="?attr/colorOnSurface"
-                                android:alpha="0.8"/>
+                                android:layout_marginEnd="1.5dp"
+                                android:alpha="0.85" />
+                            <View
+                                android:layout_width="2.5dp"
+                                android:layout_height="6dp"
+                                android:background="?attr/colorOnSurface"
+                                android:layout_marginEnd="1.5dp"
+                                android:alpha="0.85" />
+                            <View
+                                android:layout_width="2.5dp"
+                                android:layout_height="9dp"
+                                android:background="?attr/colorOnSurface"
+                                android:layout_marginEnd="1.5dp"
+                                android:alpha="0.85" />
+                            <View
+                                android:layout_width="2.5dp"
+                                android:layout_height="12dp"
+                                android:background="?attr/colorOnSurface"
+                                android:alpha="0.85" />
                         </LinearLayout>
+
+                        <!-- Battery Indicator Drawable -->
+                        <ImageView
+                            android:layout_width="22dp"
+                            android:layout_height="11dp"
+                            android:src="@drawable/battery_indicator"
+                            app:tint="?attr/colorOnSurface"
+                            android:alpha="0.85"
+                            android:contentDescription="@null" />
                     </LinearLayout>
 
-                    <!-- Fake Toolbar for Menu Preview -->
-                    <com.google.android.material.appbar.MaterialToolbar
-                        android:id="@+id/preview_menu_toolbar"
-                        android:layout_width="match_parent"
-                        android:layout_height="?attr/actionBarSize"
-                        android:background="?attr/colorPrimary"
-                        app:titleTextColor="?attr/colorOnPrimary"
-                        android:visibility="gone" />
-
-                    <!-- Content Area -->
+                    <!-- [LAYER 3] Navigation Bar Overlay -->
                     <FrameLayout
                         android:layout_width="match_parent"
-                        android:layout_height="0dp"
-                        android:layout_weight="1"
-                        android:clipChildren="true">
-                        
-                        <!-- ViewPane for Layouts -->
-                        <com.besome.sketch.editor.view.ViewPane
-                            android:id="@+id/pane"
-                            android:layout_width="match_parent"
-                            android:layout_height="match_parent" />
-                            
-                        <!-- ImageView for Drawables/SVG -->
-                        <ImageView
-                            android:id="@+id/preview_image"
-                            android:layout_width="match_parent"
-                            android:layout_height="match_parent"
-                            android:layout_gravity="center"
-                            android:scaleType="centerInside"
-                            android:visibility="gone" />
-                            
-                    </FrameLayout>
-                    
-                    <!-- Fake Navigation Bar (Modern Pill Style) -->
-                    <LinearLayout
-                        android:layout_width="match_parent"
                         android:layout_height="48dp"
-                        android:orientation="horizontal"
-                        android:gravity="center"
-                        android:background="#10000000">
-                        <com.google.android.material.card.MaterialCardView
+                        android:layout_gravity="bottom"
+                        android:background="#33000000">
+
+                        <View
                             android:layout_width="120dp"
                             android:layout_height="4dp"
-                            app:cardCornerRadius="2dp"
-                            app:cardBackgroundColor="?attr/colorOnSurface"
-                            app:cardElevation="0dp"
-                            android:alpha="0.8" />
-                    </LinearLayout>
-                    
-                </LinearLayout>
+                            android:layout_gravity="center"
+                            android:background="@drawable/nav_pill_indicator"
+                            android:alpha="0.85" />
+                    </FrameLayout>
+
+                </FrameLayout>
             </com.google.android.material.card.MaterialCardView>
         </FrameLayout>
     </androidx.core.widget.NestedScrollView>

@@ -11,15 +11,21 @@ import java.util.Map;
 import java.util.Objects;
 
 import mod.agus.jcoderz.beans.ViewBeans;
+import org.sketchware.daygreen.preview.PreviewResourceResolver;
 import pro.sketchware.utility.AttributeConstants;
 import pro.sketchware.utility.PropertiesUtil;
 
 public class ViewBeanFactory {
 
     private final ViewBean bean;
+    private PreviewResourceResolver resourceResolver = null;
 
     public ViewBeanFactory(ViewBean bean) {
         this.bean = bean;
+    }
+
+    public void setResourceResolver(PreviewResourceResolver resourceResolver) {
+        this.resourceResolver = resourceResolver;
     }
 
     public static int getConsideredTypeViewByName(String name, int def) {
@@ -777,6 +783,12 @@ public class ViewBeanFactory {
     }
 
     private String resolveDimenSize(String value) {
+        if (value != null && value.startsWith("@dimen/") && resourceResolver != null) {
+            Float dp = resourceResolver.resolveDimenToDp(value);
+            if (dp != null) {
+                return String.valueOf(Math.round(dp));
+            }
+        }
         if (hasDimensionSuffix(value)) {
             var reference = PropertiesUtil.getUnitOrPrefix(value);
             if (reference != null) {
