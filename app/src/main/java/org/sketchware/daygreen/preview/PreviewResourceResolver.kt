@@ -19,7 +19,7 @@ class PreviewResourceResolver private constructor(
 ) {
     private val resourceBasePath: String = run {
         val path = try {
-            FilePathUtil.getPathResource(scId)
+            FilePathUtil().getPathResource(scId)
         } catch (e: Throwable) {
             null
         }
