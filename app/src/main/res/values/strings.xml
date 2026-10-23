@@ -2319,4 +2319,7 @@ Please try again later"</string>
     <string name="daydream_subtitile">Magic for your project.</string>
 
 
+
+    <string name="language_picker_title">Choose Language</string>
+    <string name="language_picker_confirm">OK</string>
 </resources>
