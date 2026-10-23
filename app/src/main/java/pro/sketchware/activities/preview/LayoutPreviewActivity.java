@@ -15,7 +15,8 @@ import android.view.View;
 import android.widget.ImageView;
 
 import androidx.appcompat.app.AppCompatDelegate;
-
+import androidx.core.widget.ImageViewCompat;
+import com.google.android.material.color.MaterialColors;
 import com.besome.sketch.beans.ViewBean;
 import com.besome.sketch.editor.view.ItemView;
 import com.besome.sketch.editor.view.ViewPane;
@@ -57,6 +58,7 @@ public class LayoutPreviewActivity extends BaseAppCompatActivity {
         
         MaterialToolbar toolbar = binding.toolbar;
         setSupportActionBar(toolbar);
+        ImageViewCompat.setImageTintList(binding.btnThemeToggle, ColorStateList.valueOf(MaterialColors.getColor(binding.toolbar, com.google.android.material.R.attr.colorOnSurface)));
         
         content = getIntent().getStringExtra("xml");
         sc_id = getIntent().getStringExtra("sc_id");
