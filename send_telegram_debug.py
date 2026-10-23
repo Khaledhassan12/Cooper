@@ -57,3 +57,13 @@ with app:
     )
 
 print("APK debug android33 berhasil diunggah ke topik Telegram!")
+
+id_file = "log_msg_id.txt"
+if os.path.exists(id_file):
+    try:
+        log_msg_id = int(open(id_file).read().strip())
+        with app:
+            app.delete_messages(chat_id, log_msg_id)
+        print("Pesan log live dihapus.")
+    except Exception as e:
+        print(f"Gagal menghapus pesan log: {e}")
