@@ -5,6 +5,7 @@ import android.util.Log;
 import androidx.annotation.Nullable;
 
 import com.besome.sketch.beans.ProjectFileBean;
+import com.besome.sketch.beans.ProjectLibraryBean;
 import a.a.a.jC;
 
 import java.util.ArrayList;
@@ -43,6 +44,26 @@ public class ProjectData {
     }
 
     private static void applyProjectTemplate(String projectID, int template) {
+        // Aktifkan / matikan library AppCompat sesuai template.
+        // Non-Androidx = AppCompat mati, template Androidx lainnya = AppCompat aktif.
+        // Urutan simpan sama seperti ManageLibraryActivity.saveLibraryConfiguration().
+        try {
+            boolean useAppCompat = template != TEMPLATE_NON_ANDROIDX;
+            var libraryManager = jC.c(projectID);
+            ProjectLibraryBean compat = libraryManager.c();
+            if (compat == null) {
+                compat = new ProjectLibraryBean(ProjectLibraryBean.PROJECT_LIB_TYPE_COMPAT);
+            }
+            compat.useYn = useAppCompat ? "Y" : "N";
+            libraryManager.b(compat);
+            libraryManager.k(); // simpan
+            jC.b(projectID).a(libraryManager);
+            jC.a(projectID).a(jC.b(projectID));
+            Log.i(TAG, "applyProjectTemplate: AppCompat useYn=" + compat.useYn);
+        } catch (Exception e) {
+            Log.e(TAG, "applyProjectTemplate: compat ", e);
+        }
+
         if (template == TEMPLATE_NON_ANDROIDX || template == TEMPLATE_ANDROIDX) {
             return;
         }
