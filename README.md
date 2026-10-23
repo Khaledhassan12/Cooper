@@ -12,11 +12,11 @@
 <a href="https://github.com/fora2323/Sketchware-DayGreen/blob/main/LICENSE">
   <img src="https://img.shields.io/badge/license-Apache--2.0-007ec6" alt="License">
 </a>
-  </a>
   <img src="https://img.shields.io/badge/platform-Android-4c1" alt="Platform">
   <a href="https://github.com/fora2323/Sketchware-DayGreen/releases">
     <img src="https://img.shields.io/github/downloads/fora2323/Sketchware-DayGreen/total?color=dfb317" alt="Downloads">
   </a>
+  <img src="https://img.shields.io/github/repo-size/fora2323/Sketchware-DayGreen" alt="Repo Size">
 </p>
 
 <p align="center">

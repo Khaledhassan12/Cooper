@@ -59,6 +59,7 @@ public class EventsHandler {
         array.add("onTabLayoutNewTabAdded");
         //new by @fora2323
         array.add("shizukuOnRequestPermissionResult");
+        array.add("onCustomMethod");
 
         for (int i = cachedCustomEvents.size() - 1; i >= 0; i--) {
             HashMap<String, Object> customEvent = cachedCustomEvents.get(i);
@@ -221,7 +222,7 @@ public class EventsHandler {
         return switch (name) {
             case "Import", "onActivityResult", "initializeLogic", "onBackPressed", "onPostCreate",
                  "onStart", "onResume", "onPause", "onStop", "onDestroy",
-                 "onTabLayoutNewTabAdded" -> R.drawable.ic_mtrl_code;
+                 "onTabLayoutNewTabAdded", "onCustomMethod" -> R.drawable.ic_mtrl_code;
             case " onLongClick" -> R.drawable.ic_mtrl_touch_long;
             case "onSwipeRefreshLayout" -> R.drawable.ic_mtrl_refresh;
             case "onPreExecute" -> R.drawable.ic_mtrl_track_started;
@@ -267,6 +268,7 @@ public class EventsHandler {
             case "Import" -> "add custom imports";
             case "onActivityResult" -> "onActivityResult";
             case "initializeLogic" -> "initializeLogic";
+            case "onCustomMethod" -> "Add custom code outside class";
             //new add by @fora2323
             case "shizukuOnRequestPermissionResult" -> "Shizuku onRequestPermissionResult";
             case "onSwipeRefreshLayout" -> "On SwipeRefreshLayout swipe";
@@ -316,7 +318,7 @@ public class EventsHandler {
                     "//Ul5kmZqmO867OV0QTGOpjwX7MXmgzxzQBSZTf0Y16PnDXkhLsZfvF\r\n" +
                             param + "\r\n" +
                             "//3b5IqsVG57gNqLi7FBO2MeOW6iI7tOustUGwcA7HKXm0o7lovZ";
-            case "onActivityResult", "initializeLogic" -> "";
+            case "onActivityResult", "initializeLogic", "onCustomMethod" -> "";
             case "onSwipeRefreshLayout" ->
                 // Changed from: "@Override \npublic void..."
                     "@Override\r\n" +
@@ -388,7 +390,7 @@ public class EventsHandler {
     public static String getBlocks(String name) {
         return switch (name) {
             case "Import", "initializeLogic", "onSwipeRefreshLayout", " onLongClick",
-                 "onPreExecute" -> "";
+                 "onPreExecute", "onCustomMethod" -> "";
             case "onActivityResult" -> "%d.requestCode %d.resultCode %m.intent";
             case "onTabLayoutNewTabAdded", "onProgressUpdate" -> "%d";
             case "doInBackground", "onPostExecute" -> "%s";
@@ -429,6 +431,7 @@ public class EventsHandler {
             case "onActivityResult" ->
                     "OnActivityResult %d.requestCode %d.resultCode %m.intent.data";
             case "initializeLogic" -> "initializeLogic";
+            case "onCustomMethod" -> "onCustomMethod";
             case "onSwipeRefreshLayout" -> "when " + name + " refresh";
             case " onLongClick" -> "when " + name + " long clicked";
             case "onTabLayoutNewTabAdded" -> name + " return tab title %d.position";

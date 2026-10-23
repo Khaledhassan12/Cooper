@@ -129,6 +129,11 @@ public class Jx {
 		return Lx.j(new Fx(projectFileBean.getActivityName(), buildConfig, blocks, isViewBindingEnabled).a(), false);
 	}
 	
+	public String onCustomMethod() {
+		ArrayList<BlockBean> blocks = jC.a(projectDataManager.a).a(projectFileBean.getJavaName(), "onCustomMethod_onCustomMethod");
+		return Lx.j(new Fx(projectFileBean.getActivityName(), buildConfig, blocks, isViewBindingEnabled).a(), false);
+	}
+	
 	private void extraVariables() {
 		for (Map.Entry<String, ArrayList<BlockBean>> blocks : jC.a(projectDataManager.a).b(projectFileBean.getJavaName()).entrySet()) {
 			for (BlockBean block : blocks.getValue()) {
@@ -736,6 +741,13 @@ public class Jx {
 			sb.append(getDeprecatedMethodsCode());
 		}
 		sb.append("}").append(EOL);
+		
+		String customCodeOutsideClass = onCustomMethod();
+		if (!customCodeOutsideClass.isEmpty()) {
+			sb.append(EOL);
+			sb.append(customCodeOutsideClass).append(EOL);
+		}
+		
 		String code = sb.toString();
 		
 		if (isFragment) {
@@ -1069,8 +1081,6 @@ public class Jx {
 		addImport("android.text.*");
 		addImport("android.text.style.*");
 		addImport("android.util.*");
-		//imports that have never been used
-		//addImport("android.webkit.*");
 		addImport("android.animation.*");
 		addImport("android.view.animation.*");
 		addImport("java.io.*");
