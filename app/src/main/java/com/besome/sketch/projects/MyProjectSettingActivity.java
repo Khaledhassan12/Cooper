@@ -589,13 +589,18 @@ public class MyProjectSettingActivity extends BaseAppCompatActivity implements V
 
     private void selectTemplate(int index, MaterialCardView[] cards) {
         selectedTemplate = index;
+        
+        // Konversi nilai DP ke Pixel agar ukuran stroke konsisten di berbagai layar
+        int selectedStrokeWidth = (int) (2.5f * getResources().getDisplayMetrics().density);
+        int unselectedStrokeWidth = (int) (1.0f * getResources().getDisplayMetrics().density);
+
         for (int i = 0; i < cards.length; i++) {
             if (i == index) {
                 cards[i].setStrokeColor(getAttrColor(androidx.appcompat.R.attr.colorPrimary));
-                cards[i].setStrokeWidth(3);
+                cards[i].setStrokeWidth(selectedStrokeWidth); // Stroke lebih tebal (sekitar 2.5dp)
                 cards[i].setCardBackgroundColor(getAttrColor(com.google.android.material.R.attr.colorSecondaryContainer));
             } else {
-                cards[i].setStrokeWidth(1);
+                cards[i].setStrokeWidth(unselectedStrokeWidth); // Stroke tipis normal (1dp)
                 cards[i].setStrokeColor(getAttrColor(com.google.android.material.R.attr.colorOutline));
                 cards[i].setCardBackgroundColor(getAttrColor(com.google.android.material.R.attr.colorSurface));
             }

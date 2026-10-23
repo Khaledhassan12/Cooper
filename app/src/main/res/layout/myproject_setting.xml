@@ -287,14 +287,6 @@
                         android:layout_height="16dp"
                         android:background="?attr/colorControlNormal"/>
 
-<!--                    <ImageView-->
-<!--                        android:id="@+id/imageView2"-->
-<!--                        android:layout_width="24dp"-->
-<!--                        android:layout_height="24dp"-->
-<!--                        android:layout_marginHorizontal="6dp"-->
-<!--                        android:scaleType="fitCenter"-->
-<!--                        android:src="@drawable/ic_mtrl_version_control" />-->
-
                     <LinearLayout
                         android:id="@+id/ver_name_holder"
                         android:layout_width="0dp"
@@ -369,14 +361,16 @@
                         <com.google.android.material.card.MaterialCardView
                             android:id="@+id/template_non_androidx"
                             android:layout_width="0dp"
-                            android:layout_height="wrap_content"
+                            android:layout_height="match_parent"
                             android:layout_columnWeight="1"
+                            android:layout_rowWeight="1"
+                            android:layout_gravity="fill"
                             android:layout_margin="4dp"
                             app:cardElevation="0dp"
                             app:strokeColor="?attr/colorOutline"
                             app:strokeWidth="1dp">
                             <LinearLayout android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
+                                android:layout_height="match_parent"
                                 android:gravity="center" android:orientation="vertical"
                                 android:padding="12dp">
                                 <ImageView android:layout_width="48dp" android:layout_height="48dp"
@@ -392,14 +386,16 @@
                         <com.google.android.material.card.MaterialCardView
                             android:id="@+id/template_androidx_basic"
                             android:layout_width="0dp"
-                            android:layout_height="wrap_content"
+                            android:layout_height="match_parent"
                             android:layout_columnWeight="1"
+                            android:layout_rowWeight="1"
+                            android:layout_gravity="fill"
                             android:layout_margin="4dp"
                             app:cardElevation="0dp"
                             app:strokeColor="?attr/colorOutline"
                             app:strokeWidth="1dp">
                             <LinearLayout android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
+                                android:layout_height="match_parent"
                                 android:gravity="center" android:orientation="vertical"
                                 android:padding="12dp">
                                 <ImageView android:layout_width="48dp" android:layout_height="48dp"
@@ -415,14 +411,16 @@
                         <com.google.android.material.card.MaterialCardView
                             android:id="@+id/template_androidx_toolbar_fab"
                             android:layout_width="0dp"
-                            android:layout_height="wrap_content"
+                            android:layout_height="match_parent"
                             android:layout_columnWeight="1"
+                            android:layout_rowWeight="1"
+                            android:layout_gravity="fill"
                             android:layout_margin="4dp"
                             app:cardElevation="0dp"
                             app:strokeColor="?attr/colorOutline"
                             app:strokeWidth="1dp">
                             <LinearLayout android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
+                                android:layout_height="match_parent"
                                 android:gravity="center" android:orientation="vertical"
                                 android:padding="12dp">
                                 <ImageView android:layout_width="48dp" android:layout_height="48dp"
@@ -439,14 +437,16 @@
                         <com.google.android.material.card.MaterialCardView
                             android:id="@+id/template_androidx_drawer_toolbar_fab"
                             android:layout_width="0dp"
-                            android:layout_height="wrap_content"
+                            android:layout_height="match_parent"
                             android:layout_columnWeight="1"
+                            android:layout_rowWeight="1"
+                            android:layout_gravity="fill"
                             android:layout_margin="4dp"
                             app:cardElevation="0dp"
                             app:strokeColor="?attr/colorOutline"
                             app:strokeWidth="1dp">
                             <LinearLayout android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
+                                android:layout_height="match_parent"
                                 android:gravity="center" android:orientation="vertical"
                                 android:padding="12dp">
                                 <ImageView android:layout_width="48dp" android:layout_height="48dp"
