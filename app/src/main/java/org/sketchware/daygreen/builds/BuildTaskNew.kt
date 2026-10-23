@@ -17,6 +17,7 @@ import a.a.a.wq
 import a.a.a.yB
 import a.a.a.yq
 import mod.hey.studios.build.BuildSettings
+import mod.hey.studios.project.ProjectSettings
 
 class BuildTaskNew @JvmOverloads constructor(
     private val context: Context,
@@ -46,6 +47,7 @@ class BuildTaskNew @JvmOverloads constructor(
         if (canceled.asBoolean) throw CancelledException()
 
         if (skipIf()) {
+            receiver.onProgress("Task: $name (SKIPPED)", stepNo)
             listener.onTaskSkipped(name)
             return
         }
@@ -78,17 +80,24 @@ class BuildTaskNew @JvmOverloads constructor(
     private class CancelledException : Exception()
 
     private lateinit var builder: ProjectBuilder
-    
+
     // Silent receiver untuk menyembunyikan log dari compiler internal
     private val silentReceiver = BuildProgressReceiver { _, _ -> }
+
+    private fun hasAidlFiles(): Boolean =
+        File(builder.fpu.getPathAidl(scId)).walkTopDown().any {
+            it.isFile && it.name.endsWith(".aidl")
+        }
 
     @Throws(Exception::class)
     fun run(): Boolean {
         val totalStartTime = System.currentTimeMillis()
-        
-        // Membaca pengaturan build (Debug atau Release)
+
         val buildSettings = BuildSettings(scId)
-        val isRelease = buildSettings.getValue(BuildSettings.SETTING_BUILD_MODE, BuildSettings.BUILD_MODE_DEBUG) == BuildSettings.BUILD_MODE_RELEASE
+        val isRelease = buildSettings.getValue(
+            BuildSettings.SETTING_BUILD_MODE,
+            BuildSettings.BUILD_MODE_DEBUG
+        ) == BuildSettings.BUILD_MODE_RELEASE
         val modeName = if (isRelease) "Release" else "Debug"
 
         try {
@@ -121,7 +130,7 @@ class BuildTaskNew @JvmOverloads constructor(
                 jC.d(scId).b(q.resDirectoryPath + File.separator + "drawable-xhdpi")
                 jC.d(scId).c(q.resDirectoryPath + File.separator + "raw")
                 jC.d(scId).a(q.assetsPath + File.separator + "fonts")
-                
+
                 builder = ProjectBuilder(silentReceiver, context, q)
                 false
             }
@@ -157,7 +166,16 @@ class BuildTaskNew @JvmOverloads constructor(
                 builder.compileResources()
             }
 
-            step("generateViewBinding", 7) {
+            step(
+                name = "generateViewBinding",
+                stepNo = 7,
+                skipIf = {
+                    builder.settings.getValue(
+                        ProjectSettings.SETTING_ENABLE_VIEWBINDING,
+                        ProjectSettings.SETTING_GENERIC_VALUE_FALSE
+                    ) == ProjectSettings.SETTING_GENERIC_VALUE_FALSE
+                }
+            ) {
                 builder.generateViewBinding()
                 false
             }
@@ -167,7 +185,11 @@ class BuildTaskNew @JvmOverloads constructor(
                 false
             }
 
-            step("compileAidl", 9) {
+            step(
+                name = "compileAidl",
+                stepNo = 9,
+                skipIf = { !hasAidlFiles() }
+            ) {
                 builder.compileAidl()
                 false
             }
@@ -176,17 +198,31 @@ class BuildTaskNew @JvmOverloads constructor(
                 builder.compileJavaCode()
             }
 
-            step("compileNativeCode", 11) {
+            step(
+                name = "compileNativeCode",
+                stepNo = 11,
+                skipIf = {
+                    builder.settings.getValue(ProjectSettings.SETTING_ENABLE_NATIVE, "false") != "true"
+                }
+            ) {
                 builder.compileNativeCode()
                 false
             }
 
-            step("stringFog", 12) {
+            step(
+                name = "stringFog",
+                stepNo = 12,
+                skipIf = { !StringfogHandler(scId).isStringfogEnabled() }
+            ) {
                 StringfogHandler(scId).start(silentReceiver, builder)
                 false
             }
 
-            step("proguard", 13) {
+            step(
+                name = "proguard",
+                stepNo = 13,
+                skipIf = { !builder.proguard.isShrinkingEnabled() }
+            ) {
                 ProguardHandler(scId).start(silentReceiver, builder)
                 false
             }
