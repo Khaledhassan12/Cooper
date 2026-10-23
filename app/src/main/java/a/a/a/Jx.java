@@ -129,11 +129,6 @@ public class Jx {
 		return Lx.j(new Fx(projectFileBean.getActivityName(), buildConfig, blocks, isViewBindingEnabled).a(), false);
 	}
 	
-	public String onCustomMethod() {
-		ArrayList<BlockBean> blocks = jC.a(projectDataManager.a).a(projectFileBean.getJavaName(), "onCustomMethod_onCustomMethod");
-		return Lx.j(new Fx(projectFileBean.getActivityName(), buildConfig, blocks, isViewBindingEnabled).a(), false);
-	}
-	
 	private void extraVariables() {
 		for (Map.Entry<String, ArrayList<BlockBean>> blocks : jC.a(projectDataManager.a).b(projectFileBean.getJavaName()).entrySet()) {
 			for (BlockBean block : blocks.getValue()) {
@@ -720,6 +715,18 @@ public class Jx {
 			sb.append(moreBlocksCode).append(EOL);
 		}
 		
+		// inject onCustomMethod — inside class, outside any method
+		ArrayList<BlockBean> customMethodBlocks = jC.a(projectDataManager.a)
+		    .a(projectFileBean.getJavaName(), "onCustomMethod_onCustomMethod");
+		if (!customMethodBlocks.isEmpty()) {
+		    String customCode = Lx.j(
+		        new Fx(projectFileBean.getActivityName(), buildConfig,
+		               customMethodBlocks, isViewBindingEnabled).a(), false);
+		    if (!customCode.isEmpty()) {
+		        sb.append(EOL).append(customCode).append(EOL);
+		    }
+		}
+
 		sb.append(EOL);
 		for (int j = 0, qSize = adapterClasses.size(); j < qSize; j++) {
 			String adapterCode = adapterClasses.get(j);
@@ -741,13 +748,6 @@ public class Jx {
 			sb.append(getDeprecatedMethodsCode());
 		}
 		sb.append("}").append(EOL);
-		
-		String customCodeOutsideClass = onCustomMethod();
-		if (!customCodeOutsideClass.isEmpty()) {
-			sb.append(EOL);
-			sb.append(customCodeOutsideClass).append(EOL);
-		}
-		
 		String code = sb.toString();
 		
 		if (isFragment) {

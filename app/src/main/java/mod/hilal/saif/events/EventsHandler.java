@@ -268,7 +268,7 @@ public class EventsHandler {
             case "Import" -> "add custom imports";
             case "onActivityResult" -> "onActivityResult";
             case "initializeLogic" -> "initializeLogic";
-            case "onCustomMethod" -> "Add custom code outside class";
+            case "onCustomMethod" -> "Add custom code inside class";
             //new add by @fora2323
             case "shizukuOnRequestPermissionResult" -> "Shizuku onRequestPermissionResult";
             case "onSwipeRefreshLayout" -> "On SwipeRefreshLayout swipe";
@@ -318,7 +318,8 @@ public class EventsHandler {
                     "//Ul5kmZqmO867OV0QTGOpjwX7MXmgzxzQBSZTf0Y16PnDXkhLsZfvF\r\n" +
                             param + "\r\n" +
                             "//3b5IqsVG57gNqLi7FBO2MeOW6iI7tOustUGwcA7HKXm0o7lovZ";
-            case "onActivityResult", "initializeLogic", "onCustomMethod" -> "";
+            case "onActivityResult", "initializeLogic" -> "";
+            case "onCustomMethod" -> param;
             case "onSwipeRefreshLayout" ->
                 // Changed from: "@Override \npublic void..."
                     "@Override\r\n" +
@@ -431,7 +432,7 @@ public class EventsHandler {
             case "onActivityResult" ->
                     "OnActivityResult %d.requestCode %d.resultCode %m.intent.data";
             case "initializeLogic" -> "initializeLogic";
-            case "onCustomMethod" -> "onCustomMethod";
+            case "onCustomMethod" -> "Add custom code inside class";
             case "onSwipeRefreshLayout" -> "when " + name + " refresh";
             case " onLongClick" -> "when " + name + " long clicked";
             case "onTabLayoutNewTabAdded" -> name + " return tab title %d.position";
