@@ -714,18 +714,6 @@ public class Jx {
 			sb.append(EOL);
 			sb.append(moreBlocksCode).append(EOL);
 		}
-		
-		// inject onCustomMethod — inside class, outside any method
-		ArrayList<BlockBean> customMethodBlocks = jC.a(projectDataManager.a)
-		    .a(projectFileBean.getJavaName(), "onCustomMethod_onCustomMethod");
-		if (!customMethodBlocks.isEmpty()) {
-		    String customCode = Lx.j(
-		        new Fx(projectFileBean.getActivityName(), buildConfig,
-		               customMethodBlocks, isViewBindingEnabled).a(), false);
-		    if (!customCode.isEmpty()) {
-		        sb.append(EOL).append(customCode).append(EOL);
-		    }
-		}
 
 		sb.append(EOL);
 		for (int j = 0, qSize = adapterClasses.size(); j < qSize; j++) {
