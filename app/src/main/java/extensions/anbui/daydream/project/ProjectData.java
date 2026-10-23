@@ -4,7 +4,11 @@ import android.util.Log;
 
 import androidx.annotation.Nullable;
 
+import com.besome.sketch.beans.ProjectFileBean;
+import a.a.a.lC;
+
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -15,20 +19,53 @@ public class ProjectData {
 
     public static String TAG = Configs.universalTAG + "ProjectData";
 
+    public static final int TEMPLATE_NON_ANDROIDX = 0;
+    public static final int TEMPLATE_ANDROIDX = 1;
+    public static final int TEMPLATE_ANDROIDX_TOOLBAR_FAB = 2;
+    public static final int TEMPLATE_ANDROIDX_DRAWER_TOOLBAR_FAB = 3;
+
     public static void setDataForFirstTimeProjectCreation(String projectID, boolean enableViewBinding, boolean minsdk24) {
+        setDataForFirstTimeProjectCreation(projectID, enableViewBinding, minsdk24, TEMPLATE_ANDROIDX);
+    }
+
+    public static void setDataForFirstTimeProjectCreation(String projectID, boolean enableViewBinding, boolean minsdk24, int template) {
         DRProjectTracker.startNow(projectID);
-        //There is some code that will temporarily block after the project is created so wait a second.
         new Thread(() -> {
             try {
                 Thread.sleep(1000);
                 ProjectBuildConfigs.setDataForFirstTimeProjectCreation(projectID);
                 ProjectConfigs.setDataForFirstTimeProjectCreation(projectID, enableViewBinding, minsdk24);
-//                ProjectLocalLibraryConfigs.setDataForFirstTimeProjectCreation(projectID);
-                Log.i(TAG, "setDataForFirstTimeProjectCreation: Done");
+                applyProjectTemplate(projectID, template);
+                Log.i(TAG, "setDataForFirstTimeProjectCreation: Done (template=" + template + ")");
             } catch (InterruptedException e) {
                 Log.e(TAG, "setDataForFirstTimeProjectCreation: ", e);
             }
         }).start();
+    }
+
+    private static void applyProjectTemplate(String projectID, int template) {
+        if (template == TEMPLATE_NON_ANDROIDX || template == TEMPLATE_ANDROIDX) {
+            return;
+        }
+        try {
+            int activityOptions = 0;
+            if (template == TEMPLATE_ANDROIDX_TOOLBAR_FAB) {
+                activityOptions = ProjectFileBean.OPTION_ACTIVITY_TOOLBAR | ProjectFileBean.OPTION_ACTIVITY_FAB;
+            } else if (template == TEMPLATE_ANDROIDX_DRAWER_TOOLBAR_FAB) {
+                activityOptions = ProjectFileBean.OPTION_ACTIVITY_TOOLBAR
+                        | ProjectFileBean.OPTION_ACTIVITY_DRAWER
+                        | ProjectFileBean.OPTION_ACTIVITY_FAB;
+            }
+            List<HashMap<String, Object>> activities = lC.e(projectID);
+            if (activities != null && !activities.isEmpty()) {
+                HashMap<String, Object> mainActivity = activities.get(0);
+                mainActivity.put("options", activityOptions);
+                lC.f(projectID, activities);
+                Log.i(TAG, "applyProjectTemplate: set options=" + activityOptions);
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "applyProjectTemplate: ", e);
+        }
     }
 
     public static Map<String, Object> readFirstLineDataWithDataTypeToMap(String dataType, String data) {

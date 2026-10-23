@@ -23,6 +23,7 @@ import androidx.transition.TransitionManager;
 
 import com.besome.sketch.lib.base.BaseAppCompatActivity;
 import com.besome.sketch.lib.ui.ColorPickerDialog;
+import com.google.android.material.card.MaterialCardView;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import org.sketchware.daygreen.Config;
@@ -83,6 +84,8 @@ public class MyProjectSettingActivity extends BaseAppCompatActivity implements V
     private boolean isIconAdaptive;
     private Bitmap icon;
     private String sc_id;
+    // 0=Non-Androidx, 1=Androidx, 2=Androidx+Toolbar+FAB, 3=Androidx+Drawer+Toolbar+FAB
+    private int selectedTemplate = 1;
 
     private ThemePresetAdapter themePresetAdapter;
 
@@ -120,6 +123,7 @@ public class MyProjectSettingActivity extends BaseAppCompatActivity implements V
 
         ThemePresetAdapter.selectedPosition = -1;
         initializeThemePresets();
+        initializeTemplateSelection();
 
         binding.tilAppName.setHint(Helper.getResString(R.string.myprojects_settings_hint_enter_application_name));
         binding.tilPackageName.setHint(Helper.getResString(R.string.myprojects_settings_hint_enter_package_name));
@@ -173,6 +177,8 @@ public class MyProjectSettingActivity extends BaseAppCompatActivity implements V
             for (int i = 0; i < themeColorKeys.length; i++) {
                 projectThemeColors[i] = yB.a(metadata, themeColorKeys[i], projectThemeColors[i]);
             }
+            
+            binding.cardProjectTemplate.setVisibility(View.GONE);
         } else {
             /* Set the dialog's title & create button label */
             String newProjectName = getIntent().getStringExtra("my_ws_name");
@@ -309,7 +315,7 @@ public class MyProjectSettingActivity extends BaseAppCompatActivity implements V
                 if (icon != null) saveBitmapTo(icon, getCustomIconPath());
                 if (!updatingExistingProject) {
                     String minSdkVal = binding.etMinimumSdkVersion.getText().toString().split(" ")[0];
-                    ProjectData.setDataForFirstTimeProjectCreation(sc_id, binding.cbEnableViewbinding.isChecked(), minSdkVal.equals("24"));
+                    ProjectData.setDataForFirstTimeProjectCreation(sc_id, binding.cbEnableViewbinding.isChecked(), minSdkVal.equals("24"), selectedTemplate);
                 }
             }
         } else if (id == R.id.cancel) {
@@ -566,6 +572,43 @@ public class MyProjectSettingActivity extends BaseAppCompatActivity implements V
 
         syncThemeColors();
     }
+    
+    private void initializeTemplateSelection() {
+        MaterialCardView[] templateCards = {
+            binding.templateNonAndroidx,
+            binding.templateAndroidxBasic,
+            binding.templateAndroidxToolbarFab,
+            binding.templateAndroidxDrawerToolbarFab
+        };
+        for (int i = 0; i < templateCards.length; i++) {
+            final int index = i;
+            templateCards[i].setOnClickListener(v -> selectTemplate(index, templateCards));
+        }
+        selectTemplate(1, templateCards); // default: Androidx
+    }
+
+    private void selectTemplate(int index, MaterialCardView[] cards) {
+        selectedTemplate = index;
+        for (int i = 0; i < cards.length; i++) {
+            if (i == index) {
+                cards[i].setStrokeColor(getAttrColor(com.google.android.material.R.attr.colorPrimary));
+                cards[i].setStrokeWidth(3);
+                cards[i].setCardBackgroundColor(getAttrColor(com.google.android.material.R.attr.colorSecondaryContainer));
+            } else {
+                cards[i].setStrokeWidth(1);
+                cards[i].setStrokeColor(getAttrColor(com.google.android.material.R.attr.colorOutline));
+                cards[i].setCardBackgroundColor(getAttrColor(com.google.android.material.R.attr.colorSurface));
+            }
+        }
+    }
+
+    private int getAttrColor(int attr) {
+        int[] attrs = new int[]{attr};
+        android.content.res.TypedArray ta = obtainStyledAttributes(attrs);
+        int color = ta.getColor(0, 0);
+        ta.recycle();
+        return color;
+    }
 
     private static class ThemeColorView extends LinearLayout {
 
@@ -657,6 +700,7 @@ public class MyProjectSettingActivity extends BaseAppCompatActivity implements V
             projectSettings.setValue(ProjectSettings.SETTING_ENABLE_BRIDGELESS_THEMES, binding.cbUseNewMaterialComponentsAppTheme.isChecked() ? "true" : "false");
             projectSettings.setValue(ProjectSettings.SETTING_ENABLE_NATIVE, binding.cbEnableNative.isChecked() ? "true" : "false");
             projectSettings.setValue(ProjectSettings.SETTING_NEW_XML_COMMAND, "true");
+            projectSettings.setValue(ProjectSettings.SETTING_PROJECT_TEMPLATE, String.valueOf(selectedTemplate));
 
             ProjectApplication.createApplicationFile(sc_id, Helper.getText(binding.etPackageName), appClassVal);
 

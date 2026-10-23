@@ -71,6 +71,13 @@ public class ProjectSettings {
      * Setting to use new xml command
      */
     public static final String SETTING_NEW_XML_COMMAND = "xml_command";
+
+    /**
+     * Project template selected at creation time.
+     * "0"=Non-Androidx, "1"=Androidx, "2"=Androidx+Toolbar+FAB, "3"=Androidx+Drawer+Toolbar+FAB
+     */
+    public static final String SETTING_PROJECT_TEMPLATE = "project_template";
+
     public static final String SETTING_GENERIC_VALUE_TRUE = "true";
     public static final String SETTING_GENERIC_VALUE_FALSE = "false";
     private static final String TAG = "ProjectSettings";
