@@ -22,6 +22,7 @@ public class LanguagePickerDialog {
     private static final List<String[]> LANGUAGES = Arrays.asList(
             new String[]{"system", "Follow system"},
             new String[]{"en", "English"},
+            new String[]{"ar-EG", "العربية (مصري)"},
             new String[]{"id", "Bahasa Indonesia"},
             new String[]{"ko", "한국어 (Korean)"},
             new String[]{"zh-CN", "简体中文 (Chinese Simplified)"},
@@ -56,12 +57,12 @@ public class LanguagePickerDialog {
         final int[] checkedItem = {selectedIndex};
 
         new MaterialAlertDialogBuilder(activity)
-                .setTitle("Choose Language")
+                .setTitle(R.string.language_picker_title)
                 .setSingleChoiceItems(labels, selectedIndex, (dialog, which) -> {
                     checkedItem[0] = which;
                 })
                 .setNegativeButton(R.string.common_word_cancel, null)
-                .setPositiveButton("OK", (dialog, which) -> {
+                .setPositiveButton(R.string.language_picker_confirm, (dialog, which) -> {
                     String picked = LANGUAGES.get(checkedItem[0])[0];
                     saveLanguage(activity, picked);
                     applyLanguage(picked);
