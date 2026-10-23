@@ -1,5 +1,6 @@
 import os
 import glob
+import time
 from pyrogram import Client
 
 api_id = int(os.environ["API_ID"])
@@ -38,32 +39,70 @@ caption = (
     f"**Commit hash:** {short_sha}"
 )
 
-app = Client(
-    "userbot_session",
-    api_id=api_id,
-    api_hash=api_hash,
-    session_string=session_string,
-    in_memory=True
-)
-
-with app:
-    print(f"Mengirim APK debug android33 ke topic {topic_id2}: {apk_v33}")
-    app.send_document(
-        chat_id=chat_id,
-        document=apk_v33,
-        file_name=display_name,
-        caption=caption,
-        message_thread_id=topic_id2
-    )
-
-print("APK debug android33 berhasil diunggah ke topik Telegram!")
-
 id_file = "log_msg_id.txt"
+log_msg_id = None
 if os.path.exists(id_file):
     try:
         log_msg_id = int(open(id_file).read().strip())
-        with app:
+    except Exception:
+        pass
+
+
+def make_client():
+    # Client baru tiap percobaan supaya koneksi yang timeout tidak terbawa
+    return Client(
+        "userbot_session",
+        api_id=api_id,
+        api_hash=api_hash,
+        session_string=session_string,
+        in_memory=True,
+        max_concurrent_transmissions=1,
+    )
+
+
+MAX_TRIES = 5
+sent = False
+for attempt in range(1, MAX_TRIES + 1):
+    try:
+        with make_client() as app:
+            print(f"[{attempt}/{MAX_TRIES}] Mengirim APK debug android33 ke topic {topic_id2}: {apk_v33}")
+            app.send_document(
+                chat_id=chat_id,
+                document=apk_v33,
+                file_name=display_name,
+                caption=caption,
+                message_thread_id=topic_id2,
+            )
+        sent = True
+        break
+    except BaseException as e:
+        if isinstance(e, KeyboardInterrupt):
+            raise
+        print(f"Percobaan {attempt} gagal: {type(e).__name__}: {e}")
+        time.sleep(10 * attempt)
+
+if not sent:
+    # Beri tahu lewat pesan log, APK tetap ada di GitHub Artifacts
+    if log_msg_id:
+        try:
+            with make_client() as app:
+                app.edit_message_text(
+                    chat_id, log_msg_id,
+                    f"❌ Build #{version} sukses, tapi gagal kirim APK ke Telegram.\n"
+                    f"APK ada di GitHub Actions > Artifacts."
+                )
+        except BaseException as e:
+            print(f"Gagal update pesan log: {e}")
+    print("Gagal mengirim APK setelah semua percobaan.")
+    exit(1)
+
+print("APK debug android33 berhasil diunggah ke topik Telegram!")
+
+# Hapus pesan log live setelah APK terkirim
+if log_msg_id:
+    try:
+        with make_client() as app:
             app.delete_messages(chat_id, log_msg_id)
         print("Pesan log live dihapus.")
-    except Exception as e:
+    except BaseException as e:
         print(f"Gagal menghapus pesan log: {e}")
