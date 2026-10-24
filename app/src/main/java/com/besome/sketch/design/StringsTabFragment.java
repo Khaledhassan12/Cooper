@@ -23,6 +23,7 @@ import pro.sketchware.databinding.PalletCustomviewBinding;
 import pro.sketchware.databinding.ResourcesEditorFragmentBinding;
 import pro.sketchware.databinding.ViewStringEditorAddBinding;
 import pro.sketchware.utility.FileUtil;
+import pro.sketchware.utility.ProjectStrings;
 import pro.sketchware.utility.SketchwareUtil;
 import pro.sketchware.utility.XmlUtil;
 
@@ -50,6 +51,11 @@ public class StringsTabFragment extends Fragment {
     private static final String APP_NAME_KEY = "app_name";
     private HashMap<String, Object> appNameEntry;
     private String appNameNote;
+    private final ProjectStrings.Listener stringsListener = scId -> {
+        if (binding != null && scId.equals(DesignActivity.sc_id)) {
+            refreshList();
+        }
+    };
 
     @Nullable
     @Override
@@ -72,11 +78,13 @@ public class StringsTabFragment extends Fragment {
         updateStringsList(filePath, 0, false);
 
         binding.fabAddString.setOnClickListener(v -> showAddStringDialog());
+        ProjectStrings.addListener(stringsListener);
         return binding.getRoot();
     }
 
     @Override
     public void onDestroyView() {
+        ProjectStrings.removeListener(stringsListener);
         binding = null;
         super.onDestroyView();
     }
@@ -346,6 +354,7 @@ public class StringsTabFragment extends Fragment {
 
         XmlUtil.saveXml(filePath, stringsEditorManager.convertListMapToXmlStrings(allStrings, indexNotesMap));
         hasUnsavedChanges = false;
+        ProjectStrings.notifyChanged(DesignActivity.sc_id);
     }
 
     @Override
