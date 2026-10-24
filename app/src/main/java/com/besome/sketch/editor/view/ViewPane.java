@@ -72,6 +72,8 @@ import java.util.HashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.sketchware.daygreen.editor.view.item.ItemViewPager2;
+
 import a.a.a.Gx;
 import a.a.a.kC;
 import a.a.a.lC;
@@ -300,10 +302,8 @@ public class ViewPane extends RelativeLayout {
             case ViewBeans.VIEW_TYPE_WIDGET_RATINGBAR -> new ItemRatingBar(context);
             case ViewBeans.VIEW_TYPE_WIDGET_VIDEOVIEW -> new ItemVideoView(context);
             case ViewBeans.VIEW_TYPE_WIDGET_SEARCHVIEW -> new ItemSearchView(context);
-            case ViewBeans.VIEW_TYPE_WIDGET_AUTOCOMPLETETEXTVIEW ->
-                    new ItemAutoCompleteTextView(context);
-            case ViewBeans.VIEW_TYPE_WIDGET_MULTIAUTOCOMPLETETEXTVIEW ->
-                    new ItemMultiAutoCompleteTextView(context);
+            case ViewBeans.VIEW_TYPE_WIDGET_AUTOCOMPLETETEXTVIEW -> new ItemAutoCompleteTextView(context);
+            case ViewBeans.VIEW_TYPE_WIDGET_MULTIAUTOCOMPLETETEXTVIEW -> new ItemMultiAutoCompleteTextView(context);
             case ViewBeans.VIEW_TYPE_WIDGET_GRIDVIEW -> new ItemGridView(context);
             case ViewBeans.VIEW_TYPE_WIDGET_ANALOGCLOCK -> new ItemAnalogClock(context);
             case ViewBeans.VIEW_TYPE_WIDGET_DATEPICKER -> new ItemDatePicker(context);
@@ -311,8 +311,8 @@ public class ViewPane extends RelativeLayout {
             case ViewBeans.VIEW_TYPE_WIDGET_DIGITALCLOCK -> new ItemDigitalClock(context);
             case ViewBeans.VIEW_TYPE_LAYOUT_TABLAYOUT -> new ItemTabLayout(context);
             case ViewBeans.VIEW_TYPE_LAYOUT_VIEWPAGER -> new ItemViewPager(context);
-            case ViewBeans.VIEW_TYPE_LAYOUT_BOTTOMNAVIGATIONVIEW ->
-                    new ItemBottomNavigationView(context);
+            case ViewBeans.VIEW_TYPE_LAYOUT_VIEWPAGER2 -> new ItemViewPager2(context);
+            case ViewBeans.VIEW_TYPE_LAYOUT_BOTTOMNAVIGATIONVIEW -> new ItemBottomNavigationView(context);
             case ViewBeans.VIEW_TYPE_WIDGET_BADGEVIEW -> new ItemBadgeView(context);
             case ViewBeans.VIEW_TYPE_WIDGET_PATTERNLOCKVIEW -> new ItemPatternLockView(context);
             case ViewBeans.VIEW_TYPE_WIDGET_WAVESIDEBAR -> new ItemWaveSideBar(context);
