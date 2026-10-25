@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Cooper GitHub Integration Engine: all user-facing labels belong in Android resources. -->
+    <string name="cooper_github_manager_title">GitHub Manager</string>
+    <string name="cooper_github_smart_safe">Smart — ذكي وآمن</string>
+    <string name="cooper_github_account">GitHub account</string>
+    <string name="cooper_github_not_connected">Not connected</string>
+    <string name="cooper_github_auth_not_configured">Secure sign-in is not configured yet. No credentials are stored by this screen.</string>
+    <string name="cooper_github_connect">Connect GitHub</string>
+    <string name="cooper_github_connect_description">Review GitHub authorization settings. In-app sign-in requires Cooper OAuth configuration.</string>
+    <string name="cooper_github_connection_title">GitHub connection</string>
+    <string name="cooper_github_oauth_required">Cooper must be configured with a secure OAuth flow before account access can be enabled. No token or client secret is embedded in this build.</string>
+    <string name="cooper_github_open_settings">Open GitHub settings</string>
+    <string name="cooper_github_repositories">Repositories</string>
+    <string name="cooper_github_browse_repositories">Browse repositories</string>
+    <string name="cooper_github_browse_repositories_description">List repositories after secure authentication is implemented.</string>
+    <string name="cooper_github_link_project">Link Cooper project</string>
+    <string name="cooper_github_link_project_description">Bind a Sketchware project to a verified repository without moving or deleting project files.</string>
+    <string name="cooper_github_create_repository">Create repository</string>
+    <string name="cooper_github_create_repository_description">Create a public or private repository after authentication and explicit confirmation.</string>
+    <string name="cooper_github_local_git">Local Git</string>
+    <string name="cooper_github_local_status">Local repository status</string>
+    <string name="cooper_github_not_initialized">Not initialized</string>
+    <string name="cooper_github_local_status_description">This screen does not initialize repositories or modify project files until the selected project and Git backend are verified.</string>
+    <string name="cooper_github_inspect_changes">Inspect changes</string>
+    <string name="cooper_github_inspect_changes_description">Review tracked, modified, deleted, and untracked files through the local Git backend.</string>
+    <string name="cooper_github_commit_sync">Commit and sync</string>
+    <string name="cooper_github_commit_sync_description">Stage, review, commit, fetch, push, and pull require a verified operation plan.</string>
+    <string name="cooper_github_safety">Safety</string>
+    <string name="cooper_github_operation_policy">Operation policy</string>
+    <string name="cooper_github_smart_review">Smart — review before writes</string>
+    <string name="cooper_github_safety_description">Remote writes and project-changing merges require explicit approval and post-operation verification.</string>
+    <string name="cooper_github_implementation_status">Implementation status</string>
+    <string name="cooper_github_implementation_status_description">Review which integration layers are available in this build.</string>
+    <string name="cooper_github_status_dialog_title">Implementation status</string>
+    <string name="cooper_github_status_dialog_body">Available: manager entry point and safety primitives. Pending: OAuth/PKCE, full local Git operations, repository API integration, durable operation journal, sync/conflict resolution, and automated integration tests.</string>
+    <string name="cooper_github_not_ready_message">%1$s is not available until its verified backend is implemented.</string>
+    <string name="cooper_github_cancel">Cancel</string>
+    <string name="cooper_github_ok">OK</string>
+    <string name="cooper_github_operation_created">Created</string>
+    <string name="cooper_github_operation_inspecting">Inspecting</string>
+    <string name="cooper_github_operation_planned">Planned</string>
+    <string name="cooper_github_operation_awaiting_approval">Awaiting Approval</string>
+    <string name="cooper_github_operation_executing">Executing</string>
+    <string name="cooper_github_operation_verifying">Verifying</string>
+    <string name="cooper_github_operation_succeeded">Succeeded</string>
+    <string name="cooper_github_operation_partial">Partial</string>
+    <string name="cooper_github_operation_failed">Failed</string>
+    <string name="cooper_github_operation_cancelled">Cancelled</string>
+    <string name="cooper_github_operation_denied">Denied</string>
+    <string name="cooper_github_operation_recovery_required">Recovery Required</string>
+    <string name="cooper_github_secret_detected">A possible secret was found. The value is hidden; review the file before uploading.</string>
+    <string name="cooper_github_path_rejected">The selected path is outside the authorized Cooper project directory.</string>
+</resources>
