@@ -22,6 +22,8 @@ android {
         versionName = "v8.0.6-daygreen"
 
         buildConfigField("String", "SKETCHUB_API_KEY", "\"${System.getenv("SKETCHUB_API_KEY")}\"")
+        // Public OAuth client ID supplied by build environment; no client secret is embedded.
+        buildConfigField("String", "COOPER_GITHUB_CLIENT_ID", "\"${System.getenv(\"COOPER_GITHUB_CLIENT_ID\") ?: \"\"}\"")
     }
 
     signingConfigs {
