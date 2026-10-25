@@ -460,13 +460,15 @@ public class ViewPane extends RelativeLayout {
         view.setScaleY(resolveDimenToFloat(viewBean.resScaleY, viewBean.scaleY));
         
         String backgroundResource = viewBean.layout.backgroundResource;
-        boolean isLinear = viewBean.type == ViewBean.VIEW_TYPE_LAYOUT_LINEAR;
         boolean isCard = viewBean.type == ViewBeans.VIEW_TYPE_LAYOUT_CARDVIEW;
-        
-        if (backgroundResource != null && !backgroundResource.isEmpty() && (isLinear || (PREVIEW_CARD_ANDROID_BACKGROUND && isCard))) {
+
+        // Apply the drawable background to every view type (Button, TextView, EditText, ...),
+        // not only LinearLayout. CardView keeps its own background unless the flag is enabled.
+        if (backgroundResource != null && !backgroundResource.isEmpty() && (!isCard || PREVIEW_CARD_ANDROID_BACKGROUND)) {
             try {
-                if (resourcesManager != null && resourcesManager.h(backgroundResource) == ProjectResourceBean.PROJECT_RES_TYPE_RESOURCE) {
-                    view.setBackgroundResource(getContext().getResources().getIdentifier(backgroundResource, "drawable", getContext().getPackageName()));
+                int builtInDrawableId = getContext().getResources().getIdentifier(backgroundResource, "drawable", getContext().getPackageName());
+                if (resourcesManager != null && resourcesManager.h(backgroundResource) == ProjectResourceBean.PROJECT_RES_TYPE_RESOURCE && builtInDrawableId != 0) {
+                    view.setBackgroundResource(builtInDrawableId);
                 } else {
                     Drawable customD = DrawablePreviewRenderer.getDrawableFromProject(sc_id, backgroundResource, 0, material3LibraryManager.canUseNightVariantColors());
                     if (customD != null) {
