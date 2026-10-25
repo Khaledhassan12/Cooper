@@ -2320,4 +2320,19 @@ Please try again later"</string>
     <string name="daydream_subtitile">Magic for your project.</string>
 
 
+
+    <!-- Cooper Directly Git beginner flow -->
+    <string name="cooper_github_directly_section">Quick start</string>
+    <string name="cooper_github_directly_title">Cooper Directly 💡</string>
+    <string name="cooper_github_directly_description">A simpler guided path to publish one Cooper project to GitHub.</string>
+    <string name="cooper_github_directly_login_required">Connect your GitHub account before using Directly Git. Your project will not be uploaded until you review and confirm the publishing steps.</string>
+    <string name="cooper_github_directly_intro">Publish one project with fewer steps. GitHub Manager remains available for advanced controls.</string>
+    <string name="cooper_github_directly_project_icon">Selected Cooper project icon</string>
+    <string name="cooper_github_directly_no_project">Choose a Cooper project</string>
+    <string name="cooper_github_directly_project_details">Project details appear here after selection.</string>
+    <string name="cooper_github_directly_choose_project">Cooper Projects</string>
+    <string name="cooper_github_directly_safety_note">Directly Git will use one selected project and one destination repository. Review the repository details before publishing. Existing or previously linked destinations must not be overwritten.</string>
+    <string name="cooper_github_directly_advanced">Continue in GitHub Manager</string>
+    <string name="cooper_github_directly_project_picker_hint">Choose a project in the picker. Return to Directly Git to continue the guided flow.</string>
+
 </resources>
