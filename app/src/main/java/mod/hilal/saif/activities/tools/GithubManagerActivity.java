@@ -1208,6 +1208,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                     }
                 });
             } catch (Exception e) {
+                if (handleReauthenticationFailure(e)) return;
                 String message = e.getMessage() == null ? "Repository creation failed." : e.getMessage();
                 new Handler(Looper.getMainLooper()).post(() ->
                         new MaterialAlertDialogBuilder(this)
