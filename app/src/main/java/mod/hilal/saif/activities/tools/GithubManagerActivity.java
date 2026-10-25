@@ -173,18 +173,92 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
             verifyGitHubAccount();
             return;
         }
-        if (BuildConfig.COOPER_GITHUB_CLIENT_ID == null || BuildConfig.COOPER_GITHUB_CLIENT_ID.trim().isEmpty()) {
-            new MaterialAlertDialogBuilder(this)
-                    .setTitle(R.string.cooper_github_connection_title)
-                    .setMessage(R.string.cooper_github_oauth_not_configured)
-                    .setPositiveButton(R.string.cooper_github_open_settings, (dialog, which) ->
-                            startActivity(new Intent(Intent.ACTION_VIEW,
-                                    Uri.parse("https://github.com/settings/developers"))))
-                    .setNegativeButton(R.string.common_word_cancel, null)
-                    .show();
-            return;
-        }
-        startDeviceAuthorization();
+        new MaterialAlertDialogBuilder(this)
+                .setTitle("Connect to GitHub")
+                .setItems(new String[]{"OAuth — Recommended", "Personal Access Token"}, (dialog, which) -> {
+                    if (which == 0) {
+                        if (BuildConfig.COOPER_GITHUB_CLIENT_ID == null
+                                || BuildConfig.COOPER_GITHUB_CLIENT_ID.trim().isEmpty()) {
+                            new MaterialAlertDialogBuilder(this)
+                                    .setTitle(R.string.cooper_github_connection_title)
+                                    .setMessage(R.string.cooper_github_oauth_not_configured)
+                                    .setPositiveButton(R.string.cooper_github_open_settings, (d, w) ->
+                                            startActivity(new Intent(Intent.ACTION_VIEW,
+                                                    Uri.parse("https://github.com/settings/developers"))))
+                                    .setNegativeButton(R.string.common_word_cancel, null).show();
+                        } else {
+                            startDeviceAuthorization();
+                        }
+                    } else {
+                        showPersonalAccessTokenDialog();
+                    }
+                })
+                .setNegativeButton(R.string.common_word_cancel, null)
+                .show();
+    }
+
+    private void showPersonalAccessTokenDialog() {
+        LinearLayout form = new LinearLayout(this);
+        form.setOrientation(LinearLayout.VERTICAL);
+        form.setPadding(dp(24), dp(8), dp(24), dp(4));
+        TextView guidance = text("Create a token in GitHub Settings. Use the minimum permissions required for the Cooper features you need. The token is verified before it is saved.", 14, false);
+        guidance.setPadding(0, 0, 0, dp(12));
+        form.addView(guidance);
+        EditText tokenInput = new EditText(this);
+        tokenInput.setSingleLine(true);
+        tokenInput.setHint("GitHub personal access token");
+        tokenInput.setInputType(android.text.InputType.TYPE_CLASS_TEXT
+                | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        tokenInput.setTransformationMethod(android.text.method.PasswordTransformationMethod.getInstance());
+        form.addView(tokenInput, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        new MaterialAlertDialogBuilder(this)
+                .setTitle("Connect with Access Token")
+                .setView(form)
+                .setNegativeButton(R.string.common_word_cancel, null)
+                .setPositiveButton("Verify and connect", null)
+                .create();
+        AlertDialog dialog = new MaterialAlertDialogBuilder(this)
+                .setTitle("Connect with Access Token")
+                .setView(form)
+                .setNegativeButton(R.string.common_word_cancel, null)
+                .setPositiveButton("Verify and connect", null)
+                .create();
+        dialog.setOnShowListener(ignored -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+            String token = tokenInput.getText().toString().trim();
+            if (token.isEmpty() || token.contains("\n") || token.contains("\r")) {
+                tokenInput.setError("Enter a valid token");
+                return;
+            }
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(false);
+            authExecutor.execute(() -> {
+                GitCredentialStore store = new GitCredentialStore(getApplicationContext());
+                try {
+                    store.saveTokenSet(new GitCredentialStore.TokenSet(token, null, 0L, 0L, "", "bearer"));
+                    org.json.JSONObject account = apiClient().getAuthenticatedAccount();
+                    String login = account.optString("login", "").trim();
+                    if (login.isEmpty()) throw new IllegalStateException("GitHub did not return a valid account identity.");
+                    new Handler(Looper.getMainLooper()).post(() -> {
+                        if (isFinishing() || isDestroyed()) return;
+                        dialog.dismiss();
+                        Snackbar.make(content, "Access token verified for " + login, Snackbar.LENGTH_LONG).show();
+                        recreate();
+                    });
+                } catch (Exception e) {
+                    store.clear();
+                    String message = e.getMessage() == null ? "GitHub could not verify this token." : e.getMessage();
+                    new Handler(Looper.getMainLooper()).post(() -> {
+                        if (isFinishing() || isDestroyed()) return;
+                        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(true);
+                        new MaterialAlertDialogBuilder(this)
+                                .setTitle("Access token verification failed")
+                                .setMessage(message + "\n\nCheck that the token is active and has the permissions needed for your intended Cooper operations.")
+                                .setPositiveButton(R.string.common_word_ok, null).show();
+                    });
+                }
+            });
+        }));
+        dialog.show();
     }
 
     private void startDeviceAuthorization() {
@@ -864,6 +938,8 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                 .setNegativeButton(R.string.common_word_cancel, null)
                 .setPositiveButton(R.string.cooper_github_disconnect, (dialog, which) -> {
                     new GitCredentialStore(getApplicationContext()).clear();
+                    // Clear the cached profile on logout so another account is never shown stale details.
+                    getSharedPreferences("cooper_github_profile", MODE_PRIVATE).edit().clear().commit();
                     Snackbar.make(content, R.string.cooper_github_disconnected, Snackbar.LENGTH_LONG).show();
                     recreate();
                 }).show();
