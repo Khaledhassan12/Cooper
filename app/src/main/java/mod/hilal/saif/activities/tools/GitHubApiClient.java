@@ -72,6 +72,12 @@ public final class GitHubApiClient {
         return request("POST", "/user/repos", body);
     }
 
+    public JSONObject getRepository(String owner, String repository) throws ApiException {
+        validateSlug(owner, "owner");
+        validateSlug(repository, "repository");
+        return request("GET", "/repos/" + owner + "/" + repository, null);
+    }
+
     public JSONArray listBranches(String owner, String repository, int page) throws ApiException {
         validateSlug(owner, "owner");
         validateSlug(repository, "repository");
