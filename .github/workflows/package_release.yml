@@ -2,7 +2,7 @@ name: Android Debug APK
 
 on:
   push:
-    branches: ["main", "master"]
+    branches: ["main", "master", "Cooper-integrated-github"]
   workflow_dispatch:
 
 permissions:
