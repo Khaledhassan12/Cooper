@@ -90,7 +90,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         addActionCard(getString(R.string.cooper_github_browse_repositories), getString(R.string.cooper_github_browse_repositories_description),
                 v -> loadRepositories());
         addActionCard(getString(R.string.cooper_github_link_project), getString(R.string.cooper_github_link_project_description),
-                v -> showNotReady("Project binding"));
+                v -> loadProjectSelection());
         addActionCard(getString(R.string.cooper_github_create_repository), getString(R.string.cooper_github_create_repository_description),
                 v -> showCreateRepositoryDialog());
 
@@ -98,9 +98,9 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         addInfoCard(getString(R.string.cooper_github_local_status), getString(R.string.cooper_github_not_initialized),
                 getString(R.string.cooper_github_local_status_description));
         addActionCard(getString(R.string.cooper_github_inspect_changes), getString(R.string.cooper_github_inspect_changes_description),
-                v -> showNotReady("Local Git status"));
-        addActionCard(getString(R.string.cooper_github_commit_sync), getString(R.string.cooper_github_commit_sync_description),
-                v -> showNotReady("Commit and synchronization"));
+                v -> inspectLocalGit());
+        addActionCard(getString(R.string.cooper_github_commit_local), getString(R.string.cooper_github_commit_local_description),
+                v -> inspectLocalGit());
 
         addSectionTitle(getString(R.string.cooper_github_safety));
         addInfoCard(getString(R.string.cooper_github_operation_policy), getString(R.string.cooper_github_smart_review),
@@ -144,6 +144,158 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         } catch (Exception e) {
             showAuthError(e.getMessage());
         }
+    }
+
+    private void loadProjectSelection() {
+        authExecutor.execute(() -> {
+            try {
+                java.util.ArrayList<java.util.HashMap<String, Object>> projects = a.a.a.lC.a();
+                java.util.ArrayList<String> labels = new java.util.ArrayList<>();
+                java.util.ArrayList<String> ids = new java.util.ArrayList<>();
+                for (java.util.HashMap<String, Object> project : projects) {
+                    String id = String.valueOf(project.get("sc_id"));
+                    if (!id.matches("[0-9]{1,12}")) continue;
+                    String workspace = String.valueOf(project.get("my_ws_name"));
+                    String appName = String.valueOf(project.get("my_app_name"));
+                    labels.add(workspace + " — " + appName + "  (ID " + id + ")");
+                    ids.add(id);
+                }
+                new Handler(Looper.getMainLooper()).post(() -> {
+                    if (labels.isEmpty()) {
+                        new MaterialAlertDialogBuilder(this)
+                                .setTitle(R.string.cooper_github_project_picker_title)
+                                .setMessage(R.string.cooper_github_project_picker_empty)
+                                .setPositiveButton(R.string.common_word_ok, null).show();
+                        return;
+                    }
+                    new MaterialAlertDialogBuilder(this)
+                            .setTitle(R.string.cooper_github_project_picker_title)
+                            .setItems(labels.toArray(new String[0]), (dialog, which) -> bindProject(ids.get(which)))
+                            .setNegativeButton(R.string.common_word_cancel, null).show();
+                });
+            } catch (Exception e) {
+                showProjectBindingError(e);
+            }
+        });
+    }
+
+    private void bindProject(String scId) {
+        authExecutor.execute(() -> {
+            try {
+                GitProjectBindingStore.Binding binding = new GitProjectBindingStore(getApplicationContext()).bind(scId);
+                new Handler(Looper.getMainLooper()).post(() ->
+                        Snackbar.make(content, getString(R.string.cooper_github_project_bound,
+                                binding.workspaceName, binding.scId), Snackbar.LENGTH_LONG).show());
+            } catch (Exception e) {
+                showProjectBindingError(e);
+            }
+        });
+    }
+
+    private void inspectLocalGit() {
+        authExecutor.execute(() -> {
+            try {
+                GitProjectBindingStore.Binding binding =
+                        new GitProjectBindingStore(getApplicationContext()).getBoundProject();
+                if (binding == null) {
+                    new Handler(Looper.getMainLooper()).post(() ->
+                            new MaterialAlertDialogBuilder(this)
+                                    .setTitle(R.string.cooper_github_local_status_title)
+                                    .setMessage(R.string.cooper_github_project_not_bound)
+                                    .setPositiveButton(R.string.cooper_github_select_project,
+                                            (dialog, which) -> loadProjectSelection())
+                                    .setNegativeButton(R.string.common_word_cancel, null).show());
+                    return;
+                }
+                LocalGitBackend.Snapshot snapshot = new LocalGitBackend().inspect(binding.projectRoot);
+                new Handler(Looper.getMainLooper()).post(() -> showLocalStatus(binding, snapshot));
+            } catch (Exception e) {
+                showLocalGitError(e);
+            }
+        });
+    }
+
+    private void showLocalStatus(GitProjectBindingStore.Binding binding, LocalGitBackend.Snapshot snapshot) {
+        if (!snapshot.initialized) {
+            new MaterialAlertDialogBuilder(this)
+                    .setTitle(R.string.cooper_github_local_status_title)
+                    .setMessage(getString(R.string.cooper_github_local_status_detail,
+                            binding.workspaceName, binding.projectRoot.getAbsolutePath(),
+                            "—", "—", 0, 0, 0, 0, 0, 0))
+                    .setPositiveButton(R.string.cooper_github_initialize_git, (dialog, which) ->
+                            new MaterialAlertDialogBuilder(this)
+                                    .setTitle(R.string.cooper_github_initialize_git)
+                                    .setMessage(getString(R.string.cooper_github_initialize_git_confirm,
+                                            binding.workspaceName))
+                                    .setNegativeButton(R.string.common_word_cancel, null)
+                                    .setPositiveButton(R.string.cooper_github_initialize_git,
+                                            (confirm, pressed) -> initializeLocalGit(binding))
+                                    .show())
+                    .setNegativeButton(R.string.common_word_cancel, null).show();
+            return;
+        }
+        String detail = getString(R.string.cooper_github_local_status_detail,
+                binding.workspaceName, binding.projectRoot.getAbsolutePath(),
+                snapshot.currentBranch, shortCommit(snapshot.headCommit),
+                snapshot.staged.size(), snapshot.modified.size(), snapshot.added.size(),
+                snapshot.removed.size(), snapshot.untracked.size(), snapshot.conflicting.size());
+        StringBuilder paths = new StringBuilder(detail);
+        appendPaths(paths, "Staged", snapshot.staged);
+        appendPaths(paths, "Modified", snapshot.modified);
+        appendPaths(paths, "Added", snapshot.added);
+        appendPaths(paths, "Removed", snapshot.removed);
+        appendPaths(paths, "Untracked", snapshot.untracked);
+        appendPaths(paths, "Conflicts", snapshot.conflicting);
+        new MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.cooper_github_local_status_title)
+                .setMessage(paths.toString())
+                .setPositiveButton(R.string.common_word_ok, null)
+                .show();
+    }
+
+    private void initializeLocalGit(GitProjectBindingStore.Binding binding) {
+        authExecutor.execute(() -> {
+            try {
+                new LocalGitBackend().initialize(binding.projectRoot, true);
+                LocalGitBackend.Snapshot verified = new LocalGitBackend().inspect(binding.projectRoot);
+                if (!verified.initialized) throw new IllegalStateException("Git initialization read-back failed.");
+                new Handler(Looper.getMainLooper()).post(() -> {
+                    Snackbar.make(content, R.string.cooper_github_initialize_git_success, Snackbar.LENGTH_LONG).show();
+                    showLocalStatus(binding, verified);
+                });
+            } catch (Exception e) {
+                showLocalGitError(e);
+            }
+        });
+    }
+
+    private void showProjectBindingError(Exception error) {
+        String message = error.getMessage() == null ? "Project binding failed." : error.getMessage();
+        new Handler(Looper.getMainLooper()).post(() ->
+                new MaterialAlertDialogBuilder(this)
+                        .setTitle(R.string.cooper_github_project_picker_title)
+                        .setMessage(getString(R.string.cooper_github_project_binding_failed, message))
+                        .setPositiveButton(R.string.common_word_ok, null).show());
+    }
+
+    private void showLocalGitError(Exception error) {
+        String message = error.getMessage() == null ? "Local Git operation failed." : error.getMessage();
+        new Handler(Looper.getMainLooper()).post(() ->
+                new MaterialAlertDialogBuilder(this)
+                        .setTitle(R.string.cooper_github_local_status_title)
+                        .setMessage(getString(R.string.cooper_github_local_git_failed, message))
+                        .setPositiveButton(R.string.common_word_ok, null).show());
+    }
+
+    private static String shortCommit(String commit) {
+        if (commit == null || commit.isEmpty()) return "—";
+        return commit.length() > 12 ? commit.substring(0, 12) : commit;
+    }
+
+    private static void appendPaths(StringBuilder builder, String label, java.util.List<String> paths) {
+        if (paths.isEmpty()) return;
+        builder.append("\\n\\n").append(label).append(":");
+        for (String path : paths) builder.append("\\n• ").append(path);
     }
 
     private GitHubApiClient apiClient() {
