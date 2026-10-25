@@ -1,5 +1,8 @@
 package mod.hilal.saif.activities.tools;
 
+import android.content.ClipData;
+import android.content.ClipboardManager;
+import android.content.Context;
 import android.content.Intent;
 import android.graphics.Typeface;
 import android.net.Uri;
@@ -10,6 +13,7 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.EditText;
 import android.widget.CheckBox;
 import android.widget.ScrollView;
@@ -19,6 +23,8 @@ import androidx.annotation.Nullable;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
+
+import androidx.appcompat.app.AlertDialog;
 
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.card.MaterialCardView;
@@ -46,6 +52,9 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
     private final ExecutorService authExecutor = Executors.newSingleThreadExecutor();
     private final ExecutorService authPollingExecutor = Executors.newSingleThreadExecutor();
     private final AtomicBoolean authCancelled = new AtomicBoolean(false);
+    @Nullable private AlertDialog authDialog;
+    @Nullable private GitHubAuthManager.DeviceAuthorization pendingDeviceAuthorization;
+    private boolean authInProgress = false;
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
@@ -157,29 +166,29 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
     }
 
     private void startDeviceAuthorization() {
+        if (authInProgress) {
+            showDeviceAuthorizationDialog();
+            return;
+        }
         authCancelled.set(false);
+        authInProgress = true;
         authExecutor.execute(() -> {
             try {
                 GitHubAuthManager manager = new GitHubAuthManager(getApplicationContext());
                 GitHubAuthManager.DeviceAuthorization device =
                         manager.beginDeviceAuthorization(BuildConfig.COOPER_GITHUB_CLIENT_ID);
-                new Handler(Looper.getMainLooper()).post(() ->
-                        new MaterialAlertDialogBuilder(this)
-                                .setTitle(R.string.cooper_github_device_code_title)
-                                .setMessage(getString(R.string.cooper_github_device_code_message, device.userCode))
-                                .setPositiveButton(R.string.cooper_github_open_settings, (dialog, which) ->
-                                        startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(device.verificationUri))))
-                                .setNegativeButton(R.string.common_word_cancel,
-                                        (dialog, which) -> authCancelled.set(true))
-                                .setOnCancelListener(dialog -> authCancelled.set(true))
-                                .show());
+                pendingDeviceAuthorization = device;
+                new Handler(Looper.getMainLooper()).post(this::showDeviceAuthorizationDialog);
                 authPollingExecutor.execute(() -> {
                     try {
                         manager.pollForAccessToken(BuildConfig.COOPER_GITHUB_CLIENT_ID, device, authCancelled);
-                        // Validate account access before enabling normal repository operations.
                         org.json.JSONObject account = apiClient().getAuthenticatedAccount();
                         String login = account.optString("login", "GitHub user");
                         new Handler(Looper.getMainLooper()).post(() -> {
+                            authInProgress = false;
+                            pendingDeviceAuthorization = null;
+                            if (authDialog != null && authDialog.isShowing()) authDialog.dismiss();
+                            authDialog = null;
                             if (isFinishing() || isDestroyed()) return;
                             Snackbar.make(content,
                                     getString(R.string.cooper_github_account_verified, login),
@@ -189,15 +198,102 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                     } catch (Exception e) {
                         if (e instanceof GitHubAuthManager.AuthException
                                 && "CANCELLED".equals(((GitHubAuthManager.AuthException) e).safeCode)) return;
-                        String message = e.getMessage() == null ? "GitHub sign-in failed." : e.getMessage();
-                        new Handler(Looper.getMainLooper()).post(() -> showAuthError(message));
+                        new Handler(Looper.getMainLooper()).post(() -> {
+                            authInProgress = false;
+                            pendingDeviceAuthorization = null;
+                            if (authDialog != null && authDialog.isShowing()) authDialog.dismiss();
+                            authDialog = null;
+                            showAuthError(e.getMessage() == null ? "GitHub sign-in failed." : e.getMessage());
+                        });
                     }
                 });
             } catch (Exception e) {
-                String message = e.getMessage() == null ? "GitHub sign-in could not start." : e.getMessage();
-                new Handler(Looper.getMainLooper()).post(() -> showAuthError(message));
+                new Handler(Looper.getMainLooper()).post(() -> {
+                    authInProgress = false;
+                    pendingDeviceAuthorization = null;
+                    showAuthError(e.getMessage() == null ? "GitHub sign-in could not start." : e.getMessage());
+                });
             }
         });
+    }
+
+    private void showDeviceAuthorizationDialog() {
+        if (isFinishing() || isDestroyed() || pendingDeviceAuthorization == null) return;
+        if (authDialog != null && authDialog.isShowing()) return;
+
+        GitHubAuthManager.DeviceAuthorization device = pendingDeviceAuthorization;
+        LinearLayout panel = new LinearLayout(this);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setPadding(dp(24), dp(8), dp(24), dp(8));
+
+        TextView instruction = text("Enter this one-time code on GitHub:", 16, false);
+        instruction.setPadding(0, 0, 0, dp(12));
+        panel.addView(instruction);
+
+        TextView code = text(device.userCode, 24, true);
+        code.setGravity(Gravity.CENTER);
+        code.setLetterSpacing(0.08f);
+        code.setPadding(dp(12), dp(14), dp(12), dp(14));
+        code.setBackgroundResource(com.google.android.material.R.drawable.m3_tabs_legacy_indicator);
+        code.setClickable(true);
+        code.setFocusable(true);
+        code.setContentDescription("Copy GitHub device code " + device.userCode);
+        code.setOnClickListener(v -> {
+            ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+            if (clipboard != null) {
+                clipboard.setPrimaryClip(ClipData.newPlainText("GitHub device code", device.userCode));
+                Snackbar.make(content, "Device code copied", Snackbar.LENGTH_SHORT).show();
+            }
+        });
+        panel.addView(code, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        TextView hint = text("Tap the code to copy it. Cooper will keep checking for approval while you authorize this device.", 14, false);
+        hint.setPadding(0, dp(12), 0, dp(12));
+        panel.addView(hint);
+
+        LinearLayout waitingRow = new LinearLayout(this);
+        waitingRow.setGravity(Gravity.CENTER_VERTICAL);
+        ProgressBar progress = new ProgressBar(this);
+        progress.setIndeterminate(true);
+        waitingRow.addView(progress, new LinearLayout.LayoutParams(dp(28), dp(28)));
+        TextView waiting = text("Waiting for GitHub authorization…", 14, true);
+        LinearLayout.LayoutParams waitingParams = new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        waitingParams.leftMargin = dp(12);
+        waitingRow.addView(waiting, waitingParams);
+        panel.addView(waitingRow);
+
+        authDialog = new MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.cooper_github_device_code_title)
+                .setView(panel)
+                .setPositiveButton(R.string.cooper_github_open_settings, null)
+                .setNegativeButton(R.string.common_word_cancel, (dialog, which) -> {
+                    authCancelled.set(true);
+                    authInProgress = false;
+                    pendingDeviceAuthorization = null;
+                    authDialog = null;
+                })
+                .setOnCancelListener(dialog -> {
+                    authCancelled.set(true);
+                    authInProgress = false;
+                    pendingDeviceAuthorization = null;
+                    authDialog = null;
+                })
+                .create();
+        authDialog.setOnShowListener(dialog -> {
+            android.widget.Button openButton = authDialog.getButton(AlertDialog.BUTTON_POSITIVE);
+            if (openButton != null) {
+                openButton.setOnClickListener(v -> {
+                    try {
+                        startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(device.verificationUri)));
+                    } catch (Exception e) {
+                        Snackbar.make(content, "Could not open GitHub. Visit github.com/login/device.", Snackbar.LENGTH_LONG).show();
+                    }
+                });
+            }
+        });
+        authDialog.show();
     }
 
     private void loadProjectSelection() {
