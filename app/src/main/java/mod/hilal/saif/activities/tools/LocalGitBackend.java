@@ -280,6 +280,9 @@ public final class LocalGitBackend {
             if (GitSafetyGuard.isSensitivePath(path)) {
                 throw new GitFailure("SENSITIVE_PATH", "Cooper blocks staging sensitive file paths by default: " + path);
             }
+            if (GitSafetyGuard.isExcludedByDefault(path)) {
+                throw new GitFailure("EXCLUDED_PATH", "Cooper excludes generated or temporary files by default: " + path);
+            }
         }
     }
 
