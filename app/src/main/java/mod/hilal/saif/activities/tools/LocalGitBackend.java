@@ -5,6 +5,13 @@ import org.eclipse.jgit.api.Status;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.Repository;
+import org.eclipse.jgit.transport.CredentialsProvider;
+import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
+import org.eclipse.jgit.transport.RefSpec;
+import org.eclipse.jgit.transport.RemoteRefUpdate;
+import org.eclipse.jgit.api.FetchResult;
+import org.eclipse.jgit.api.PushResult;
+import org.eclipse.jgit.api.PullResult;
 import org.eclipse.jgit.revwalk.RevCommit;
 
 import java.io.ByteArrayOutputStream;
@@ -203,6 +210,123 @@ public final class LocalGitBackend {
         }
         stage(root, new ArrayList<>(selected), true);
         return commit(root, message, authorName, authorEmail, new ArrayList<>(selected), true);
+    }
+
+    public void configureRemote(File projectRoot, String remoteUrl, boolean explicitlyApproved) throws GitFailure {
+        requireApproval(explicitlyApproved, "Linking a remote repository requires explicit confirmation.");
+        if (remoteUrl == null || !remoteUrl.matches("https://github\\.com/[A-Za-z0-9_.-]{1,100}/[A-Za-z0-9_.-]{1,100}\\.git")) {
+            throw new GitFailure("UNTRUSTED_REMOTE", "Cooper accepts only HTTPS GitHub repository URLs.");
+        }
+        File root = canonicalRoot(projectRoot);
+        try (Git git = openRoot(root)) {
+            String existing = git.getRepository().getConfig().getString("remote", "origin", "url");
+            if (existing != null && !existing.equals(remoteUrl)) {
+                throw new GitFailure("REMOTE_CHANGE_REQUIRES_REVIEW",
+                        "A different origin is already configured. Review and explicitly replace the remote binding.");
+            }
+            git.getRepository().getConfig().setString("remote", "origin", "url", remoteUrl);
+            git.getRepository().getConfig().setString("remote", "origin", "fetch",
+                    "+refs/heads/*:refs/remotes/origin/*");
+            git.getRepository().getConfig().save();
+            String readBack = git.getRepository().getConfig().getString("remote", "origin", "url");
+            if (!remoteUrl.equals(readBack)) throw new GitFailure("VERIFY_FAILED", "The remote URL did not pass read-back verification.");
+        } catch (GitFailure e) {
+            throw e;
+        } catch (IOException e) {
+            throw new GitFailure("REMOTE_CONFIG_FAILED", "Cooper could not configure the GitHub remote.", e);
+        }
+    }
+
+    public String fetch(File projectRoot, String accessToken) throws GitFailure {
+        if (blank(accessToken)) throw new GitFailure("NOT_AUTHENTICATED", "Connect a GitHub account before fetching.");
+        File root = canonicalRoot(projectRoot);
+        CredentialsProvider credentials = new UsernamePasswordCredentialsProvider("x-access-token", accessToken);
+        try (Git git = openRoot(root)) {
+            requireOrigin(git.getRepository());
+            FetchResult result = git.fetch().setRemote("origin").setCredentialsProvider(credentials)
+                    .setRemoveDeletedRefs(true).call();
+            if (result == null) throw new GitFailure("FETCH_UNVERIFIED", "Git fetch returned no verifiable result.");
+            return result.getMessages() == null ? "" : result.getMessages();
+        } catch (GitFailure e) {
+            throw e;
+        } catch (GitAPIException | IOException e) {
+            throw new GitFailure("FETCH_FAILED", "Cooper could not fetch the GitHub remote. Refresh remote state before retrying.", e);
+        }
+    }
+
+    public String push(File projectRoot, String accessToken, boolean explicitlyApproved) throws GitFailure {
+        requireApproval(explicitlyApproved, "Pushing commits to GitHub requires explicit confirmation.");
+        if (blank(accessToken)) throw new GitFailure("NOT_AUTHENTICATED", "Connect a GitHub account before pushing.");
+        File root = canonicalRoot(projectRoot);
+        CredentialsProvider credentials = new UsernamePasswordCredentialsProvider("x-access-token", accessToken);
+        try (Git git = openRoot(root)) {
+            Repository repository = git.getRepository();
+            requireOrigin(repository);
+            Status status = git.status().call();
+            if (!status.isClean()) {
+                throw new GitFailure("WORKTREE_NOT_CLEAN", "Push is blocked until local file changes are reviewed and committed.");
+            }
+            String branch = repository.getBranch();
+            ObjectId head = repository.resolve("HEAD");
+            if (head == null) throw new GitFailure("NO_COMMIT", "Create and verify a local commit before pushing.");
+            Iterable<PushResult> results = git.push().setRemote("origin")
+                    .setRefSpecs(new RefSpec("refs/heads/" + branch + ":refs/heads/" + branch))
+                    .setCredentialsProvider(credentials).call();
+            boolean found = false;
+            for (PushResult result : results) {
+                for (RemoteRefUpdate update : result.getRemoteUpdates()) {
+                    if (("refs/heads/" + branch).equals(update.getRemoteName())) {
+                        found = true;
+                        RemoteRefUpdate.Status statusValue = update.getStatus();
+                        if (statusValue != RemoteRefUpdate.Status.OK && statusValue != RemoteRefUpdate.Status.UP_TO_DATE) {
+                            throw new GitFailure("PUSH_REJECTED", "GitHub rejected the branch update (" + statusValue.name() + "). Fetch and review remote changes before retrying.");
+                        }
+                    }
+                }
+            }
+            if (!found) throw new GitFailure("PUSH_UNVERIFIED", "Git push completed without a verifiable update for the target branch.");
+            return head.name();
+        } catch (GitFailure e) {
+            throw e;
+        } catch (GitAPIException | IOException e) {
+            throw new GitFailure("PUSH_UNCERTAIN", "Push outcome may be uncertain. Verify the remote branch before retrying.", e);
+        }
+    }
+
+    public String pull(File projectRoot, String accessToken, boolean explicitlyApproved) throws GitFailure {
+        requireApproval(explicitlyApproved, "Pull may modify project files and requires explicit confirmation.");
+        if (blank(accessToken)) throw new GitFailure("NOT_AUTHENTICATED", "Connect a GitHub account before pulling.");
+        File root = canonicalRoot(projectRoot);
+        CredentialsProvider credentials = new UsernamePasswordCredentialsProvider("x-access-token", accessToken);
+        try (Git git = openRoot(root)) {
+            Repository repository = git.getRepository();
+            requireOrigin(repository);
+            Status status = git.status().call();
+            if (!status.isClean()) {
+                throw new GitFailure("WORKTREE_NOT_CLEAN", "Pull is blocked because local changes must be committed or otherwise resolved first.");
+            }
+            String branch = repository.getBranch();
+            PullResult result = git.pull().setRemote("origin").setRemoteBranchName(branch)
+                    .setCredentialsProvider(credentials).call();
+            if (result == null || !result.isSuccessful()) {
+                throw new GitFailure("PULL_NOT_SUCCESSFUL",
+                        "Pull did not complete cleanly. Inspect local status and conflicts before taking further action.");
+            }
+            ObjectId head = repository.resolve("HEAD");
+            if (head == null) throw new GitFailure("PULL_VERIFY_FAILED", "The resulting local HEAD could not be verified.");
+            return head.name();
+        } catch (GitFailure e) {
+            throw e;
+        } catch (GitAPIException | IOException e) {
+            throw new GitFailure("PULL_FAILED", "Pull failed. Inspect local status before retrying.", e);
+        }
+    }
+
+    private static void requireOrigin(Repository repository) throws GitFailure {
+        String url = repository.getConfig().getString("remote", "origin", "url");
+        if (url == null || !url.matches("https://github\\.com/[A-Za-z0-9_.-]{1,100}/[A-Za-z0-9_.-]{1,100}\\.git")) {
+            throw new GitFailure("REMOTE_NOT_CONFIGURED", "A verified GitHub origin must be linked before remote Git operations.");
+        }
     }
 
     public List<String> listBranches(File projectRoot) throws GitFailure {
