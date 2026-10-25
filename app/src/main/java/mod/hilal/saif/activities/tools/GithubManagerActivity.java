@@ -108,6 +108,8 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                 getString(R.string.cooper_github_local_status_description));
         addActionCard(getString(R.string.cooper_github_inspect_changes), getString(R.string.cooper_github_inspect_changes_description),
                 v -> inspectLocalGit());
+        addActionCard(getString(R.string.cooper_github_review_diff), "Inspect staged, unstaged, and untracked file content without changing the project.",
+                v -> reviewFileDiff());
         addActionCard(getString(R.string.cooper_github_commit_local), getString(R.string.cooper_github_commit_local_description),
                 v -> inspectLocalGit());
         addActionCard(getString(R.string.cooper_github_fetch_remote), "Fetch remote refs without changing project files.",
@@ -659,6 +661,70 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                         new MaterialAlertDialogBuilder(this)
                                 .setTitle(R.string.cooper_github_create_pull_request)
                                 .setMessage(getString(R.string.cooper_github_pr_failed, message))
+                                .setPositiveButton(R.string.common_word_ok, null).show());
+            }
+        });
+    }
+
+    private void reviewFileDiff() {
+        authExecutor.execute(() -> {
+            try {
+                GitProjectBindingStore.Binding binding =
+                        new GitProjectBindingStore(getApplicationContext()).getBoundProject();
+                if (binding == null) throw new IllegalStateException("Select a Cooper project first.");
+                LocalGitBackend.Snapshot snapshot = new LocalGitBackend().inspect(binding.projectRoot);
+                java.util.TreeSet<String> paths = new java.util.TreeSet<>();
+                paths.addAll(snapshot.staged);
+                paths.addAll(snapshot.modified);
+                paths.addAll(snapshot.added);
+                paths.addAll(snapshot.removed);
+                paths.addAll(snapshot.untracked);
+                paths.addAll(snapshot.conflicting);
+                paths.removeIf(GitSafetyGuard::isExcludedByDefault);
+                new Handler(Looper.getMainLooper()).post(() -> {
+                    if (paths.isEmpty()) {
+                        new MaterialAlertDialogBuilder(this)
+                                .setTitle(R.string.cooper_github_review_diff)
+                                .setMessage(R.string.cooper_github_diff_empty)
+                                .setPositiveButton(R.string.common_word_ok, null).show();
+                        return;
+                    }
+                    String[] items = paths.toArray(new String[0]);
+                    new MaterialAlertDialogBuilder(this)
+                            .setTitle(R.string.cooper_github_review_diff)
+                            .setItems(items, (dialog, which) -> showFileDiff(binding, items[which]))
+                            .setNegativeButton(R.string.common_word_cancel, null).show();
+                });
+            } catch (Exception e) {
+                showLocalGitError(e);
+            }
+        });
+    }
+
+    private void showFileDiff(GitProjectBindingStore.Binding binding, String path) {
+        authExecutor.execute(() -> {
+            try {
+                GitDiffEngine.DiffResult result = new GitDiffEngine().diff(binding.projectRoot, path);
+                new Handler(Looper.getMainLooper()).post(() -> {
+                    android.widget.TextView text = new android.widget.TextView(this);
+                    text.setText(result.text);
+                    text.setTextIsSelectable(true);
+                    text.setTextSize(12);
+                    text.setTypeface(android.graphics.Typeface.MONOSPACE);
+                    text.setPadding(dp(16), dp(12), dp(16), dp(12));
+                    ScrollView scroll = new ScrollView(this);
+                    scroll.addView(text);
+                    new MaterialAlertDialogBuilder(this)
+                            .setTitle(getString(R.string.cooper_github_diff_title, path))
+                            .setView(scroll)
+                            .setPositiveButton(R.string.common_word_ok, null).show();
+                });
+            } catch (Exception e) {
+                String message = e.getMessage() == null ? "Diff calculation failed." : e.getMessage();
+                new Handler(Looper.getMainLooper()).post(() ->
+                        new MaterialAlertDialogBuilder(this)
+                                .setTitle(R.string.cooper_github_review_diff)
+                                .setMessage(getString(R.string.cooper_github_diff_failed, message))
                                 .setPositiveButton(R.string.common_word_ok, null).show());
             }
         });
