@@ -752,10 +752,12 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
     }
 
     private void addGitHubProfileCard() {
+        final android.content.SharedPreferences profileCache = getSharedPreferences("cooper_github_profile", MODE_PRIVATE);
         LinearLayout panel = new LinearLayout(this);
         panel.setOrientation(LinearLayout.VERTICAL);
         panel.setGravity(Gravity.CENTER);
         panel.setPadding(dp(20), dp(20), dp(20), dp(18));
+
         ImageView avatar = new ImageView(this);
         GradientDrawable circle = new GradientDrawable();
         circle.setShape(GradientDrawable.OVAL);
@@ -765,10 +767,11 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         LinearLayout.LayoutParams imageParams = new LinearLayout.LayoutParams(dp(108), dp(108));
         imageParams.bottomMargin = dp(12);
         panel.addView(avatar, imageParams);
-        TextView accountName = text("Loading GitHub profile…", 21, true);
+
+        TextView accountName = text(profileCache.getString("name", "Loading GitHub profile…"), 21, true);
         accountName.setGravity(Gravity.CENTER);
         panel.addView(accountName);
-        TextView accountBio = text("Connected to GitHub", 14, false);
+        TextView accountBio = text(profileCache.getString("bio", "Connecting to GitHub to verify the saved profile…"), 14, false);
         accountBio.setGravity(Gravity.CENTER);
         accountBio.setPadding(0, dp(8), 0, dp(16));
         panel.addView(accountBio);
@@ -776,44 +779,84 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         LinearLayout.LayoutParams profileParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         profileParams.bottomMargin = dp(12);
         content.addView(panel, 1, profileParams);
-        avatar.setScaleX(0.88f); avatar.setScaleY(0.88f);
+
+        String cachedAvatar = profileCache.getString("avatar_png", "");
+        if (!cachedAvatar.isEmpty()) {
+            try {
+                byte[] bytes = android.util.Base64.decode(cachedAvatar, android.util.Base64.DEFAULT);
+                Bitmap cachedBitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+                if (cachedBitmap != null) avatar.setImageBitmap(cachedBitmap);
+            } catch (Exception ignored) { }
+        }
+        avatar.setScaleX(0.88f);
+        avatar.setScaleY(0.88f);
         avatar.animate().scaleX(1f).scaleY(1f).setDuration(450).start();
+        avatar.setContentDescription("Cached GitHub profile picture");
         addActionCard("Disconnect GitHub", "Sign out of this account from Cooper.", v -> confirmDisconnectGitHub());
+
+        // Cached profile is displayed immediately. A live /user request refreshes it only
+        // when successful; network failures never replace real saved data with placeholders.
         authExecutor.execute(() -> {
             try {
                 org.json.JSONObject user = apiClient().getAuthenticatedAccount();
-                String login = user.optString("name", "");
-                if (login.trim().isEmpty()) login = user.optString("login", "GitHub user");
-                String bio = user.optString("bio", "");
-                if (bio.trim().isEmpty()) {
-                    String[] ideas = {"Building ideas, one commit at a time ✨", "Curious mind. Creative builds. Open-source spirit 🚀", "Turning small ideas into meaningful projects 🌱", "Learning, creating, and sharing with the community 💫", "Code today. Create tomorrow. Keep exploring 🧭", "Making the digital world a little more useful 💡", "Open-source explorer with a builder’s mindset 🛠️", "Powered by curiosity and a love for making things 🌌"};
-                    bio = ideas[Math.floorMod(user.optString("login", "").hashCode(), ideas.length)];
-                }
-                String displayName = login; String displayBio = bio; String avatarUrl = user.optString("avatar_url", "");
+                String login = user.optString("login", "").trim();
+                if (login.isEmpty()) throw new IllegalStateException("GitHub did not return an account login.");
+                String name = user.optString("name", "").trim();
+                String displayName = name.isEmpty() ? login : name;
+                String bio = user.optString("bio", "").trim();
+                String avatarUrl = user.optString("avatar_url", "").trim();
+
                 Bitmap bitmap = null;
                 if (avatarUrl.startsWith("https://")) {
                     java.net.HttpURLConnection connection = (java.net.HttpURLConnection) new java.net.URL(avatarUrl).openConnection();
-                    connection.setConnectTimeout(8000); connection.setReadTimeout(8000);
-                    try (java.io.InputStream stream = connection.getInputStream()) { bitmap = BitmapFactory.decodeStream(stream); }
-                    finally { connection.disconnect(); }
+                    connection.setConnectTimeout(8000);
+                    connection.setReadTimeout(8000);
+                    try (java.io.InputStream stream = connection.getInputStream()) {
+                        bitmap = BitmapFactory.decodeStream(stream);
+                    } finally {
+                        connection.disconnect();
+                    }
                 }
-                Bitmap profileBitmap = bitmap;
+
+                android.content.SharedPreferences.Editor editor = profileCache.edit()
+                        .putString("login", login)
+                        .putString("name", displayName)
+                        .putString("bio", bio)
+                        .putString("avatar_url", avatarUrl)
+                        .putLong("verified_at", System.currentTimeMillis());
+                String avatarBase64 = "";
+                if (bitmap != null) {
+                    java.io.ByteArrayOutputStream bytes = new java.io.ByteArrayOutputStream();
+                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, bytes);
+                    avatarBase64 = android.util.Base64.encodeToString(bytes.toByteArray(), android.util.Base64.NO_WRAP);
+                    editor.putString("avatar_png", avatarBase64);
+                }
+                editor.commit();
+
+                final Bitmap profileBitmap = bitmap;
                 new Handler(Looper.getMainLooper()).post(() -> {
                     if (isFinishing() || isDestroyed()) return;
-                    accountName.setText("");
-                    final int[] pos = {0};
-                    Handler typing = new Handler(Looper.getMainLooper());
-                    Runnable effect = new Runnable() { public void run() { if (isFinishing() || isDestroyed()) return; pos[0] = Math.min(displayName.length(), pos[0] + 1); accountName.setText(displayName.substring(0, pos[0])); if (pos[0] < displayName.length()) typing.postDelayed(this, 35); } };
-                    typing.post(effect);
-                    accountBio.setText(displayBio);
+                    accountName.setText(displayName);
+                    accountBio.setText(bio);
+                    avatar.setContentDescription("GitHub profile picture for " + login);
                     if (profileBitmap != null) avatar.setImageBitmap(profileBitmap);
-                    avatar.setContentDescription("GitHub profile picture for " + displayName);
                 });
-            } catch (Exception ignored) {
-                new Handler(Looper.getMainLooper()).post(() -> { if (!isFinishing() && !isDestroyed()) { accountName.setText("GitHub account connected"); accountBio.setText("Profile details are temporarily unavailable."); } });
+            } catch (Exception error) {
+                new Handler(Looper.getMainLooper()).post(() -> {
+                    if (isFinishing() || isDestroyed()) return;
+                    // Preserve cached account data; only explain the offline state if no cache exists.
+                    if (!profileCache.contains("login")) {
+                        accountName.setText("GitHub profile unavailable");
+                        accountBio.setText("Connect to the internet to load and save your real GitHub profile.");
+                    } else {
+                        accountBio.setText(profileCache.getString("bio", ""));
+                        Snackbar.make(content, "Showing the saved GitHub profile. Connect to the internet to verify it.", Snackbar.LENGTH_LONG).show();
+                    }
+                });
             }
         });
     }
+
     private void confirmDisconnectGitHub() {
         new MaterialAlertDialogBuilder(this)
                 .setTitle(R.string.cooper_github_disconnect)
