@@ -246,11 +246,185 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         appendPaths(paths, "Removed", snapshot.removed);
         appendPaths(paths, "Untracked", snapshot.untracked);
         appendPaths(paths, "Conflicts", snapshot.conflicting);
-        new MaterialAlertDialogBuilder(this)
+        MaterialAlertDialogBuilder statusDialog = new MaterialAlertDialogBuilder(this)
                 .setTitle(R.string.cooper_github_local_status_title)
-                .setMessage(paths.toString())
-                .setPositiveButton(R.string.common_word_ok, null)
-                .show();
+                .setMessage(paths.toString());
+        boolean hasChanges = !snapshot.staged.isEmpty() || !snapshot.modified.isEmpty()
+                || !snapshot.added.isEmpty() || !snapshot.removed.isEmpty() || !snapshot.untracked.isEmpty();
+        if (!snapshot.conflicting.isEmpty()) {
+            statusDialog.setPositiveButton(R.string.common_word_ok, null);
+            statusDialog.setMessage(paths + "\\n\\n" + getString(R.string.cooper_github_conflicts_block_commit));
+        } else if (hasChanges) {
+            statusDialog.setPositiveButton(R.string.cooper_github_commit_local,
+                    (dialog, which) -> showCommitDialog(binding, snapshot));
+        } else {
+            statusDialog.setPositiveButton(R.string.common_word_ok, null);
+        }
+        statusDialog.setNegativeButton(R.string.common_word_cancel, null).show();
+    }
+
+    private void showCommitDialog(GitProjectBindingStore.Binding binding, LocalGitBackend.Snapshot snapshot) {
+        if (!snapshot.conflicting.isEmpty()) {
+            new MaterialAlertDialogBuilder(this)
+                    .setTitle(R.string.cooper_github_commit_review_title)
+                    .setMessage(R.string.cooper_github_conflicts_block_commit)
+                    .setPositiveButton(R.string.common_word_ok, null).show();
+            return;
+        }
+        java.util.TreeSet<String> paths = new java.util.TreeSet<>();
+        paths.addAll(snapshot.staged);
+        paths.addAll(snapshot.modified);
+        paths.addAll(snapshot.added);
+        paths.addAll(snapshot.removed);
+        paths.addAll(snapshot.untracked);
+        if (paths.isEmpty()) {
+            Snackbar.make(content, R.string.cooper_github_no_changes, Snackbar.LENGTH_LONG).show();
+            return;
+        }
+
+        LinearLayout form = new LinearLayout(this);
+        form.setOrientation(LinearLayout.VERTICAL);
+        form.setPadding(dp(20), dp(8), dp(20), dp(4));
+        EditText message = new EditText(this);
+        message.setHint(R.string.cooper_github_commit_message_hint);
+        message.setSingleLine(true);
+        form.addView(message, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        EditText authorName = new EditText(this);
+        authorName.setHint(R.string.cooper_github_author_name_hint);
+        authorName.setSingleLine(true);
+        form.addView(authorName, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        EditText authorEmail = new EditText(this);
+        authorEmail.setHint(R.string.cooper_github_author_email_hint);
+        authorEmail.setSingleLine(true);
+        authorEmail.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS);
+        form.addView(authorEmail, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        ScrollView pathScroll = new ScrollView(this);
+        LinearLayout pathList = new LinearLayout(this);
+        pathList.setOrientation(LinearLayout.VERTICAL);
+        java.util.ArrayList<CheckBox> checkBoxes = new java.util.ArrayList<>();
+        java.util.HashSet<String> alreadyStaged = new java.util.HashSet<>();
+        alreadyStaged.addAll(snapshot.staged);
+        alreadyStaged.addAll(snapshot.added);
+        alreadyStaged.addAll(snapshot.removed);
+        for (String path : paths) {
+            CheckBox checkBox = new CheckBox(this);
+            checkBox.setText(path);
+            boolean staged = alreadyStaged.contains(path);
+            checkBox.setChecked(staged);
+            checkBox.setEnabled(!staged);
+            checkBoxes.add(checkBox);
+            pathList.addView(checkBox);
+        }
+        pathScroll.addView(pathList);
+        form.addView(pathScroll, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, Math.min(dp(260), dp(48) * Math.max(1, paths.size()))));
+
+        new MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.cooper_github_commit_review_title)
+                .setView(form)
+                .setNegativeButton(R.string.common_word_cancel, null)
+                .setPositiveButton(R.string.cooper_github_commit_local, (dialog, which) -> {
+                    String commitMessage = message.getText().toString().trim();
+                    String name = authorName.getText().toString().trim();
+                    String email = authorEmail.getText().toString().trim();
+                    java.util.ArrayList<String> selected = new java.util.ArrayList<>();
+                    int index = 0;
+                    for (String path : paths) {
+                        if (checkBoxes.get(index++).isChecked()) selected.add(path);
+                    }
+                    if (commitMessage.isEmpty() || name.isEmpty() || email.isEmpty() || selected.isEmpty()) {
+                        Snackbar.make(content, R.string.cooper_github_commit_message_hint, Snackbar.LENGTH_LONG).show();
+                        return;
+                    }
+                    String reviewedPaths = android.text.TextUtils.join("\\n", selected);
+                    new MaterialAlertDialogBuilder(this)
+                            .setTitle(R.string.cooper_github_commit_review_title)
+                            .setMessage(getString(R.string.cooper_github_commit_review_body, selected.size())
+                                    + "\\n\\n" + reviewedPaths)
+                            .setNegativeButton(R.string.common_word_cancel, null)
+                            .setPositiveButton(R.string.cooper_github_commit_local,
+                                    (confirm, pressed) -> performLocalCommit(binding, selected, commitMessage, name, email))
+                            .show();
+                }).show();
+    }
+
+    private void performLocalCommit(GitProjectBindingStore.Binding binding, java.util.List<String> paths,
+                                    String message, String authorName, String authorEmail) {
+        authExecutor.execute(() -> {
+            GitOperationStore store = new GitOperationStore(getApplicationContext());
+            String operationId = java.util.UUID.randomUUID().toString();
+            long now = System.currentTimeMillis();
+            GitOperationStateMachine.State state = GitOperationStateMachine.State.CREATED;
+            try {
+                store.upsert(new GitOperationStore.Record(operationId, "LOCAL_COMMIT", binding.scId, "",
+                        "", state, now, now, "Commit plan created; no credentials or file contents recorded."));
+                state = GitOperationStateMachine.transition(state, GitOperationStateMachine.State.INSPECTING);
+                persistOperationState(store, operationId, binding, state, now, "Revalidating project and worktree.");
+                GitProjectBindingStore.Binding current = new GitProjectBindingStore(getApplicationContext()).getBoundProject();
+                if (current == null || !current.scId.equals(binding.scId)
+                        || !current.projectRoot.getCanonicalPath().equals(binding.projectRoot.getCanonicalPath())) {
+                    throw new IllegalStateException("The bound Cooper project changed after the commit plan was prepared.");
+                }
+                LocalGitBackend backend = new LocalGitBackend();
+                LocalGitBackend.Snapshot currentSnapshot = backend.inspect(current.projectRoot);
+                if (!currentSnapshot.initialized || !currentSnapshot.conflicting.isEmpty()) {
+                    throw new IllegalStateException("The Git repository is unavailable or contains unresolved conflicts.");
+                }
+                state = GitOperationStateMachine.transition(state, GitOperationStateMachine.State.PLANNED);
+                persistOperationState(store, operationId, binding, state, now, "Selected file plan validated.");
+                state = GitOperationStateMachine.transition(state, GitOperationStateMachine.State.AWAITING_APPROVAL);
+                persistOperationState(store, operationId, binding, state, now, "Waiting for the explicit confirmation recorded by the UI.");
+                state = GitOperationStateMachine.transition(state, GitOperationStateMachine.State.EXECUTING);
+                persistOperationState(store, operationId, binding, state, now, "Staging only the selected paths and creating a local commit.");
+                LocalGitBackend.CommitOutcome outcome = backend.commitSelected(current.projectRoot, paths,
+                        message, authorName, authorEmail, true);
+                state = GitOperationStateMachine.transition(state, GitOperationStateMachine.State.VERIFYING);
+                persistOperationState(store, operationId, binding, state, now, "Reading back the local commit.");
+                LocalGitBackend.Snapshot verified = backend.inspect(current.projectRoot);
+                if (!verified.initialized || !outcome.commitId.equals(verified.headCommit)) {
+                    state = GitOperationStateMachine.State.RECOVERY_REQUIRED;
+                    persistOperationState(store, operationId, binding, state, now, "Commit result could not be verified; inspect repository before retrying.");
+                    throw new IllegalStateException("Commit was created but read-back verification failed. Do not retry blindly.");
+                }
+                state = GitOperationStateMachine.transition(state, GitOperationStateMachine.State.SUCCEEDED);
+                persistOperationState(store, operationId, binding, state, now, "Verified local commit " + outcome.commitId);
+                new Handler(Looper.getMainLooper()).post(() ->
+                        new MaterialAlertDialogBuilder(this)
+                                .setTitle(R.string.cooper_github_commit_local)
+                                .setMessage(getString(R.string.cooper_github_commit_success, shortCommit(outcome.commitId))
+                                        + "\\n\\nRemote sync has not been performed.")
+                                .setPositiveButton(R.string.common_word_ok, null).show());
+            } catch (Exception e) {
+                try {
+                    if (state == GitOperationStateMachine.State.EXECUTING || state == GitOperationStateMachine.State.VERIFYING) {
+                        state = GitOperationStateMachine.State.RECOVERY_REQUIRED;
+                        persistOperationState(store, operationId, binding, state, now,
+                                "Commit attempt ended without a verified success; inspect local Git state before retrying.");
+                    } else if (state != GitOperationStateMachine.State.SUCCEEDED) {
+                        state = GitOperationStateMachine.State.FAILED;
+                        persistOperationState(store, operationId, binding, state, now, "Commit operation failed before verified success.");
+                    }
+                } catch (Exception ignored) { }
+                String safeMessage = e.getMessage() == null ? "Local commit failed." : e.getMessage();
+                new Handler(Looper.getMainLooper()).post(() ->
+                        new MaterialAlertDialogBuilder(this)
+                                .setTitle(R.string.cooper_github_commit_local)
+                                .setMessage(getString(R.string.cooper_github_commit_failed, safeMessage))
+                                .setPositiveButton(R.string.common_word_ok, null).show());
+            }
+        });
+    }
+
+    private void persistOperationState(GitOperationStore store, String id,
+                                       GitProjectBindingStore.Binding binding,
+                                       GitOperationStateMachine.State state, long createdAt,
+                                       String diagnostic) throws java.io.IOException {
+        store.upsert(new GitOperationStore.Record(id, "LOCAL_COMMIT", binding.scId, "",
+                "", state, createdAt, System.currentTimeMillis(), diagnostic));
     }
 
     private void initializeLocalGit(GitProjectBindingStore.Binding binding) {
