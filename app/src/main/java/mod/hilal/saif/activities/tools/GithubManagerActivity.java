@@ -46,7 +46,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
         MaterialToolbar toolbar = new MaterialToolbar(this);
-        toolbar.setTitle("Github Manager");
+        toolbar.setTitle(R.string.cooper_github_manager_title);
         toolbar.setNavigationIcon(androidx.appcompat.R.drawable.abc_ic_ab_back_material);
         toolbar.setNavigationOnClickListener(Helper.getBackPressedClickListener(this));
         root.addView(toolbar, new LinearLayout.LayoutParams(
@@ -69,42 +69,42 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         });
         setContentView(root);
 
-        addSectionTitle("Smart — ذكي وآمن");
-        addInfoCard("GitHub account", "Not connected",
-                "Secure sign-in is not configured yet. No credentials are stored by this screen.");
-        addActionCard("Connect GitHub", "Open GitHub to review the account and app authorization setup.",
+        addSectionTitle(getString(R.string.cooper_github_smart_safe));
+        addInfoCard(getString(R.string.cooper_github_account), getString(R.string.cooper_github_not_connected),
+                getString(R.string.cooper_github_auth_not_configured));
+        addActionCard(getString(R.string.cooper_github_connect), getString(R.string.cooper_github_connect_description),
                 v -> new MaterialAlertDialogBuilder(this)
-                        .setTitle("GitHub connection")
-                        .setMessage("OAuth must be configured for Cooper before in-app account access can be enabled. No token or client secret is embedded in this build.")
-                        .setPositiveButton("Open GitHub", (dialog, which) ->
+                        .setTitle(R.string.cooper_github_connection_title)
+                        .setMessage(R.string.cooper_github_oauth_required)
+                        .setPositiveButton(R.string.cooper_github_open_settings, (dialog, which) ->
                                 startActivity(new Intent(Intent.ACTION_VIEW,
                                         Uri.parse("https://github.com/settings/applications"))))
                         .setNegativeButton(R.string.common_word_cancel, null)
                         .show());
 
-        addSectionTitle("Repositories");
-        addActionCard("Browse repositories", "Repository listing becomes available after secure authentication is implemented.",
+        addSectionTitle(getString(R.string.cooper_github_repositories));
+        addActionCard(getString(R.string.cooper_github_browse_repositories), getString(R.string.cooper_github_browse_repositories_description),
                 v -> showNotReady("Repository browsing"));
-        addActionCard("Link Cooper project", "Bind a Sketchware project to a verified repository without moving or deleting project files.",
+        addActionCard(getString(R.string.cooper_github_link_project), getString(R.string.cooper_github_link_project_description),
                 v -> showNotReady("Project binding"));
-        addActionCard("Create repository", "Create a public or private repository after authentication and explicit confirmation.",
+        addActionCard(getString(R.string.cooper_github_create_repository), getString(R.string.cooper_github_create_repository_description),
                 v -> showNotReady("Repository creation"));
 
-        addSectionTitle("Local Git");
-        addInfoCard("Local repository status", "Not initialized",
-                "This screen does not yet modify project files or initialize Git repositories.");
-        addActionCard("Inspect changes", "View tracked, modified, deleted, and untracked files once the Android-compatible Git backend is integrated.",
+        addSectionTitle(getString(R.string.cooper_github_local_git));
+        addInfoCard(getString(R.string.cooper_github_local_status), getString(R.string.cooper_github_not_initialized),
+                getString(R.string.cooper_github_local_status_description));
+        addActionCard(getString(R.string.cooper_github_inspect_changes), getString(R.string.cooper_github_inspect_changes_description),
                 v -> showNotReady("Local Git status"));
-        addActionCard("Commit and sync", "Stage, review, commit, fetch, push, and pull will require a verified operation plan.",
+        addActionCard(getString(R.string.cooper_github_commit_sync), getString(R.string.cooper_github_commit_sync_description),
                 v -> showNotReady("Commit and synchronization"));
 
-        addSectionTitle("Safety");
-        addInfoCard("Operation policy", "Smart — review before writes",
-                "Remote writes, project-changing merges, and destructive operations must require explicit approval and post-operation verification.");
-        addActionCard("View implementation status", "See which integration layers are available in this build.",
+        addSectionTitle(getString(R.string.cooper_github_safety));
+        addInfoCard(getString(R.string.cooper_github_operation_policy), getString(R.string.cooper_github_smart_review),
+                getString(R.string.cooper_github_safety_description));
+        addActionCard(getString(R.string.cooper_github_implementation_status), getString(R.string.cooper_github_implementation_status_description),
                 v -> new MaterialAlertDialogBuilder(this)
-                        .setTitle("Implementation status")
-                        .setMessage("Available: manager entry point and UI scaffold. Pending: OAuth/PKCE, local Git backend, repository API services, persistent operation journal, secret scanning, sync/conflict handling, and automated verification tests.")
+                        .setTitle(R.string.cooper_github_status_dialog_title)
+                        .setMessage(R.string.cooper_github_status_dialog_body)
                         .setPositiveButton(R.string.common_word_ok, null)
                         .show());
     }
@@ -181,6 +181,6 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
     }
 
     private void showNotReady(String feature) {
-        Snackbar.make(content, feature + " is not available until its verified backend is implemented.", Snackbar.LENGTH_LONG).show();
+        Snackbar.make(content, getString(R.string.cooper_github_not_ready_message, feature), Snackbar.LENGTH_LONG).show();
     }
 }
