@@ -105,4 +105,16 @@
     <string name="cooper_github_pr_created">Pull Request #%1$d created and read back successfully.</string>
     <string name="cooper_github_pr_failed">Could not create or verify the Pull Request: %1$s</string>
     <string name="cooper_github_branches_title">Remote branches</string>
+    <string name="cooper_github_link_remote">Link to selected Cooper project</string>
+    <string name="cooper_github_link_remote_confirm">Link %1$s/%2$s to Cooper project %3$s? This saves the remote binding and configures origin if local Git is initialized.</string>
+    <string name="cooper_github_remote_linked">Linked %1$s/%2$s to Cooper project %3$s.</string>
+    <string name="cooper_github_remote_not_linked">Link a GitHub repository to the selected Cooper project before syncing.</string>
+    <string name="cooper_github_fetch_remote">Fetch remote changes</string>
+    <string name="cooper_github_push_remote">Push committed changes</string>
+    <string name="cooper_github_pull_remote">Pull remote changes</string>
+    <string name="cooper_github_push_confirm">Push the current branch %1$s at commit %2$s to %3$s? Cooper will scan outgoing commit history for secrets first.</string>
+    <string name="cooper_github_pull_confirm">Pull %1$s from %2$s into the selected Cooper project? The working tree must be clean. Review the result before continuing.</string>
+    <string name="cooper_github_fetch_success">Fetch completed. The local working files were not changed.</string>
+    <string name="cooper_github_push_success">Push completed and remote branch verified at commit %1$s.</string>
+    <string name="cooper_github_pull_success">Pull completed and local HEAD verified at commit %1$s.</string>
 </resources>
