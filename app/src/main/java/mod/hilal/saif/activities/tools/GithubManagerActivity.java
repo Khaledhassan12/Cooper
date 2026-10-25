@@ -10,6 +10,8 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
+import android.widget.EditText;
+import android.widget.CheckBox;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
@@ -86,11 +88,11 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
 
         addSectionTitle(getString(R.string.cooper_github_repositories));
         addActionCard(getString(R.string.cooper_github_browse_repositories), getString(R.string.cooper_github_browse_repositories_description),
-                v -> showNotReady("Repository browsing"));
+                v -> loadRepositories());
         addActionCard(getString(R.string.cooper_github_link_project), getString(R.string.cooper_github_link_project_description),
                 v -> showNotReady("Project binding"));
         addActionCard(getString(R.string.cooper_github_create_repository), getString(R.string.cooper_github_create_repository_description),
-                v -> showNotReady("Repository creation"));
+                v -> showCreateRepositoryDialog());
 
         addSectionTitle(getString(R.string.cooper_github_local_git));
         addInfoCard(getString(R.string.cooper_github_local_status), getString(R.string.cooper_github_not_initialized),
@@ -120,6 +122,10 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
     }
 
     private void startGitHubAuthorization() {
+        if (new GitCredentialStore(this).hasCredential()) {
+            verifyGitHubAccount();
+            return;
+        }
         if (BuildConfig.COOPER_GITHUB_CLIENT_ID == null || BuildConfig.COOPER_GITHUB_CLIENT_ID.trim().isEmpty()) {
             new MaterialAlertDialogBuilder(this)
                     .setTitle(R.string.cooper_github_connection_title)
@@ -138,6 +144,159 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         } catch (Exception e) {
             showAuthError(e.getMessage());
         }
+    }
+
+    private GitHubApiClient apiClient() {
+        return new GitHubApiClient(new GitCredentialStore(getApplicationContext()));
+    }
+
+    private void verifyGitHubAccount() {
+        authExecutor.execute(() -> {
+            try {
+                org.json.JSONObject account = apiClient().getAuthenticatedAccount();
+                String login = account.optString("login", "GitHub user");
+                new Handler(Looper.getMainLooper()).post(() ->
+                        Snackbar.make(content, getString(R.string.cooper_github_account_verified, login),
+                                Snackbar.LENGTH_LONG).show());
+            } catch (Exception e) {
+                String message = e.getMessage() == null ? "Account verification failed." : e.getMessage();
+                new Handler(Looper.getMainLooper()).post(() ->
+                        new MaterialAlertDialogBuilder(this)
+                                .setTitle(R.string.cooper_github_connection_title)
+                                .setMessage(getString(R.string.cooper_github_account_verify_failed, message))
+                                .setPositiveButton(R.string.common_word_ok, null).show());
+            }
+        });
+    }
+
+    private void loadRepositories() {
+        if (!new GitCredentialStore(this).hasCredential()) {
+            showNotReady(getString(R.string.cooper_github_connect));
+            return;
+        }
+        authExecutor.execute(() -> {
+            try {
+                org.json.JSONArray repositories = apiClient().listRepositories(1, 50);
+                java.util.ArrayList<String> labels = new java.util.ArrayList<>();
+                java.util.ArrayList<String> urls = new java.util.ArrayList<>();
+                for (int i = 0; i < repositories.length(); i++) {
+                    org.json.JSONObject repository = repositories.getJSONObject(i);
+                    String fullName = repository.optString("full_name", "");
+                    if (fullName.isEmpty()) continue;
+                    labels.add(fullName + (repository.optBoolean("private") ? "  •  Private" : "  •  Public"));
+                    urls.add(repository.optString("html_url", ""));
+                }
+                new Handler(Looper.getMainLooper()).post(() -> {
+                    if (labels.isEmpty()) {
+                        new MaterialAlertDialogBuilder(this)
+                                .setTitle(R.string.cooper_github_repository_list_title)
+                                .setMessage(R.string.cooper_github_repository_list_empty)
+                                .setPositiveButton(R.string.common_word_ok, null).show();
+                        return;
+                    }
+                    String[] items = labels.toArray(new String[0]);
+                    new MaterialAlertDialogBuilder(this)
+                            .setTitle(R.string.cooper_github_repository_list_title)
+                            .setItems(items, (dialog, which) -> {
+                                String url = urls.get(which);
+                                if (url.startsWith("https://github.com/")) {
+                                    startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
+                                }
+                            }).setNegativeButton(R.string.common_word_cancel, null).show();
+                });
+            } catch (Exception e) {
+                String message = e.getMessage() == null ? "Repository request failed." : e.getMessage();
+                new Handler(Looper.getMainLooper()).post(() ->
+                        new MaterialAlertDialogBuilder(this)
+                                .setTitle(R.string.cooper_github_repository_list_title)
+                                .setMessage(getString(R.string.cooper_github_repository_list_failed, message))
+                                .setPositiveButton(R.string.common_word_ok, null).show());
+            }
+        });
+    }
+
+    private void showCreateRepositoryDialog() {
+        if (!new GitCredentialStore(this).hasCredential()) {
+            showNotReady(getString(R.string.cooper_github_connect));
+            return;
+        }
+        LinearLayout form = new LinearLayout(this);
+        form.setOrientation(LinearLayout.VERTICAL);
+        form.setPadding(dp(24), dp(8), dp(24), dp(4));
+        EditText name = new EditText(this);
+        name.setSingleLine(true);
+        name.setHint(R.string.cooper_github_repository_name_hint);
+        form.addView(name, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        EditText description = new EditText(this);
+        description.setHint(R.string.cooper_github_repository_description_hint);
+        description.setMinLines(1);
+        description.setMaxLines(3);
+        form.addView(description, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        CheckBox privateRepository = new CheckBox(this);
+        privateRepository.setText(R.string.cooper_github_repository_private);
+        form.addView(privateRepository);
+        new MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.cooper_github_repository_create_title)
+                .setView(form)
+                .setNegativeButton(R.string.common_word_cancel, null)
+                .setPositiveButton(R.string.cooper_github_create_repository, (dialog, which) -> {
+                    String repositoryName = name.getText().toString().trim();
+                    String repositoryDescription = description.getText().toString().trim();
+                    boolean isPrivate = privateRepository.isChecked();
+                    if (repositoryName.isEmpty()) {
+                        Snackbar.make(content, R.string.cooper_github_repository_name_hint, Snackbar.LENGTH_LONG).show();
+                        return;
+                    }
+                    String visibility = isPrivate ? "private" : "public";
+                    new MaterialAlertDialogBuilder(this)
+                            .setTitle(R.string.cooper_github_repository_create_title)
+                            .setMessage(getString(R.string.cooper_github_repository_create_review, repositoryName, visibility))
+                            .setNegativeButton(R.string.common_word_cancel, null)
+                            .setPositiveButton(R.string.cooper_github_create_repository,
+                                    (confirmDialog, confirmWhich) -> createRepository(repositoryName, repositoryDescription, isPrivate))
+                            .show();
+                }).show();
+    }
+
+    private void createRepository(String name, String description, boolean isPrivate) {
+        authExecutor.execute(() -> {
+            try {
+                org.json.JSONObject created = apiClient().createRepository(name, description, isPrivate, true);
+                String fullName = created.optString("full_name", "");
+                String owner = created.optJSONObject("owner") == null ? "" :
+                        created.optJSONObject("owner").optString("login", "");
+                String repositoryName = created.optString("name", "");
+                if (owner.isEmpty() || repositoryName.isEmpty()) {
+                    throw new IllegalStateException("GitHub did not return repository identity for verification.");
+                }
+                org.json.JSONObject verified = apiClient().getRepository(owner, repositoryName);
+                if (!fullName.equals(verified.optString("full_name", ""))) {
+                    throw new IllegalStateException("The repository read-back did not match the created repository.");
+                }
+                String url = verified.optString("html_url", "");
+                new Handler(Looper.getMainLooper()).post(() -> {
+                    Snackbar.make(content, getString(R.string.cooper_github_repository_create_success, fullName),
+                            Snackbar.LENGTH_LONG).show();
+                    if (url.startsWith("https://github.com/")) {
+                        new MaterialAlertDialogBuilder(this)
+                                .setTitle(R.string.cooper_github_repository_create_title)
+                                .setMessage(url)
+                                .setPositiveButton(R.string.cooper_github_open_settings, (dialog, which) ->
+                                        startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url))))
+                                .setNegativeButton(R.string.common_word_ok, null).show();
+                    }
+                });
+            } catch (Exception e) {
+                String message = e.getMessage() == null ? "Repository creation failed." : e.getMessage();
+                new Handler(Looper.getMainLooper()).post(() ->
+                        new MaterialAlertDialogBuilder(this)
+                                .setTitle(R.string.cooper_github_repository_create_title)
+                                .setMessage(getString(R.string.cooper_github_repository_list_failed, message))
+                                .setPositiveButton(R.string.common_word_ok, null).show());
+            }
+        });
     }
 
     private void handleOAuthCallback(Intent intent) {
