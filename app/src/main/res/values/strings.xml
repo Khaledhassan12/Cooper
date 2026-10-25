@@ -2330,6 +2330,7 @@ Please try again later"</string>
     <string name="cooper_github_directly_project_icon">Selected Cooper project icon</string>
     <string name="cooper_github_directly_no_project">Choose a Cooper project</string>
     <string name="cooper_github_directly_project_details">Project details appear here after selection.</string>
+    <string name="cooper_github_directly_selected_project_details">Project ID: %1$s\nPath: %2$s</string>
     <string name="cooper_github_directly_choose_project">Cooper Projects</string>
     <string name="cooper_github_directly_safety_note">Directly Git will use one selected project and one destination repository. Review the repository details before publishing. Existing or previously linked destinations must not be overwritten.</string>
     <string name="cooper_github_directly_advanced">Continue in GitHub Manager</string>
