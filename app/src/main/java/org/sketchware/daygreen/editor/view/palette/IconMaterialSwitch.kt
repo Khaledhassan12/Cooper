@@ -18,8 +18,11 @@ class IconMaterialSwitch(context: Context) : IconBase(context), Material3View {
     override fun getBean(): ViewBean {
         return ViewBean().apply {
             type = ViewBeans.VIEW_TYPE_WIDGET_MATERIALSWITCH
-            layout.width = ViewGroup.LayoutParams.WRAP_CONTENT
-            layout.height = ViewGroup.LayoutParams.WRAP_CONTENT
+            layout.paddingLeft = 8
+            layout.paddingTop = 8
+            layout.paddingRight = 8
+            layout.paddingBottom = 8
+            text.text = "MaterialSwitch"
             convert = "com.google.android.material.materialswitch.MaterialSwitch"
         }
     }
