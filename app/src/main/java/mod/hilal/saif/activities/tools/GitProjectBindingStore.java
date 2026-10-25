@@ -49,7 +49,8 @@ public final class GitProjectBindingStore {
             throw new IllegalStateException("Cooper could not verify the selected project metadata.");
         }
         File root = new File(wq.b(scId)).getCanonicalFile();
-        if (!root.isDirectory() || !new File(root, "project").isFile()) {
+        File metadataFile = new File(wq.c(scId), "project").getCanonicalFile();
+        if (!root.isDirectory() || !metadataFile.isFile()) {
             throw new IllegalStateException("The selected Cooper project directory does not match its project metadata.");
         }
         String workspace = safeValue(metadata.get("my_ws_name"), "Cooper project");
@@ -67,7 +68,8 @@ public final class GitProjectBindingStore {
             throw new IllegalStateException("The bound Cooper project is no longer available or its identity changed.");
         }
         File root = new File(wq.b(scId)).getCanonicalFile();
-        if (!root.isDirectory() || !new File(root, "project").isFile()) {
+        File metadataFile = new File(wq.c(scId), "project").getCanonicalFile();
+        if (!root.isDirectory() || !metadataFile.isFile()) {
             throw new IllegalStateException("The bound Cooper project directory could not be verified.");
         }
         return new Binding(scId,
