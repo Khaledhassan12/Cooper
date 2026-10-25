@@ -116,6 +116,10 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                 v -> runRemoteGitOperation("PUSH"));
         addActionCard(getString(R.string.cooper_github_pull_remote), "Apply remote changes only when the local worktree is clean and you approve the operation.",
                 v -> runRemoteGitOperation("PULL"));
+        addActionCard(getString(R.string.cooper_github_sync_state), "Calculate ahead, behind, diverged, and conflict state from local Git objects.",
+                v -> inspectSyncState());
+        addActionCard(getString(R.string.cooper_github_local_branches), "List, create, and switch local branches without discarding uncommitted work.",
+                v -> showLocalBranches());
 
         addSectionTitle(getString(R.string.cooper_github_safety));
         addInfoCard(getString(R.string.cooper_github_operation_policy), getString(R.string.cooper_github_smart_review),
@@ -658,6 +662,134 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                                 .setPositiveButton(R.string.common_word_ok, null).show());
             }
         });
+    }
+
+    private void inspectSyncState() {
+        authExecutor.execute(() -> {
+            try {
+                GitProjectBindingStore.Binding binding =
+                        new GitProjectBindingStore(getApplicationContext()).getBoundProject();
+                if (binding == null) throw new IllegalStateException("Select a Cooper project first.");
+                GitSyncEngine.Snapshot snapshot = new GitSyncEngine().inspect(binding.projectRoot);
+                String detail = getString(R.string.cooper_github_sync_state_detail,
+                        snapshot.state.name(), snapshot.branch, shortCommit(snapshot.localHead),
+                        shortCommit(snapshot.remoteHead), snapshot.aheadBy, snapshot.behindBy,
+                        snapshot.changedFileCount);
+                new Handler(Looper.getMainLooper()).post(() ->
+                        new MaterialAlertDialogBuilder(this)
+                                .setTitle(R.string.cooper_github_sync_state)
+                                .setMessage(detail)
+                                .setPositiveButton(R.string.common_word_ok, null).show());
+            } catch (Exception e) {
+                showLocalGitError(e);
+            }
+        });
+    }
+
+    private void showLocalBranches() {
+        authExecutor.execute(() -> {
+            try {
+                GitProjectBindingStore.Binding binding =
+                        new GitProjectBindingStore(getApplicationContext()).getBoundProject();
+                if (binding == null) throw new IllegalStateException("Select a Cooper project first.");
+                LocalGitBackend backend = new LocalGitBackend();
+                LocalGitBackend.Snapshot snapshot = backend.inspect(binding.projectRoot);
+                if (!snapshot.initialized) throw new IllegalStateException("Initialize local Git first.");
+                java.util.List<String> branches = backend.listBranches(binding.projectRoot);
+                new Handler(Looper.getMainLooper()).post(() -> {
+                    if (branches.isEmpty()) {
+                        new MaterialAlertDialogBuilder(this)
+                                .setTitle(R.string.cooper_github_local_branches)
+                                .setMessage("No local branches are available yet.")
+                                .setPositiveButton(R.string.cooper_github_create_branch,
+                                        (dialog, which) -> showCreateBranchDialog(binding))
+                                .setNegativeButton(R.string.common_word_cancel, null).show();
+                        return;
+                    }
+                    new MaterialAlertDialogBuilder(this)
+                            .setTitle(R.string.cooper_github_local_branches)
+                            .setItems(branches.toArray(new String[0]), (dialog, which) -> {
+                                String target = branches.get(which);
+                                if (target.equals(snapshot.currentBranch)) {
+                                    Snackbar.make(content, target, Snackbar.LENGTH_SHORT).show();
+                                } else {
+                                    new MaterialAlertDialogBuilder(this)
+                                            .setTitle(R.string.cooper_github_checkout_branch)
+                                            .setMessage(getString(R.string.cooper_github_checkout_confirm,
+                                                    snapshot.currentBranch, target))
+                                            .setNegativeButton(R.string.common_word_cancel, null)
+                                            .setPositiveButton(R.string.cooper_github_checkout_branch,
+                                                    (confirm, pressed) -> checkoutLocalBranch(binding, target))
+                                            .show();
+                                }
+                            })
+                            .setNeutralButton(R.string.cooper_github_create_branch,
+                                    (dialog, which) -> showCreateBranchDialog(binding))
+                            .setNegativeButton(R.string.common_word_cancel, null).show();
+                });
+            } catch (Exception e) {
+                showLocalGitError(e);
+            }
+        });
+    }
+
+    private void showCreateBranchDialog(GitProjectBindingStore.Binding binding) {
+        EditText branchName = new EditText(this);
+        branchName.setHint(R.string.cooper_github_branch_name_hint);
+        branchName.setSingleLine(true);
+        branchName.setPadding(dp(24), dp(8), dp(24), dp(8));
+        new MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.cooper_github_create_branch)
+                .setView(branchName)
+                .setNegativeButton(R.string.common_word_cancel, null)
+                .setPositiveButton(R.string.cooper_github_create_branch, (dialog, which) -> {
+                    String name = branchName.getText().toString().trim();
+                    if (name.isEmpty()) {
+                        Snackbar.make(content, R.string.cooper_github_branch_name_hint, Snackbar.LENGTH_LONG).show();
+                        return;
+                    }
+                    authExecutor.execute(() -> {
+                        try {
+                            LocalGitBackend backend = new LocalGitBackend();
+                            backend.createBranch(binding.projectRoot, name, true);
+                            if (!backend.listBranches(binding.projectRoot).contains(name)) {
+                                throw new IllegalStateException("New branch was not found during read-back verification.");
+                            }
+                            new Handler(Looper.getMainLooper()).post(() ->
+                                    Snackbar.make(content, getString(R.string.cooper_github_branch_created, name),
+                                            Snackbar.LENGTH_LONG).show());
+                        } catch (Exception e) {
+                            showBranchError(e);
+                        }
+                    });
+                }).show();
+    }
+
+    private void checkoutLocalBranch(GitProjectBindingStore.Binding binding, String target) {
+        authExecutor.execute(() -> {
+            try {
+                LocalGitBackend backend = new LocalGitBackend();
+                backend.checkout(binding.projectRoot, target, true);
+                LocalGitBackend.Snapshot verified = backend.inspect(binding.projectRoot);
+                if (!target.equals(verified.currentBranch)) {
+                    throw new IllegalStateException("The active branch did not match the requested branch after checkout.");
+                }
+                new Handler(Looper.getMainLooper()).post(() ->
+                        Snackbar.make(content, getString(R.string.cooper_github_branch_switched, target),
+                                Snackbar.LENGTH_LONG).show());
+            } catch (Exception e) {
+                showBranchError(e);
+            }
+        });
+    }
+
+    private void showBranchError(Exception error) {
+        String message = error.getMessage() == null ? "Branch operation failed." : error.getMessage();
+        new Handler(Looper.getMainLooper()).post(() ->
+                new MaterialAlertDialogBuilder(this)
+                        .setTitle(R.string.cooper_github_local_branches)
+                        .setMessage(getString(R.string.cooper_github_branch_failed, message))
+                        .setPositiveButton(R.string.common_word_ok, null).show());
     }
 
     private void showRepositoryActions(String fullName, String url) {
