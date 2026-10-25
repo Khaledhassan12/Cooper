@@ -176,8 +176,16 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                 authPollingExecutor.execute(() -> {
                     try {
                         manager.pollForAccessToken(BuildConfig.COOPER_GITHUB_CLIENT_ID, device, authCancelled);
-                        new Handler(Looper.getMainLooper()).post(() ->
-                                Snackbar.make(content, R.string.cooper_github_signin_success, Snackbar.LENGTH_LONG).show());
+                        // Validate account access before enabling normal repository operations.
+                        org.json.JSONObject account = apiClient().getAuthenticatedAccount();
+                        String login = account.optString("login", "GitHub user");
+                        new Handler(Looper.getMainLooper()).post(() -> {
+                            if (isFinishing() || isDestroyed()) return;
+                            Snackbar.make(content,
+                                    getString(R.string.cooper_github_account_verified, login),
+                                    Snackbar.LENGTH_LONG).show();
+                            recreate();
+                        });
                     } catch (Exception e) {
                         if (e instanceof GitHubAuthManager.AuthException
                                 && "CANCELLED".equals(((GitHubAuthManager.AuthException) e).safeCode)) return;
@@ -501,7 +509,40 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                         .setPositiveButton(R.string.common_word_ok, null).show());
     }
 
+    private boolean handleReauthenticationFailure(Exception error) {
+        boolean needsSignIn = false;
+        if (error instanceof GitHubAuthManager.AuthException) {
+            String code = ((GitHubAuthManager.AuthException) error).safeCode;
+            needsSignIn = "NOT_AUTHENTICATED".equals(code)
+                    || "REAUTH_REQUIRED".equals(code)
+                    || "REFRESH_TOKEN_INVALID".equals(code)
+                    || "REFRESH_TOKEN_MISSING".equals(code)
+                    || "CREDENTIAL_STORE_UNAVAILABLE".equals(code);
+        } else if (error instanceof GitHubApiClient.ApiException) {
+            GitHubApiClient.ApiException apiError = (GitHubApiClient.ApiException) error;
+            needsSignIn = apiError.httpStatus == 401
+                    || "REAUTH_REQUIRED".equals(apiError.safeCode)
+                    || "NOT_AUTHENTICATED".equals(apiError.safeCode);
+        }
+        if (!needsSignIn) return false;
+
+        new Handler(Looper.getMainLooper()).post(() -> {
+            if (isFinishing() || isDestroyed()) return;
+            String message = error.getMessage() == null
+                    ? "The GitHub session needs to be renewed." : error.getMessage();
+            new MaterialAlertDialogBuilder(this)
+                    .setTitle(R.string.cooper_github_connection_title)
+                    .setMessage(message)
+                    .setNegativeButton(R.string.common_word_cancel, null)
+                    .setPositiveButton(R.string.cooper_github_reconnect,
+                            (dialog, which) -> startDeviceAuthorization())
+                    .show();
+        });
+        return true;
+    }
+
     private void showLocalGitError(Exception error) {
+        if (handleReauthenticationFailure(error)) return;
         String message = error.getMessage() == null ? "Local Git operation failed." : error.getMessage();
         new Handler(Looper.getMainLooper()).post(() ->
                 new MaterialAlertDialogBuilder(this)
@@ -522,7 +563,9 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
     }
 
     private GitHubApiClient apiClient() {
-        return new GitHubApiClient(new GitCredentialStore(getApplicationContext()));
+        return new GitHubApiClient(
+                new GitHubAuthManager(getApplicationContext()),
+                BuildConfig.COOPER_GITHUB_CLIENT_ID);
     }
 
     private void verifyGitHubAccount() {
@@ -534,6 +577,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                         Snackbar.make(content, getString(R.string.cooper_github_account_verified, login),
                                 Snackbar.LENGTH_LONG).show());
             } catch (Exception e) {
+                if (handleReauthenticationFailure(e)) return;
                 String message = e.getMessage() == null ? "Account verification failed." : e.getMessage();
                 new Handler(Looper.getMainLooper()).post(() ->
                         new MaterialAlertDialogBuilder(this)
@@ -973,7 +1017,8 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                 LocalGitBackend.Snapshot snapshot = backend.inspect(binding.projectRoot);
                 if (!snapshot.initialized) throw new IllegalStateException("Initialize local Git before remote synchronization.");
                 if (operation.equals("FETCH")) {
-                    String token = new GitCredentialStore(getApplicationContext()).readAccessToken();
+                    String token = new GitHubAuthManager(getApplicationContext())
+                            .getUsableAccessToken(BuildConfig.COOPER_GITHUB_CLIENT_ID);
                     backend.configureRemote(binding.projectRoot, binding.remoteUrl(), true);
                     backend.fetch(binding.projectRoot, token);
                     new Handler(Looper.getMainLooper()).post(() ->
@@ -985,7 +1030,6 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                             || !snapshot.removed.isEmpty() || !snapshot.untracked.isEmpty() || !snapshot.staged.isEmpty()) {
                         throw new IllegalStateException("Push is blocked until all local changes are reviewed and committed.");
                     }
-                    String token = new GitCredentialStore(getApplicationContext()).readAccessToken();
                     new Handler(Looper.getMainLooper()).post(() ->
                             new MaterialAlertDialogBuilder(this)
                                     .setTitle(R.string.cooper_github_push_remote)
@@ -994,7 +1038,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                                             binding.remoteOwner + "/" + binding.remoteRepository))
                                     .setNegativeButton(R.string.common_word_cancel, null)
                                     .setPositiveButton(R.string.cooper_github_push_remote,
-                                            (dialog, which) -> performRemotePush(binding, snapshot, token))
+                                            (dialog, which) -> performRemotePush(binding, snapshot))
                                     .show());
                     return;
                 }
@@ -1003,7 +1047,6 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                             || !snapshot.removed.isEmpty() || !snapshot.untracked.isEmpty() || !snapshot.staged.isEmpty()) {
                         throw new IllegalStateException("Pull is blocked until all local changes are reviewed and committed.");
                     }
-                    String token = new GitCredentialStore(getApplicationContext()).readAccessToken();
                     new Handler(Looper.getMainLooper()).post(() ->
                             new MaterialAlertDialogBuilder(this)
                                     .setTitle(R.string.cooper_github_pull_remote)
@@ -1011,7 +1054,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                                             snapshot.currentBranch, binding.remoteOwner + "/" + binding.remoteRepository))
                                     .setNegativeButton(R.string.common_word_cancel, null)
                                     .setPositiveButton(R.string.cooper_github_pull_remote,
-                                            (dialog, which) -> performRemotePull(binding, snapshot, token))
+                                            (dialog, which) -> performRemotePull(binding, snapshot))
                                     .show());
                 }
             } catch (Exception e) {
@@ -1021,11 +1064,22 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
     }
 
     private void performRemotePush(GitProjectBindingStore.Binding binding,
-                                   LocalGitBackend.Snapshot planned, String token) {
+                                   LocalGitBackend.Snapshot planned) {
         authExecutor.execute(() -> {
             try {
                 LocalGitBackend backend = new LocalGitBackend();
                 backend.configureRemote(binding.projectRoot, binding.remoteUrl(), true);
+                String token = new GitHubAuthManager(getApplicationContext())
+                        .getUsableAccessToken(BuildConfig.COOPER_GITHUB_CLIENT_ID);
+                LocalGitBackend.Snapshot current = backend.inspect(binding.projectRoot);
+                if (!current.initialized
+                        || !java.util.Objects.equals(current.headCommit, planned.headCommit)
+                        || !java.util.Objects.equals(current.currentBranch, planned.currentBranch)
+                        || !current.conflicting.isEmpty() || !current.modified.isEmpty()
+                        || !current.added.isEmpty() || !current.removed.isEmpty()
+                        || !current.untracked.isEmpty() || !current.staged.isEmpty()) {
+                    throw new IllegalStateException("The project changed after Push approval. Inspect and approve a new plan.");
+                }
                 String expected = backend.push(binding.projectRoot, token, true);
                 org.json.JSONObject remoteBranch = apiClient().getBranch(
                         binding.remoteOwner, binding.remoteRepository, planned.currentBranch);
@@ -1046,11 +1100,22 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
     }
 
     private void performRemotePull(GitProjectBindingStore.Binding binding,
-                                   LocalGitBackend.Snapshot planned, String token) {
+                                   LocalGitBackend.Snapshot planned) {
         authExecutor.execute(() -> {
             try {
                 LocalGitBackend backend = new LocalGitBackend();
                 backend.configureRemote(binding.projectRoot, binding.remoteUrl(), true);
+                String token = new GitHubAuthManager(getApplicationContext())
+                        .getUsableAccessToken(BuildConfig.COOPER_GITHUB_CLIENT_ID);
+                LocalGitBackend.Snapshot current = backend.inspect(binding.projectRoot);
+                if (!current.initialized
+                        || !java.util.Objects.equals(current.headCommit, planned.headCommit)
+                        || !java.util.Objects.equals(current.currentBranch, planned.currentBranch)
+                        || !current.conflicting.isEmpty() || !current.modified.isEmpty()
+                        || !current.added.isEmpty() || !current.removed.isEmpty()
+                        || !current.untracked.isEmpty() || !current.staged.isEmpty()) {
+                    throw new IllegalStateException("The project changed after Pull approval. Inspect and approve a new plan.");
+                }
                 String expected = backend.pull(binding.projectRoot, token, true);
                 LocalGitBackend.Snapshot verified = backend.inspect(binding.projectRoot);
                 if (!expected.equals(verified.headCommit)) {

@@ -34,11 +34,13 @@ public final class GitHubApiClient {
         }
     }
 
-    private final GitCredentialStore credentials;
+    private final GitHubAuthManager authManager;
+    private final String clientId;
 
-    public GitHubApiClient(GitCredentialStore credentials) {
-        if (credentials == null) throw new IllegalArgumentException("Credential store is required.");
-        this.credentials = credentials;
+    public GitHubApiClient(GitHubAuthManager authManager, String clientId) {
+        if (authManager == null) throw new IllegalArgumentException("Authentication manager is required.");
+        this.authManager = authManager;
+        this.clientId = clientId == null ? "" : clientId.trim();
     }
 
     public JSONObject getAuthenticatedAccount() throws ApiException {
@@ -150,7 +152,10 @@ public final class GitHubApiClient {
             if (payload != null) writeBody(connection, payload);
             int status = connection.getResponseCode();
             String response = readResponse(connection, status);
-            if (status < 200 || status >= 300) throw httpError(status, response);
+            if (status < 200 || status >= 300) {
+                if (status == 401) authManager.invalidateCredentials();
+                throw httpError(status, response);
+            }
             JSONArray array = new JSONArray(response);
             JSONObject wrapper = new JSONObject();
             wrapper.put("items", array);
@@ -172,7 +177,10 @@ public final class GitHubApiClient {
             if (payload != null) writeBody(connection, payload);
             int status = connection.getResponseCode();
             String response = readResponse(connection, status);
-            if (status < 200 || status >= 300) throw httpError(status, response);
+            if (status < 200 || status >= 300) {
+                if (status == 401) authManager.invalidateCredentials();
+                throw httpError(status, response);
+            }
             return new JSONObject(response);
         } catch (ApiException e) {
             throw e;
@@ -189,7 +197,12 @@ public final class GitHubApiClient {
                 || path.contains("\\r") || path.contains("\\n") || path.contains("://")) {
             throw new IllegalArgumentException("Invalid GitHub API path.");
         }
-        String token = credentials.readAccessToken();
+        final String token;
+        try {
+            token = authManager.getUsableAccessToken(clientId);
+        } catch (GitHubAuthManager.AuthException e) {
+            throw new ApiException(e.httpStatus, e.safeCode, e.getMessage());
+        }
         if (blank(token)) throw new ApiException(401, "NOT_AUTHENTICATED", "Connect a GitHub account before using this operation.");
         URL url = new URL(API_ORIGIN + path);
         if (!"https".equals(url.getProtocol()) || !"api.github.com".equalsIgnoreCase(url.getHost())) {
