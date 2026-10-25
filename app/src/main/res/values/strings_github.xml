@@ -7,9 +7,12 @@
     <string name="cooper_github_not_connected">Not connected</string>
     <string name="cooper_github_credential_saved">Credential stored — account not yet verified</string>
     <string name="cooper_github_credential_saved_desc">Cooper has an encrypted credential. Verify account access before performing repository operations.</string>
-    <string name="cooper_github_oauth_not_configured">GitHub sign-in is not configured in this build. Set the public COOPER_GITHUB_CLIENT_ID build variable and register the callback URI: cooper://github-callback.</string>
+    <string name="cooper_github_oauth_not_configured">GitHub sign-in is not configured in this build. Set COOPER_GITHUB_CLIENT_ID and enable Device Flow in the GitHub OAuth app settings.</string>
     <string name="cooper_github_signin_failed">GitHub sign-in could not be completed: %1$s</string>
     <string name="cooper_github_signin_success">GitHub authorization completed. Verify the account before using repository operations.</string>
+    <string name="cooper_github_device_code_title">Authorize Cooper on GitHub</string>
+    <string name="cooper_github_device_code_message">Enter this one-time code on GitHub:\n\n%1$s\n\nCooper will wait for authorization. The code expires after a short period. Requested access: repository read/write for Git operations.</string>
+    <string name="cooper_github_device_flow_required">Enable Device Flow in the GitHub OAuth app settings. Cooper never embeds an OAuth client secret in the APK.</string>
     <string name="cooper_github_auth_not_configured">Secure sign-in is not configured yet. No credentials are stored by this screen.</string>
     <string name="cooper_github_connect">Connect GitHub</string>
     <string name="cooper_github_connect_description">Review GitHub authorization settings. In-app sign-in requires Cooper OAuth configuration.</string>
