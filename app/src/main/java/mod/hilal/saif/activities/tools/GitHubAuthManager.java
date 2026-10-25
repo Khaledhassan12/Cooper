@@ -157,7 +157,13 @@ public final class GitHubAuthManager {
                 interval = Math.max(interval + 5, response.optInt("interval", 0));
                 continue;
             }
-            throw mapOAuthError(error, response.optString("error_description", ""));
+            AuthException oauthError = mapOAuthError(
+                    error, response.optString("error_description", ""));
+            if (oauthError.retryable) {
+                interval = Math.min(Math.max(interval, 5) + 5, 60);
+                continue;
+            }
+            throw oauthError;
         }
 
         throw new AuthException("DEVICE_CODE_EXPIRED",
@@ -190,7 +196,7 @@ public final class GitHubAuthManager {
             }
 
             if (blank(current.refreshToken)
-                    || current.refreshTokenExpired(now + TOKEN_REFRESH_LEEWAY_MS)) {
+                    || current.refreshTokenExpired(now)) {
                 credentialStore.clear();
                 throw new AuthException("REAUTH_REQUIRED",
                         "The GitHub access token expired and no valid refresh token remains. Sign in again.",
@@ -225,11 +231,12 @@ public final class GitHubAuthManager {
                             401, false);
                 }
                 if (e.retryable) {
-                    // The server may have rotated the refresh token before the response was lost.
-                    credentialStore.clear();
-                    throw new AuthException("REAUTH_REQUIRED",
-                            "Cooper could not confirm token renewal. Sign in again to establish a valid token pair.",
-                            401, false);
+                    // Keep the existing pair on an unconfirmed transient failure. A later retry can
+                    // succeed if GitHub did not consume the refresh token; if it was rotated, the
+                    // explicit bad_refresh_token response below will trigger Device Flow again.
+                    throw new AuthException("TOKEN_REFRESH_RETRYABLE",
+                            "GitHub token renewal could not be confirmed. Retry when the network is stable; Cooper will request a new sign-in if GitHub reports that the refresh token was already used.",
+                            e.httpStatus, true);
                 }
                 throw e;
             }

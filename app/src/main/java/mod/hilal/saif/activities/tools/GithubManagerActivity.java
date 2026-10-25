@@ -623,6 +623,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                             .setNegativeButton(R.string.common_word_cancel, null).show();
                 });
             } catch (Exception e) {
+                if (handleReauthenticationFailure(e)) return;
                 String message = e.getMessage() == null ? "Repository request failed." : e.getMessage();
                 new Handler(Looper.getMainLooper()).post(() ->
                         new MaterialAlertDialogBuilder(this)
@@ -725,6 +726,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                                 })
                                 .setNegativeButton(R.string.common_word_ok, null).show());
             } catch (Exception e) {
+                if (handleReauthenticationFailure(e)) return;
                 String message = e.getMessage() == null ? "Pull Request operation failed." : e.getMessage();
                 new Handler(Looper.getMainLooper()).post(() ->
                         new MaterialAlertDialogBuilder(this)
