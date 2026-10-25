@@ -253,7 +253,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                 || !snapshot.added.isEmpty() || !snapshot.removed.isEmpty() || !snapshot.untracked.isEmpty();
         if (!snapshot.conflicting.isEmpty()) {
             statusDialog.setPositiveButton(R.string.common_word_ok, null);
-            statusDialog.setMessage(paths + "\\n\\n" + getString(R.string.cooper_github_conflicts_block_commit));
+            statusDialog.setMessage(paths + "\n\n" + getString(R.string.cooper_github_conflicts_block_commit));
         } else if (hasChanges) {
             statusDialog.setPositiveButton(R.string.cooper_github_commit_local,
                     (dialog, which) -> showCommitDialog(binding, snapshot));
@@ -340,7 +340,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                         Snackbar.make(content, R.string.cooper_github_commit_message_hint, Snackbar.LENGTH_LONG).show();
                         return;
                     }
-                    String reviewedPaths = android.text.TextUtils.join("\\n", selected);
+                    String reviewedPaths = android.text.TextUtils.join("\n", selected);
                     new MaterialAlertDialogBuilder(this)
                             .setTitle(R.string.cooper_github_commit_review_title)
                             .setMessage(getString(R.string.cooper_github_commit_review_body, selected.size())
@@ -468,8 +468,8 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
 
     private static void appendPaths(StringBuilder builder, String label, java.util.List<String> paths) {
         if (paths.isEmpty()) return;
-        builder.append("\\n\\n").append(label).append(":");
-        for (String path : paths) builder.append("\\n• ").append(path);
+        builder.append("\n\n").append(label).append(":");
+        for (String path : paths) builder.append("\n• ").append(path);
     }
 
     private GitHubApiClient apiClient() {
