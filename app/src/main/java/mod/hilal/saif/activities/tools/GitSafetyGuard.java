@@ -69,7 +69,7 @@ public final class GitSafetyGuard {
 
     public static boolean isExcludedByDefault(String relativePath) {
         if (relativePath == null || relativePath.trim().isEmpty()) return true;
-        String path = relativePath.replace('\\\\', '/').toLowerCase(java.util.Locale.ROOT);
+        String path = relativePath.replace('\\', '/').toLowerCase(java.util.Locale.ROOT);
         String[] segments = path.split("/");
         for (String segment : segments) {
             if (segment.equals(".git") || segment.equals(".gradle") || segment.equals("build")
