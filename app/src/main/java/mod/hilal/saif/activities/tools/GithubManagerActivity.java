@@ -188,91 +188,250 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                     .show();
             return;
         }
+        GitProjectBindingStore.Binding binding = null;
+        try { binding = new GitProjectBindingStore(getApplicationContext()).getBoundProject(); }
+        catch (Exception e) { showProjectBindingError(e); return; }
+        showDirectlyGitSelectionSheet(binding);
+    }
 
+    private void showDirectlyGitSelectionSheet(@Nullable GitProjectBindingStore.Binding binding) {
         com.google.android.material.bottomsheet.BottomSheetDialog sheet =
                 new com.google.android.material.bottomsheet.BottomSheetDialog(this);
-        LinearLayout panel = new LinearLayout(this);
-        panel.setOrientation(LinearLayout.VERTICAL);
-        panel.setPadding(dp(24), dp(14), dp(24), dp(24));
-        panel.setBackgroundColor(com.google.android.material.color.MaterialColors.getColor(
-                this, com.google.android.material.R.attr.colorSurface, 0xFFFFFFFF));
-
+        LinearLayout panel = directlyPanel();
         TextView title = text(getString(R.string.cooper_github_directly_title), 25, true);
         title.setGravity(Gravity.CENTER);
         title.setAlpha(0f);
-        panel.addView(title, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        title.animate().alpha(1f).setDuration(500).start();
-
-        TextView subtitle = text(getString(R.string.cooper_github_directly_intro), 14, false);
-        subtitle.setGravity(Gravity.CENTER);
-        subtitle.setPadding(0, dp(8), 0, dp(18));
-        panel.addView(subtitle);
-
+        panel.addView(title);
+        title.animate().alpha(1f).setDuration(550).start();
+        TextView intro = text(getString(R.string.cooper_github_directly_intro), 14, false);
+        intro.setGravity(Gravity.CENTER);
+        intro.setPadding(0, dp(8), 0, dp(18));
+        panel.addView(intro);
         MaterialCardView projectCard = new MaterialCardView(this);
-        projectCard.setRadius(dp(20));
-        projectCard.setCardElevation(dp(1));
+        projectCard.setRadius(dp(22));
+        projectCard.setCardElevation(dp(2));
         projectCard.setStrokeWidth(dp(1));
-        LinearLayout projectContent = new LinearLayout(this);
-        projectContent.setGravity(Gravity.CENTER_VERTICAL);
-        projectContent.setPadding(dp(16), dp(16), dp(16), dp(16));
-        ImageView projectIcon = new ImageView(this);
-        projectIcon.setImageResource(android.R.drawable.ic_menu_manage);
-        projectIcon.setContentDescription(getString(R.string.cooper_github_directly_project_icon));
-        projectContent.addView(projectIcon, new LinearLayout.LayoutParams(dp(44), dp(44)));
-        LinearLayout projectText = new LinearLayout(this);
-        projectText.setOrientation(LinearLayout.VERTICAL);
-        LinearLayout.LayoutParams projectTextParams = new LinearLayout.LayoutParams(0,
+        LinearLayout row = new LinearLayout(this);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(dp(16), dp(16), dp(16), dp(16));
+        ImageView icon = new ImageView(this);
+        icon.setImageResource(android.R.drawable.ic_menu_manage);
+        icon.setContentDescription(getString(R.string.cooper_github_directly_project_icon));
+        row.addView(icon, new LinearLayout.LayoutParams(dp(52), dp(52)));
+        LinearLayout details = new LinearLayout(this);
+        details.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout.LayoutParams detailParams = new LinearLayout.LayoutParams(0,
                 ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-        projectTextParams.leftMargin = dp(14);
-        GitProjectBindingStore.Binding selectedBinding = null;
-        try {
-            selectedBinding = new GitProjectBindingStore(getApplicationContext()).getBoundProject();
-        } catch (Exception ignored) { }
-        TextView projectName = text(selectedBinding == null
-                ? getString(R.string.cooper_github_directly_no_project)
-                : selectedBinding.workspaceName, 19, true);
-        TextView projectDetails = text(selectedBinding == null
-                ? getString(R.string.cooper_github_directly_project_details)
+        detailParams.leftMargin = dp(14);
+        details.addView(text(binding == null ? getString(R.string.cooper_github_directly_no_project)
+                : binding.workspaceName, 20, true));
+        details.addView(text(binding == null ? getString(R.string.cooper_github_directly_project_details)
                 : getString(R.string.cooper_github_directly_selected_project_details,
-                        selectedBinding.scId, selectedBinding.projectRoot.getAbsolutePath()), 12, false);
-        projectText.addView(projectName);
-        projectText.addView(projectDetails);
-        projectContent.addView(projectText, projectTextParams);
-        projectCard.addView(projectContent);
+                binding.scId, binding.projectRoot.getAbsolutePath()), 12, false));
+        row.addView(details, detailParams);
+        projectCard.addView(row);
         panel.addView(projectCard);
-
         com.google.android.material.button.MaterialButton projectButton =
                 new com.google.android.material.button.MaterialButton(this);
-        projectButton.setText(R.string.cooper_github_directly_choose_project);
+        projectButton.setText(binding == null ? R.string.cooper_github_directly_choose_project
+                : R.string.cooper_github_directly_change_project);
         projectButton.setIconResource(android.R.drawable.ic_menu_search);
-        LinearLayout.LayoutParams chooseParams = new LinearLayout.LayoutParams(
+        LinearLayout.LayoutParams buttonParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(54));
-        chooseParams.topMargin = dp(14);
-        panel.addView(projectButton, chooseParams);
-
+        buttonParams.topMargin = dp(16);
+        panel.addView(projectButton, buttonParams);
+        if (binding != null) {
+            com.google.android.material.button.MaterialButton approve =
+                    new com.google.android.material.button.MaterialButton(this);
+            approve.setText(R.string.cooper_github_directly_approve);
+            approve.setIconResource(android.R.drawable.checkbox_on_background);
+            LinearLayout.LayoutParams approveParams = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, dp(54));
+            approveParams.topMargin = dp(10);
+            panel.addView(approve, approveParams);
+            approve.setOnClickListener(v -> {
+                sheet.dismiss();
+                showDirectlyGitRepositoryForm(binding);
+            });
+        }
         TextView note = text(getString(R.string.cooper_github_directly_safety_note), 13, false);
-        note.setPadding(dp(4), dp(14), dp(4), dp(10));
+        note.setPadding(dp(4), dp(14), dp(4), dp(8));
         panel.addView(note);
-
-        com.google.android.material.button.MaterialButton advancedButton =
+        com.google.android.material.button.MaterialButton advanced =
                 new com.google.android.material.button.MaterialButton(this);
-        advancedButton.setText(R.string.cooper_github_directly_advanced);
-        advancedButton.setIconResource(android.R.drawable.ic_menu_preferences);
-        panel.addView(advancedButton, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(50)));
-        advancedButton.setOnClickListener(v -> sheet.dismiss());
-
+        advanced.setText(R.string.cooper_github_directly_advanced);
+        panel.addView(advanced);
+        advanced.setOnClickListener(v -> sheet.dismiss());
         projectButton.setOnClickListener(v -> {
             sheet.dismiss();
             loadDirectlyGitProjectSelection();
         });
-
         sheet.setContentView(panel);
-        sheet.setOnCancelListener(dialog -> {
-            // The sheet is an informational entry point; no project or remote mutation occurs here.
-        });
+        sheet.setOnCancelListener(d -> confirmDirectlyDismiss(() -> {}));
         sheet.show();
+    }
+
+    private LinearLayout directlyPanel() {
+        LinearLayout panel = new LinearLayout(this);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setPadding(dp(24), dp(16), dp(24), dp(24));
+        panel.setBackgroundColor(com.google.android.material.color.MaterialColors.getColor(
+                this, com.google.android.material.R.attr.colorSurface, 0xFFFFFFFF));
+        return panel;
+    }
+
+    private void showDirectlyGitRepositoryForm(GitProjectBindingStore.Binding binding) {
+        if (isFinishing() || isDestroyed()) return;
+        LinearLayout panel = directlyPanel();
+        TextView title = text(getString(R.string.cooper_github_directly_title), 23, true);
+        title.setGravity(Gravity.CENTER);
+        title.setAlpha(0f);
+        panel.addView(title);
+        title.animate().alpha(1f).setDuration(450).start();
+        panel.addView(text(binding.workspaceName + "  •  ID " + binding.scId, 16, true));
+        panel.addView(text(binding.projectRoot.getAbsolutePath(), 12, false));
+        EditText repoName = new EditText(this);
+        repoName.setSingleLine(true);
+        repoName.setHint(R.string.cooper_github_directly_repository_name);
+        repoName.setText(binding.workspaceName.replaceAll("[^A-Za-z0-9._-]", "-")
+                .replaceAll("^[.-]+|[.-]+$", ""));
+        repoName.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(100)});
+        panel.addView(repoName);
+        TextView nameRules = text(getString(R.string.cooper_github_directly_repository_rules), 12, false);
+        panel.addView(nameRules);
+        repoName.addTextChangedListener(new android.text.TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int st, int count, int after) {}
+            @Override public void onTextChanged(CharSequence s, int st, int before, int count) {
+                int remaining = Math.max(0, 100 - s.length());
+                nameRules.setText(getString(R.string.cooper_github_directly_name_counter, s.length(), remaining));
+            }
+            @Override public void afterTextChanged(android.text.Editable e) {}
+        });
+        EditText description = new EditText(this);
+        description.setHint(R.string.cooper_github_directly_description_hint);
+        description.setMinLines(2);
+        description.setMaxLines(4);
+        panel.addView(description);
+        com.google.android.material.button.MaterialButton gallery = new com.google.android.material.button.MaterialButton(this);
+        gallery.setText(R.string.cooper_github_directly_choose_images);
+        gallery.setIconResource(android.R.drawable.ic_menu_gallery);
+        panel.addView(gallery);
+        TextView imageState = text(getString(R.string.cooper_github_directly_no_images), 13, false);
+        panel.addView(imageState);
+        final java.util.ArrayList<Uri> selectedImages = new java.util.ArrayList<>();
+        gallery.setOnClickListener(v -> {
+            Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+            intent.addCategory(Intent.CATEGORY_OPENABLE);
+            intent.setType("image/*");
+            intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+            startActivityForResult(intent, 7314);
+            directlyPendingImageState = imageState;
+            directlyPendingImages = selectedImages;
+        });
+        final String[] readmeMode = new String[]{""};
+        com.google.android.material.chip.ChipGroup choices = new com.google.android.material.chip.ChipGroup(this);
+        choices.setSingleSelection(true);
+        choices.setSelectionRequired(false);
+        com.google.android.material.chip.Chip readme = new com.google.android.material.chip.Chip(this);
+        readme.setText(R.string.cooper_github_directly_readme);
+        readme.setCheckable(true);
+        com.google.android.material.chip.Chip empty = new com.google.android.material.chip.Chip(this);
+        empty.setText(R.string.cooper_github_directly_empty);
+        empty.setCheckable(true);
+        choices.addView(readme);
+        choices.addView(empty);
+        panel.addView(text(getString(R.string.cooper_github_directly_readme_choice_required), 14, true));
+        panel.addView(choices);
+        final String[] readmeContent = new String[]{""};
+        readme.setOnClickListener(v -> showDirectlyReadmeDialog(binding, readmeMode, readmeContent));
+        empty.setOnClickListener(v -> { readmeMode[0] = "EMPTY"; readmeContent[0] = ""; });
+        com.google.android.material.button.MaterialButton push = new com.google.android.material.button.MaterialButton(this);
+        push.setText(R.string.cooper_github_directly_git_push);
+        push.setIconResource(android.R.drawable.ic_menu_upload);
+        LinearLayout.LayoutParams pushParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(56));
+        pushParams.topMargin = dp(18);
+        panel.addView(push, pushParams);
+        com.google.android.material.bottomsheet.BottomSheetDialog sheet =
+                new com.google.android.material.bottomsheet.BottomSheetDialog(this);
+        push.setOnClickListener(v -> {
+            String name = repoName.getText().toString().trim();
+            if (!name.matches("[A-Za-z0-9_.-]{1,100}") || name.equals(".") || name.equals("..")
+                    || name.startsWith(".") || name.endsWith(".") || name.endsWith(".git")) {
+                repoName.setError(getString(R.string.cooper_github_directly_invalid_repository_name));
+                return;
+            }
+            if (readmeMode[0].isEmpty()) {
+                Snackbar.make(panel, R.string.cooper_github_directly_readme_choice_required, Snackbar.LENGTH_LONG).show();
+                return;
+            }
+            new MaterialAlertDialogBuilder(this)
+                    .setTitle(R.string.cooper_github_directly_publish_confirm)
+                    .setMessage(getString(R.string.cooper_github_directly_publish_review, name, binding.workspaceName))
+                    .setNegativeButton(R.string.common_word_cancel, null)
+                    .setPositiveButton(R.string.cooper_github_directly_git_push, (d, w) ->
+                            beginDirectlyGitPublish(binding, name, description.getText().toString().trim(),
+                                    readmeMode[0], readmeContent[0], new java.util.ArrayList<>(selectedImages)))
+                    .show();
+        });
+        sheet.setContentView(panel);
+        sheet.setOnCancelListener(d -> confirmDirectlyDismiss(() -> {}));
+        sheet.show();
+    }
+
+    private void showDirectlyReadmeDialog(GitProjectBindingStore.Binding binding,
+                                          String[] mode, String[] content) {
+        EditText project = new EditText(this); project.setHint(R.string.cooper_github_directly_readme_project);
+        project.setText(binding.workspaceName);
+        EditText developers = new EditText(this); developers.setHint(R.string.cooper_github_directly_readme_developers);
+        EditText contributors = new EditText(this); contributors.setHint(R.string.cooper_github_directly_readme_contributors);
+        EditText information = new EditText(this); information.setHint(R.string.cooper_github_directly_readme_information);
+        information.setMinLines(3);
+        LinearLayout form = new LinearLayout(this); form.setOrientation(LinearLayout.VERTICAL);
+        form.setPadding(dp(20), dp(8), dp(20), dp(4));
+        com.google.android.material.button.MaterialButtonToggleGroup format =
+                new com.google.android.material.button.MaterialButtonToggleGroup(this);
+        com.google.android.material.button.MaterialButton markdown = new com.google.android.material.button.MaterialButton(this);
+        markdown.setText("Markdown"); markdown.setCheckable(true); markdown.setId(View.generateViewId());
+        com.google.android.material.button.MaterialButton plain = new com.google.android.material.button.MaterialButton(this);
+        plain.setText("Text"); plain.setCheckable(true); plain.setId(View.generateViewId());
+        format.addView(markdown); format.addView(plain); format.check(markdown.getId());
+        form.addView(format); form.addView(project); form.addView(developers);
+        form.addView(contributors); form.addView(information);
+        new MaterialAlertDialogBuilder(this).setTitle(R.string.cooper_github_directly_readme_title)
+                .setView(form).setNegativeButton(R.string.common_word_cancel, null)
+                .setPositiveButton(R.string.common_word_save, (d, w) -> {
+                    mode[0] = markdown.getId() == format.getCheckedButtonId() ? "MARKDOWN" : "TEXT";
+                    String separator = mode[0].equals("MARKDOWN") ? "\n\n" : "\n";
+                    content[0] = (mode[0].equals("MARKDOWN") ? "# " : "") + project.getText().toString().trim()
+                            + separator + getString(R.string.cooper_github_directly_readme_developers) + ": "
+                            + developers.getText().toString().trim() + separator
+                            + getString(R.string.cooper_github_directly_readme_contributors) + ": "
+                            + contributors.getText().toString().trim() + separator
+                            + getString(R.string.cooper_github_directly_readme_information) + ": "
+                            + information.getText().toString().trim();
+                }).show();
+    }
+
+    private void confirmDirectlyDismiss(Runnable discard) {
+        if (isFinishing() || isDestroyed()) return;
+        new MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.cooper_github_directly_discard_title)
+                .setMessage(R.string.cooper_github_directly_discard_message)
+                .setNegativeButton(R.string.cooper_github_directly_keep_editing, null)
+                .setPositiveButton(R.string.cooper_github_directly_discard, (d, w) -> discard.run())
+                .show();
+    }
+
+    private void beginDirectlyGitPublish(GitProjectBindingStore.Binding binding, String name,
+                                         String description, String readmeMode, String readmeContent,
+                                         java.util.ArrayList<Uri> images) {
+        // Fail closed until the local project can be staged as a reviewed, secret-scanned commit.
+        // Creating a remote first would risk leaving an empty repository if local preparation fails.
+        new MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.cooper_github_directly_publish_unavailable_title)
+                .setMessage(R.string.cooper_github_directly_publish_unavailable_message)
+                .setPositiveButton(R.string.common_word_ok, null).show();
     }
 
 
