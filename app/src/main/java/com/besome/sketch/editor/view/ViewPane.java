@@ -73,6 +73,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.sketchware.daygreen.editor.view.item.ItemViewPager2;
+import org.sketchware.daygreen.editor.view.item.ItemMaterialSwitch;
 
 import a.a.a.Gx;
 import a.a.a.kC;
@@ -312,6 +313,7 @@ public class ViewPane extends RelativeLayout {
             case ViewBeans.VIEW_TYPE_LAYOUT_TABLAYOUT -> new ItemTabLayout(context);
             case ViewBeans.VIEW_TYPE_LAYOUT_VIEWPAGER -> new ItemViewPager(context);
             case ViewBeans.VIEW_TYPE_LAYOUT_VIEWPAGER2 -> new ItemViewPager2(context);
+            case ViewBeans.VIEW_TYPE_WIDGET_MATERIALSWITCH -> new ItemMaterialSwitch(context);
             case ViewBeans.VIEW_TYPE_LAYOUT_BOTTOMNAVIGATIONVIEW -> new ItemBottomNavigationView(context);
             case ViewBeans.VIEW_TYPE_WIDGET_BADGEVIEW -> new ItemBadgeView(context);
             case ViewBeans.VIEW_TYPE_WIDGET_PATTERNLOCKVIEW -> new ItemPatternLockView(context);

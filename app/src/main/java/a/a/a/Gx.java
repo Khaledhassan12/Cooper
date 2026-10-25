@@ -127,8 +127,8 @@ public class Gx {
                 break;
                 
             case "MaterialSwitch":
-                classInfos = "View.Widget.MaterialSwitch";
-                break;    
+                 classInfos = "View.Clickable.TextView.Button.CompoundButton.MaterialSwitch";
+                 break;    
 
             case "SeekBar":
                 classInfos = "View.SeekBar";

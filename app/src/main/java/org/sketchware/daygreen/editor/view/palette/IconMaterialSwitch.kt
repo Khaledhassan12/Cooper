@@ -11,7 +11,7 @@ import pro.sketchware.R
 class IconMaterialSwitch(context: Context) : IconBase(context), Material3View {
 
     init {
-        setWidgetImage(R.drawable.ic_mtrl_switch)
+        setWidgetImage(R.drawable.ic_mtrl_toggle)
         setWidgetName("MaterialSwitch")
     }
 

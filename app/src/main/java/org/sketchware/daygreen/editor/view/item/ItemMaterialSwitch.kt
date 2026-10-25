@@ -1,5 +1,6 @@
 package org.sketchware.daygreen.editor.view.item
 
+import a.a.a.wB
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Paint
@@ -10,6 +11,7 @@ import com.google.android.material.materialswitch.MaterialSwitch
 
 class ItemMaterialSwitch(context: Context) : MaterialSwitch(context), ItemView {
 
+    private val dip = wB.a(context, 1.0f)
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = 0x9599d5d0.toInt()
     }
@@ -40,6 +42,15 @@ class ItemMaterialSwitch(context: Context) : MaterialSwitch(context), ItemView {
     override fun setSelection(z: Boolean) {
         hasSelection = z
         invalidate()
+    }
+
+    override fun setPadding(left: Int, top: Int, right: Int, bottom: Int) {
+        super.setPadding(
+            (left * dip).toInt(),
+            (top * dip).toInt(),
+            (right * dip).toInt(),
+            (bottom * dip).toInt()
+        )
     }
 
     override fun onDraw(canvas: Canvas) {

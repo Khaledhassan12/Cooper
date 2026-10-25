@@ -109,7 +109,7 @@ public class ViewBeans {
             case VIEW_TYPE_LAYOUT_TABLAYOUT -> R.drawable.ic_mtrl_tabs;
             case VIEW_TYPE_LAYOUT_VIEWPAGER -> R.drawable.ic_mtrl_viewpager;
             case VIEW_TYPE_LAYOUT_VIEWPAGER2 -> R.drawable.ic_mtrl_viewpager;
-            case VIEW_TYPE_WIDGET_MATERIALSWITCH -> R.drawable.ic_mtrl_switch;
+            case VIEW_TYPE_WIDGET_MATERIALSWITCH -> R.drawable.ic_mtrl_toggle;
             case VIEW_TYPE_LAYOUT_BOTTOMNAVIGATIONVIEW -> R.drawable.ic_mtrl_bottom_navigation;
             case VIEW_TYPE_WIDGET_BADGEVIEW -> R.drawable.ic_mtrl_badge;
             case VIEW_TYPE_WIDGET_PATTERNLOCKVIEW -> R.drawable.ic_mtrl_pattern;
