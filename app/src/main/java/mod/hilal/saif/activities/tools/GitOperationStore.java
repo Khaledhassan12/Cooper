@@ -149,14 +149,21 @@ public final class GitOperationStore {
             stream.write(bytes);
             stream.getFD().sync();
         }
-        if (journal.exists() && !journal.delete()) {
-            // Preserve the old file if replacement cannot be performed.
+        try {
+            java.nio.file.Files.move(temp.toPath(), journal.toPath(),
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING,
+                    java.nio.file.StandardCopyOption.ATOMIC_MOVE);
+        } catch (java.nio.file.AtomicMoveNotSupportedException e) {
+            try {
+                java.nio.file.Files.move(temp.toPath(), journal.toPath(),
+                        java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            } catch (IOException moveFailure) {
+                temp.delete();
+                throw new IOException("Could not finalize Cooper Git operation journal.", moveFailure);
+            }
+        } catch (IOException e) {
             temp.delete();
-            throw new IOException("Could not replace Cooper Git operation journal.");
-        }
-        if (!temp.renameTo(journal)) {
-            temp.delete();
-            throw new IOException("Could not finalize Cooper Git operation journal.");
+            throw new IOException("Could not finalize Cooper Git operation journal.", e);
         }
     }
 
