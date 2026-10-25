@@ -67,4 +67,19 @@
     <string name="cooper_github_repository_create_success">Repository created and verified: %1$s</string>
     <string name="cooper_github_account_verified">GitHub account verified: %1$s</string>
     <string name="cooper_github_account_verify_failed">Could not verify the GitHub account: %1$s</string>
+    <string name="cooper_github_project_picker_title">Select a Cooper project</string>
+    <string name="cooper_github_project_picker_empty">No valid Cooper projects were found.</string>
+    <string name="cooper_github_project_bound">Bound project: %1$s (ID %2$s)</string>
+    <string name="cooper_github_project_binding_failed">Could not bind the project: %1$s</string>
+    <string name="cooper_github_project_not_bound">Select a Cooper project before using local Git.</string>
+    <string name="cooper_github_local_status_title">Local Git status</string>
+    <string name="cooper_github_local_status_detail">Project: %1$s\nPath: %2$s\nBranch: %3$s\nHEAD: %4$s\nStaged: %5$d · Modified: %6$d · Added: %7$d · Removed: %8$d · Untracked: %9$d · Conflicts: %10$d</string>
+    <string name="cooper_github_initialize_git">Initialize local Git</string>
+    <string name="cooper_github_initialize_git_confirm">Initialize a Git repository inside %1$s? This creates a .git directory and does not upload any files.</string>
+    <string name="cooper_github_initialize_git_success">Local Git repository initialized and verified.</string>
+    <string name="cooper_github_local_git_failed">Local Git operation failed: %1$s</string>
+    <string name="cooper_github_no_changes">No pending local changes were found.</string>
+    <string name="cooper_github_select_project">Select project</string>
+    <string name="cooper_github_commit_local">Commit local changes</string>
+    <string name="cooper_github_commit_local_description">Review selected project files and create a verified local commit. Remote sync is a separate operation.</string>
 </resources>
