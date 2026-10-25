@@ -95,11 +95,11 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         addInfoCard(getString(R.string.cooper_github_account),
                 getString(credentialStored ? R.string.cooper_github_credential_saved : R.string.cooper_github_not_connected),
                 getString(credentialStored ? R.string.cooper_github_credential_saved_desc : R.string.cooper_github_auth_not_configured));
-        addActionCard(getString(R.string.cooper_github_connect), getString(R.string.cooper_github_connect_description),
-                v -> startGitHubAuthorization());
-        if (new GitCredentialStore(this).hasCredential()) {
-            addActionCard(getString(R.string.cooper_github_disconnect), getString(R.string.cooper_github_disconnect_confirm),
-                    v -> confirmDisconnectGitHub());
+        if (credentialStored) {
+            addGitHubProfileCard();
+        } else {
+            addActionCard(getString(R.string.cooper_github_connect), getString(R.string.cooper_github_connect_description),
+                    v -> startGitHubAuthorization());
         }
 
         addSectionTitle(getString(R.string.cooper_github_repositories));
