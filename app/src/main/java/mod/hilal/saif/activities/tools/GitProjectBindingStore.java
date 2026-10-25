@@ -18,18 +18,30 @@ public final class GitProjectBindingStore {
     private static final String PREFS = "cooper_github_project_binding";
     private static final String KEY_SC_ID = "sc_id";
     private static final String KEY_WORKSPACE_NAME = "workspace_name";
+    private static final String KEY_REMOTE_OWNER = "remote_owner";
+    private static final String KEY_REMOTE_REPOSITORY = "remote_repository";
 
     public static final class Binding {
         public final String scId;
         public final String workspaceName;
         public final String appName;
         public final File projectRoot;
+        public final String remoteOwner;
+        public final String remoteRepository;
 
-        private Binding(String scId, String workspaceName, String appName, File projectRoot) {
+        private Binding(String scId, String workspaceName, String appName, File projectRoot,
+                        String remoteOwner, String remoteRepository) {
             this.scId = scId;
             this.workspaceName = workspaceName;
             this.appName = appName;
             this.projectRoot = projectRoot;
+            this.remoteOwner = remoteOwner;
+            this.remoteRepository = remoteRepository;
+        }
+
+        public String remoteUrl() {
+            return blank(remoteOwner) || blank(remoteRepository) ? "" :
+                    "https://github.com/" + remoteOwner + "/" + remoteRepository + ".git";
         }
     }
 
@@ -57,7 +69,8 @@ public final class GitProjectBindingStore {
         boolean saved = preferences.edit().putString(KEY_SC_ID, scId)
                 .putString(KEY_WORKSPACE_NAME, workspace).commit();
         if (!saved) throw new IllegalStateException("Cooper could not save the project binding.");
-        return new Binding(scId, workspace, safeValue(metadata.get("my_app_name"), ""), root);
+        return new Binding(scId, workspace, safeValue(metadata.get("my_app_name"), ""), root,
+                preferences.getString(KEY_REMOTE_OWNER, ""), preferences.getString(KEY_REMOTE_REPOSITORY, ""));
     }
 
     public Binding getBoundProject() throws Exception {
@@ -74,11 +87,32 @@ public final class GitProjectBindingStore {
         }
         return new Binding(scId,
                 safeValue(metadata.get("my_ws_name"), preferences.getString(KEY_WORKSPACE_NAME, "Cooper project")),
-                safeValue(metadata.get("my_app_name"), ""), root);
+                safeValue(metadata.get("my_app_name"), ""), root,
+                preferences.getString(KEY_REMOTE_OWNER, ""), preferences.getString(KEY_REMOTE_REPOSITORY, ""));
+    }
+
+    public void linkRemote(String owner, String repository) {
+        if (blank(owner) || blank(repository)
+                || !owner.matches("[A-Za-z0-9_.-]{1,100}")
+                || !repository.matches("[A-Za-z0-9_.-]{1,100}")
+                || owner.equals(".") || owner.equals("..") || repository.equals(".") || repository.equals("..")) {
+            throw new IllegalArgumentException("A valid GitHub owner and repository are required.");
+        }
+        if (blank(preferences.getString(KEY_SC_ID, null))) {
+            throw new IllegalStateException("Select a Cooper project before linking a remote repository.");
+        }
+        boolean saved = preferences.edit().putString(KEY_REMOTE_OWNER, owner)
+                .putString(KEY_REMOTE_REPOSITORY, repository).commit();
+        if (!saved) throw new IllegalStateException("Cooper could not save the remote repository binding.");
+    }
+
+    public void clearRemote() {
+        preferences.edit().remove(KEY_REMOTE_OWNER).remove(KEY_REMOTE_REPOSITORY).commit();
     }
 
     public void clearBinding() {
-        preferences.edit().remove(KEY_SC_ID).remove(KEY_WORKSPACE_NAME).commit();
+        preferences.edit().remove(KEY_SC_ID).remove(KEY_WORKSPACE_NAME)
+                .remove(KEY_REMOTE_OWNER).remove(KEY_REMOTE_REPOSITORY).commit();
     }
 
     private static String safeValue(Object value, String fallback) {
