@@ -67,6 +67,24 @@ public final class GitSafetyGuard {
         }
     }
 
+    public static boolean isExcludedByDefault(String relativePath) {
+        if (relativePath == null || relativePath.trim().isEmpty()) return true;
+        String path = relativePath.replace('\\\\', '/').toLowerCase(java.util.Locale.ROOT);
+        String[] segments = path.split("/");
+        for (String segment : segments) {
+            if (segment.equals(".git") || segment.equals(".gradle") || segment.equals("build")
+                    || segment.equals("bin") || segment.equals("gen") || segment.equals("cache")
+                    || segment.equals("caches") || segment.equals("tmp") || segment.equals("temp")
+                    || segment.equals("outputs") || segment.equals("intermediates")) return true;
+        }
+        String name = segments[segments.length - 1];
+        return name.endsWith(".apk") || name.endsWith(".aab") || name.endsWith(".dex")
+                || name.endsWith(".class") || name.endsWith(".odex") || name.endsWith(".oat")
+                || name.endsWith(".so") || name.endsWith(".jar") || name.endsWith(".aar")
+                || name.endsWith(".log") || name.endsWith(".tmp") || name.endsWith(".swp")
+                || name.endsWith("~");
+    }
+
     public static boolean isSensitivePath(String relativePath) {
         if (relativePath == null) return true;
         String path = relativePath.replace('\\', '/').toLowerCase(java.util.Locale.ROOT);
