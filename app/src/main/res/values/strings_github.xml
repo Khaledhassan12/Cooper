@@ -127,4 +127,8 @@
     <string name="cooper_github_branch_created">Local branch created and verified: %1$s</string>
     <string name="cooper_github_branch_switched">Switched to branch %1$s and verified the active branch.</string>
     <string name="cooper_github_branch_failed">Branch operation failed: %1$s</string>
+    <string name="cooper_github_review_diff">Review file diff</string>
+    <string name="cooper_github_diff_title">File diff: %1$s</string>
+    <string name="cooper_github_diff_empty">No changed files are available to inspect.</string>
+    <string name="cooper_github_diff_failed">Could not calculate the file diff: %1$s</string>
 </resources>
