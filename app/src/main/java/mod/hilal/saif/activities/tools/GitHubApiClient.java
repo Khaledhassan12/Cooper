@@ -101,6 +101,13 @@ public final class GitHubApiClient {
         return items == null ? new JSONArray() : items;
     }
 
+    public JSONObject getPullRequest(String owner, String repository, int number) throws ApiException {
+        validateSlug(owner, "owner");
+        validateSlug(repository, "repository");
+        if (number < 1) throw new IllegalArgumentException("Pull Request number must be positive.");
+        return request("GET", "/repos/" + owner + "/" + repository + "/pulls/" + number, null);
+    }
+
     public JSONObject createPullRequest(String owner, String repository, String title, String body,
                                         String head, String base, boolean explicitlyApproved) throws ApiException {
         requireApproval(explicitlyApproved, "Creating a Pull Request requires explicit confirmation.");
