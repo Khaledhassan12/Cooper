@@ -143,13 +143,16 @@ public final class LocalGitBackend {
     }
 
     public CommitOutcome commit(File projectRoot, String message, String authorName, String authorEmail,
-                                boolean explicitlyApproved) throws GitFailure {
+                                List<String> approvedPaths, boolean explicitlyApproved) throws GitFailure {
         requireApproval(explicitlyApproved, "Creating a local commit requires explicit user confirmation.");
         if (message == null || message.trim().isEmpty()) throw new GitFailure("EMPTY_MESSAGE", "Enter a commit message.");
         if (blank(authorName) || blank(authorEmail) || authorEmail.indexOf('\n') >= 0) {
             throw new GitFailure("INVALID_AUTHOR", "A valid Git author name and email are required.");
         }
         File root = canonicalRoot(projectRoot);
+        validatePaths(root, approvedPaths == null ? Collections.emptyList() : approvedPaths);
+        Set<String> approved = new TreeSet<>(approvedPaths == null ? Collections.emptyList() : approvedPaths);
+        if (approved.isEmpty()) throw new GitFailure("EMPTY_PLAN", "Select at least one file for this commit.");
         try (Git git = openRoot(root)) {
             Status before = git.status().call();
             Set<String> staged = new TreeSet<>();
@@ -157,6 +160,10 @@ public final class LocalGitBackend {
             staged.addAll(before.getChanged());
             staged.addAll(before.getRemoved());
             if (staged.isEmpty()) throw new GitFailure("NOTHING_STAGED", "No staged changes are available to commit.");
+            if (!staged.equals(approved)) {
+                throw new GitFailure("APPROVED_FILE_SET_MISMATCH",
+                        "The staged file set does not exactly match the approved commit plan. Review or unstage extra files before committing.");
+            }
             RevCommit commit = git.commit().setMessage(message.trim())
                     .setAuthor(authorName.trim(), authorEmail.trim()).call();
             if (commit == null || commit.getId() == null) {
@@ -174,6 +181,28 @@ public final class LocalGitBackend {
         } catch (GitAPIException | IOException e) {
             throw new GitFailure("COMMIT_FAILED", "Cooper could not create or verify the local commit.", e);
         }
+    }
+
+    public CommitOutcome commitSelected(File projectRoot, List<String> approvedPaths, String message,
+                                         String authorName, String authorEmail,
+                                         boolean explicitlyApproved) throws GitFailure {
+        requireApproval(explicitlyApproved, "Creating a local commit requires explicit user confirmation.");
+        File root = canonicalRoot(projectRoot);
+        validatePaths(root, approvedPaths == null ? Collections.emptyList() : approvedPaths);
+        Set<String> selected = new TreeSet<>(approvedPaths == null ? Collections.emptyList() : approvedPaths);
+        if (selected.isEmpty()) throw new GitFailure("EMPTY_PLAN", "Select at least one file for this commit.");
+        Snapshot before = inspect(root);
+        if (!before.initialized) throw new GitFailure("NOT_A_REPOSITORY", "Initialize local Git before committing.");
+        Set<String> alreadyStaged = new TreeSet<>();
+        alreadyStaged.addAll(before.staged);
+        alreadyStaged.addAll(before.added);
+        alreadyStaged.addAll(before.removed);
+        if (!selected.containsAll(alreadyStaged)) {
+            throw new GitFailure("STAGED_FILE_OUTSIDE_PLAN",
+                    "One or more already-staged files are outside the selected commit plan. Unstage or include them explicitly.");
+        }
+        stage(root, new ArrayList<>(selected), true);
+        return commit(root, message, authorName, authorEmail, new ArrayList<>(selected), true);
     }
 
     public List<String> listBranches(File projectRoot) throws GitFailure {
