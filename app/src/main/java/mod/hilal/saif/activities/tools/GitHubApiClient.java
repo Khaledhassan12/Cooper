@@ -78,6 +78,20 @@ public final class GitHubApiClient {
         return request("GET", "/repos/" + owner + "/" + repository, null);
     }
 
+    public JSONObject getBranch(String owner, String repository, String branch) throws ApiException {
+        validateSlug(owner, "owner");
+        validateSlug(repository, "repository");
+        if (blank(branch) || branch.startsWith("-") || branch.contains("..")) {
+            throw new IllegalArgumentException("Invalid branch name.");
+        }
+        String encodedBranch;
+        try { encodedBranch = java.net.URLEncoder.encode(branch, "UTF-8").replace("+", "%20"); }
+        catch (java.io.UnsupportedEncodingException e) {
+            throw new ApiException(0, "ENCODING_ERROR", "Cooper could not encode the branch name.");
+        }
+        return request("GET", "/repos/" + owner + "/" + repository + "/branches/" + encodedBranch, null);
+    }
+
     public JSONArray listBranches(String owner, String repository, int page) throws ApiException {
         validateSlug(owner, "owner");
         validateSlug(repository, "repository");
