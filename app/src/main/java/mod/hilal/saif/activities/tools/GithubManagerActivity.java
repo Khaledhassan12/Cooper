@@ -78,14 +78,14 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         collapsing.setFitsSystemWindows(true);
         collapsing.setExpandedTitleTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_DisplaySmall);
         collapsing.setCollapsedTitleTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_TitleMedium);
-        collapsing.setLayoutParams(new com.google.android.material.appbar.AppBarLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, getResources().getDimensionPixelSize(com.google.android.material.R.dimen.m3_appbar_size_large)));
+        collapsing.setLayoutParams(new com.google.android.material.appbar.AppBarLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(200)));
         ((com.google.android.material.appbar.AppBarLayout.LayoutParams) collapsing.getLayoutParams()).setScrollFlags(com.google.android.material.appbar.AppBarLayout.LayoutParams.SCROLL_FLAG_SCROLL | com.google.android.material.appbar.AppBarLayout.LayoutParams.SCROLL_FLAG_EXIT_UNTIL_COLLAPSED);
 
         MaterialToolbar toolbar = new MaterialToolbar(this);
         toolbar.setTitle("");
         toolbar.setNavigationIcon(androidx.appcompat.R.drawable.abc_ic_ab_back_material);
         toolbar.setNavigationOnClickListener(Helper.getBackPressedClickListener(this));
-        com.google.android.material.appbar.CollapsingToolbarLayout.LayoutParams toolbarParams = new com.google.android.material.appbar.CollapsingToolbarLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, getResources().getDimensionPixelSize(com.google.android.material.R.dimen.m3_appbar_size));
+        com.google.android.material.appbar.CollapsingToolbarLayout.LayoutParams toolbarParams = new com.google.android.material.appbar.CollapsingToolbarLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(56));
         toolbarParams.setCollapseMode(com.google.android.material.appbar.CollapsingToolbarLayout.LayoutParams.COLLAPSE_MODE_PIN);
         collapsing.addView(toolbar, toolbarParams);
         appBar.addView(collapsing);
