@@ -5,6 +5,11 @@
     <string name="cooper_github_smart_safe">Smart — ذكي وآمن</string>
     <string name="cooper_github_account">GitHub account</string>
     <string name="cooper_github_not_connected">Not connected</string>
+    <string name="cooper_github_credential_saved">Credential stored — account not yet verified</string>
+    <string name="cooper_github_credential_saved_desc">Cooper has an encrypted credential. Verify account access before performing repository operations.</string>
+    <string name="cooper_github_oauth_not_configured">GitHub sign-in is not configured in this build. Set the public COOPER_GITHUB_CLIENT_ID build variable and register the callback URI: cooper://github-callback.</string>
+    <string name="cooper_github_signin_failed">GitHub sign-in could not be completed: %1$s</string>
+    <string name="cooper_github_signin_success">GitHub authorization completed. Verify the account before using repository operations.</string>
     <string name="cooper_github_auth_not_configured">Secure sign-in is not configured yet. No credentials are stored by this screen.</string>
     <string name="cooper_github_connect">Connect GitHub</string>
     <string name="cooper_github_connect_description">Review GitHub authorization settings. In-app sign-in requires Cooper OAuth configuration.</string>
