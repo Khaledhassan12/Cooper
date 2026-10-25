@@ -162,6 +162,8 @@ public final class GitHubApiClient {
             return wrapper;
         } catch (ApiException e) {
             throw e;
+        } catch (GitHubAuthManager.AuthException e) {
+            throw new ApiException(e.httpStatus, e.safeCode, e.getMessage());
         } catch (Exception e) {
             throw new ApiException(0, "NETWORK_OR_PARSE_ERROR",
                     "Cooper could not complete the GitHub request. Check the network and retry after verifying the remote state.");
@@ -184,6 +186,8 @@ public final class GitHubApiClient {
             return new JSONObject(response);
         } catch (ApiException e) {
             throw e;
+        } catch (GitHubAuthManager.AuthException e) {
+            throw new ApiException(e.httpStatus, e.safeCode, e.getMessage());
         } catch (Exception e) {
             throw new ApiException(0, "NETWORK_OR_PARSE_ERROR",
                     "Cooper could not complete the GitHub request. Check the network and retry after verifying the remote state.");
