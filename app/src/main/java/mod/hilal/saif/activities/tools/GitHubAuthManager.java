@@ -1,9 +1,6 @@
 package mod.hilal.saif.activities.tools;
 
 import android.content.Context;
-import android.content.SharedPreferences;
-import android.net.Uri;
-import android.util.Base64;
 
 import org.json.JSONObject;
 
@@ -13,20 +10,15 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.SecureRandom;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * Cooper OAuth Authorization Code + PKCE (S256) helper.
- * Configure the public OAuth client ID via COOPER_GITHUB_CLIENT_ID at build time and register
- * cooper://github-callback as the OAuth callback. No client secret is used or embedded.
+ * Cooper GitHub OAuth Device Authorization Grant.
+ * A native APK must not contain an OAuth client secret. GitHub's device flow uses the public
+ * client ID and does not require a client secret. Enable Device Flow in the registered OAuth app.
  */
 public final class GitHubAuthManager {
-    public static final String REDIRECT_URI = "cooper://github-callback";
-    private static final String PREFS = "cooper_github_oauth_pending";
-    private static final String STATE_KEY = "state";
-    private static final String VERIFIER_KEY = "verifier";
-    private static final String AUTHORIZE_URL = "https://github.com/login/oauth/authorize";
+    private static final String DEVICE_CODE_URL = "https://github.com/login/device/code";
     private static final String TOKEN_URL = "https://github.com/login/oauth/access_token";
 
     public static final class AuthException extends Exception {
@@ -34,68 +26,106 @@ public final class GitHubAuthManager {
         AuthException(String code, String message) { super(message); safeCode = code; }
     }
 
-    private final Context context;
-    private final SharedPreferences pending;
+    public static final class DeviceAuthorization {
+        public final String deviceCode;
+        public final String userCode;
+        public final String verificationUri;
+        public final int expiresInSeconds;
+        public final int pollingIntervalSeconds;
+
+        private DeviceAuthorization(String deviceCode, String userCode, String verificationUri,
+                                    int expiresInSeconds, int pollingIntervalSeconds) {
+            this.deviceCode = deviceCode;
+            this.userCode = userCode;
+            this.verificationUri = verificationUri;
+            this.expiresInSeconds = expiresInSeconds;
+            this.pollingIntervalSeconds = pollingIntervalSeconds;
+        }
+    }
+
     private final GitCredentialStore credentialStore;
 
     public GitHubAuthManager(Context context) {
         if (context == null) throw new IllegalArgumentException("Context is required.");
-        this.context = context.getApplicationContext();
-        pending = this.context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
-        credentialStore = new GitCredentialStore(this.context);
+        credentialStore = new GitCredentialStore(context.getApplicationContext());
     }
 
-    public Uri beginAuthorization(String clientId) throws Exception {
-        if (blank(clientId)) throw new AuthException("CLIENT_ID_NOT_CONFIGURED",
-                "Set COOPER_GITHUB_CLIENT_ID in the build environment and register the Cooper callback URI.");
-        byte[] random = new byte[32];
-        SecureRandom secureRandom = new SecureRandom();
-        secureRandom.nextBytes(random);
-        String verifier = base64Url(random);
-        byte[] stateBytes = new byte[32];
-        secureRandom.nextBytes(stateBytes);
-        String state = base64Url(stateBytes);
-        String challenge = base64Url(MessageDigest.getInstance("SHA-256")
-                .digest(verifier.getBytes(StandardCharsets.US_ASCII)));
-        boolean saved = pending.edit().putString(STATE_KEY, state)
-                .putString(VERIFIER_KEY, verifier).commit();
-        if (!saved) throw new AuthException("PKCE_STATE_NOT_SAVED",
-                "Cooper could not prepare a secure authorization session.");
-        return Uri.parse(AUTHORIZE_URL).buildUpon()
-                .appendQueryParameter("client_id", clientId)
-                .appendQueryParameter("redirect_uri", REDIRECT_URI)
-                .appendQueryParameter("state", state)
-                .appendQueryParameter("code_challenge", challenge)
-                .appendQueryParameter("code_challenge_method", "S256")
-                .build();
-    }
-
-    public String completeAuthorization(Uri callback, String clientId) throws Exception {
-        if (callback == null || !"cooper".equals(callback.getScheme())
-                || !"github-callback".equals(callback.getHost())) {
-            throw new AuthException("CALLBACK_REJECTED", "Cooper rejected an unexpected authorization callback.");
-        }
-        String expectedState = pending.getString(STATE_KEY, null);
-        String verifier = pending.getString(VERIFIER_KEY, null);
-        String returnedState = callback.getQueryParameter("state");
-        String code = callback.getQueryParameter("code");
-        if (blank(expectedState) || blank(verifier) || blank(returnedState)
-                || !constantTimeEquals(expectedState, returnedState)) {
-            clearPending();
-            throw new AuthException("STATE_MISMATCH", "The GitHub authorization response could not be verified. Start again.");
-        }
-        if (blank(code)) {
-            clearPending();
-            throw new AuthException("AUTHORIZATION_DENIED", "GitHub did not return an authorization code.");
-        }
+    public DeviceAuthorization beginDeviceAuthorization(String clientId) throws Exception {
         if (blank(clientId)) {
-            clearPending();
-            throw new AuthException("CLIENT_ID_NOT_CONFIGURED", "The GitHub OAuth client ID is not configured in this build.");
+            throw new AuthException("CLIENT_ID_NOT_CONFIGURED",
+                    "Set the public COOPER_GITHUB_CLIENT_ID build variable and enable Device Flow in the GitHub OAuth app.");
         }
+        JSONObject body = new JSONObject();
+        body.put("client_id", clientId);
+        body.put("scope", "repo");
+        JSONObject response = postJson(DEVICE_CODE_URL, body, "DEVICE_CODE_FAILED");
+        String deviceCode = response.optString("device_code", "");
+        String userCode = response.optString("user_code", "");
+        String verificationUri = response.optString("verification_uri", "");
+        int expires = response.optInt("expires_in", 0);
+        int interval = response.optInt("interval", 5);
+        if (blank(deviceCode) || blank(userCode) || expires <= 0
+                || !verificationUri.startsWith("https://github.com/")) {
+            throw new AuthException("INVALID_DEVICE_RESPONSE", "GitHub returned an incomplete device authorization response.");
+        }
+        return new DeviceAuthorization(deviceCode, userCode, verificationUri, expires, Math.max(5, interval));
+    }
 
+    public String pollForAccessToken(String clientId, DeviceAuthorization authorization,
+                                     AtomicBoolean cancelled) throws Exception {
+        if (authorization == null || blank(authorization.deviceCode) || blank(clientId)) {
+            throw new AuthException("INVALID_DEVICE_SESSION", "The GitHub device authorization session is invalid.");
+        }
+        long deadline = System.currentTimeMillis() + authorization.expiresInSeconds * 1000L;
+        int interval = authorization.pollingIntervalSeconds;
+        while (System.currentTimeMillis() < deadline) {
+            if (cancelled != null && cancelled.get()) {
+                throw new AuthException("CANCELLED", "GitHub sign-in was cancelled.");
+            }
+            Thread.sleep(interval * 1000L);
+            if (cancelled != null && cancelled.get()) {
+                throw new AuthException("CANCELLED", "GitHub sign-in was cancelled.");
+            }
+            JSONObject body = new JSONObject();
+            body.put("client_id", clientId);
+            body.put("device_code", authorization.deviceCode);
+            body.put("grant_type", "urn:ietf:params:oauth:grant-type:device_code");
+            JSONObject response;
+            try {
+                response = postJson(TOKEN_URL, body, "TOKEN_POLL_FAILED");
+            } catch (AuthException e) {
+                throw e;
+            }
+            String token = response.optString("access_token", "");
+            if (!blank(token)) {
+                credentialStore.saveAccessToken(token);
+                return "connected";
+            }
+            String error = response.optString("error", "");
+            if ("authorization_pending".equals(error)) continue;
+            if ("slow_down".equals(error)) {
+                interval += 5;
+                continue;
+            }
+            if ("access_denied".equals(error)) {
+                throw new AuthException("ACCESS_DENIED", "GitHub authorization was denied by the user.");
+            }
+            if ("expired_token".equals(error) || "token_expired".equals(error)) {
+                throw new AuthException("DEVICE_CODE_EXPIRED", "The GitHub device code expired. Start sign-in again.");
+            }
+            throw new AuthException("TOKEN_POLL_FAILED",
+                    "GitHub could not complete device authorization. Check the OAuth app settings and retry.");
+        }
+        throw new AuthException("DEVICE_CODE_EXPIRED", "The GitHub device code expired. Start sign-in again.");
+    }
+
+    private static JSONObject postJson(String endpoint, JSONObject payload, String errorCode) throws Exception {
         HttpURLConnection connection = null;
         try {
-            URL url = new URL(TOKEN_URL);
+            URL url = new URL(endpoint);
+            if (!"https".equals(url.getProtocol()) || !"github.com".equalsIgnoreCase(url.getHost())) {
+                throw new AuthException("HOST_REJECTED", "Cooper blocked an untrusted authentication host.");
+            }
             connection = (HttpURLConnection) url.openConnection();
             connection.setRequestMethod("POST");
             connection.setConnectTimeout(12000);
@@ -104,51 +134,36 @@ public final class GitHubAuthManager {
             connection.setRequestProperty("Accept", "application/json");
             connection.setRequestProperty("Content-Type", "application/json; charset=utf-8");
             connection.setRequestProperty("User-Agent", "Cooper-Android-GitHub-Manager");
-            JSONObject body = new JSONObject();
-            body.put("client_id", clientId);
-            body.put("code", code);
-            body.put("redirect_uri", REDIRECT_URI);
-            body.put("code_verifier", verifier);
-            byte[] bytes = body.toString().getBytes(StandardCharsets.UTF_8);
+            byte[] bytes = payload.toString().getBytes(StandardCharsets.UTF_8);
             connection.setFixedLengthStreamingMode(bytes.length);
             try (OutputStream output = connection.getOutputStream()) { output.write(bytes); }
             int status = connection.getResponseCode();
             InputStream input = status >= 400 ? connection.getErrorStream() : connection.getInputStream();
-            if (status < 200 || status >= 300 || input == null) {
-                throw new AuthException("TOKEN_EXCHANGE_FAILED", "GitHub could not complete sign-in. Verify the OAuth app callback configuration.");
-            }
+            if (input == null) throw new AuthException(errorCode, "GitHub returned an empty authentication response.");
             String response;
             try (InputStream stream = input; ByteArrayOutputStream output = new ByteArrayOutputStream()) {
-                byte[] buffer = new byte[4096];
+                byte[] buffer = new byte[2048];
                 int read;
                 while ((read = stream.read(buffer)) != -1) {
                     output.write(buffer, 0, read);
-                    if (output.size() > 128 * 1024) throw new AuthException("TOKEN_RESPONSE_TOO_LARGE", "GitHub returned an invalid sign-in response.");
+                    if (output.size() > 64 * 1024) {
+                        throw new AuthException(errorCode, "GitHub returned an oversized authentication response.");
+                    }
                 }
                 response = new String(output.toByteArray(), StandardCharsets.UTF_8);
             }
             JSONObject json = new JSONObject(response);
-            String token = json.optString("access_token", "");
-            if (blank(token)) throw new AuthException("TOKEN_MISSING", "GitHub did not return an access token. Check OAuth settings and permissions.");
-            credentialStore.saveAccessToken(token);
-            clearPending();
-            return "connected";
+            if (status < 200 || status >= 300) {
+                throw new AuthException(errorCode, "GitHub authentication request failed. Check Device Flow configuration.");
+            }
+            return json;
+        } catch (AuthException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new AuthException(errorCode, "GitHub authentication could not complete. Check the network and OAuth app settings.");
         } finally {
             if (connection != null) connection.disconnect();
         }
-    }
-
-    public void clearPending() {
-        pending.edit().remove(STATE_KEY).remove(VERIFIER_KEY).commit();
-    }
-
-    private static String base64Url(byte[] value) {
-        return Base64.encodeToString(value, Base64.URL_SAFE | Base64.NO_WRAP | Base64.NO_PADDING);
-    }
-
-    private static boolean constantTimeEquals(String a, String b) {
-        if (a == null || b == null) return false;
-        return MessageDigest.isEqual(a.getBytes(StandardCharsets.UTF_8), b.getBytes(StandardCharsets.UTF_8));
     }
 
     private static boolean blank(String value) { return value == null || value.trim().isEmpty(); }
