@@ -4,6 +4,10 @@ import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.Status;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.lib.ObjectId;
+import org.eclipse.jgit.lib.ObjectLoader;
+import org.eclipse.jgit.revwalk.RevCommit;
+import org.eclipse.jgit.revwalk.RevWalk;
+import org.eclipse.jgit.treewalk.TreeWalk;
 import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.transport.CredentialsProvider;
 import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
@@ -269,6 +273,7 @@ public final class LocalGitBackend {
             String branch = repository.getBranch();
             ObjectId head = repository.resolve("HEAD");
             if (head == null) throw new GitFailure("NO_COMMIT", "Create and verify a local commit before pushing.");
+            scanOutgoingCommits(repository, branch);
             Iterable<PushResult> results = git.push().setRemote("origin")
                     .setRefSpecs(new RefSpec("refs/heads/" + branch + ":refs/heads/" + branch))
                     .setCredentialsProvider(credentials).call();
@@ -320,6 +325,57 @@ public final class LocalGitBackend {
         } catch (GitAPIException | IOException e) {
             throw new GitFailure("PULL_FAILED", "Pull failed. Inspect local status before retrying.", e);
         }
+    }
+
+    private static void scanOutgoingCommits(Repository repository, String branch) throws GitFailure {
+        final int maxTextBlobBytes = 2 * 1024 * 1024;
+        try (RevWalk commits = new RevWalk(repository)) {
+            ObjectId headId = repository.resolve("HEAD");
+            ObjectId remoteId = repository.resolve("refs/remotes/origin/" + branch);
+            if (headId == null) throw new GitFailure("NO_COMMIT", "No local commit is available to push.");
+            RevCommit head = commits.parseCommit(headId);
+            commits.markStart(head);
+            if (remoteId != null) commits.markUninteresting(commits.parseCommit(remoteId));
+            for (RevCommit commit : commits) {
+                try (TreeWalk tree = new TreeWalk(repository)) {
+                    tree.addTree(commit.getTree());
+                    tree.setRecursive(true);
+                    while (tree.next()) {
+                        String path = tree.getPathString();
+                        if (GitSafetyGuard.isSensitivePath(path)) {
+                            throw new GitFailure("SENSITIVE_HISTORY_PATH",
+                                    "Push blocked because commit history contains a sensitive file path: " + path);
+                        }
+                        ObjectLoader loader = repository.open(tree.getObjectId(0));
+                        if (loader.getSize() > maxTextBlobBytes) {
+                            if (isBinaryPath(path)) continue;
+                            throw new GitFailure("UNSCANNABLE_LARGE_FILE",
+                                    "Push blocked because a large text file could not be fully scanned: " + path);
+                        }
+                        String text = new String(loader.getBytes(maxTextBlobBytes), StandardCharsets.UTF_8);
+                        if (GitSecretScanner.blocksUpload(GitSecretScanner.scan(path, text))) {
+                            throw new GitFailure("SECRET_IN_HISTORY",
+                                    "Push blocked because a secret pattern was found in commit history: " + path);
+                        }
+                    }
+                }
+            }
+        } catch (GitFailure e) {
+            throw e;
+        } catch (IOException e) {
+            throw new GitFailure("SECRET_SCAN_FAILED", "Cooper could not complete the outgoing history safety scan.", e);
+        }
+    }
+
+    private static boolean isBinaryPath(String path) {
+        String lower = path.toLowerCase(java.util.Locale.ROOT);
+        return lower.endsWith(".png") || lower.endsWith(".jpg") || lower.endsWith(".jpeg")
+                || lower.endsWith(".webp") || lower.endsWith(".gif") || lower.endsWith(".bmp")
+                || lower.endsWith(".ttf") || lower.endsWith(".otf") || lower.endsWith(".mp3")
+                || lower.endsWith(".wav") || lower.endsWith(".mp4") || lower.endsWith(".zip")
+                || lower.endsWith(".res") || lower.endsWith(".bin") || lower.endsWith(".db")
+                || lower.endsWith(".sqlite") || lower.endsWith(".dex") || lower.endsWith(".so")
+                || lower.endsWith(".aar") || lower.endsWith(".jar") || lower.endsWith(".pdf");
     }
 
     private static void requireOrigin(Repository repository) throws GitFailure {
