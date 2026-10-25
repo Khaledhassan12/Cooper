@@ -56,4 +56,15 @@
     <string name="cooper_github_operation_recovery_required">Recovery Required</string>
     <string name="cooper_github_secret_detected">A possible secret was found. The value is hidden; review the file before uploading.</string>
     <string name="cooper_github_path_rejected">The selected path is outside the authorized Cooper project directory.</string>
+    <string name="cooper_github_repository_list_title">GitHub repositories</string>
+    <string name="cooper_github_repository_list_empty">No repositories were returned for this account.</string>
+    <string name="cooper_github_repository_list_failed">Could not load repositories: %1$s</string>
+    <string name="cooper_github_repository_create_title">Create GitHub repository</string>
+    <string name="cooper_github_repository_name_hint">Repository name</string>
+    <string name="cooper_github_repository_description_hint">Description (optional)</string>
+    <string name="cooper_github_repository_private">Private repository</string>
+    <string name="cooper_github_repository_create_review">Create repository %1$s as %2$s? This is a remote write and requires your confirmation.</string>
+    <string name="cooper_github_repository_create_success">Repository created and verified: %1$s</string>
+    <string name="cooper_github_account_verified">GitHub account verified: %1$s</string>
+    <string name="cooper_github_account_verify_failed">Could not verify the GitHub account: %1$s</string>
 </resources>
