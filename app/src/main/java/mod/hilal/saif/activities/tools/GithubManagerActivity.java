@@ -4,6 +4,8 @@ import android.content.Intent;
 import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -24,6 +26,10 @@ import com.besome.sketch.lib.base.BaseAppCompatActivity;
 
 import mod.hey.studios.util.Helper;
 import pro.sketchware.R;
+import pro.sketchware.BuildConfig;
+
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * Cooper GitHub Manager landing screen.
@@ -34,6 +40,7 @@ import pro.sketchware.R;
  */
 public class GithubManagerActivity extends BaseAppCompatActivity {
     private LinearLayout content;
+    private final ExecutorService authExecutor = Executors.newSingleThreadExecutor();
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
@@ -70,17 +77,12 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         setContentView(root);
 
         addSectionTitle(getString(R.string.cooper_github_smart_safe));
-        addInfoCard(getString(R.string.cooper_github_account), getString(R.string.cooper_github_not_connected),
-                getString(R.string.cooper_github_auth_not_configured));
+        boolean credentialStored = new GitCredentialStore(this).hasCredential();
+        addInfoCard(getString(R.string.cooper_github_account),
+                getString(credentialStored ? R.string.cooper_github_credential_saved : R.string.cooper_github_not_connected),
+                getString(credentialStored ? R.string.cooper_github_credential_saved_desc : R.string.cooper_github_auth_not_configured));
         addActionCard(getString(R.string.cooper_github_connect), getString(R.string.cooper_github_connect_description),
-                v -> new MaterialAlertDialogBuilder(this)
-                        .setTitle(R.string.cooper_github_connection_title)
-                        .setMessage(R.string.cooper_github_oauth_required)
-                        .setPositiveButton(R.string.cooper_github_open_settings, (dialog, which) ->
-                                startActivity(new Intent(Intent.ACTION_VIEW,
-                                        Uri.parse("https://github.com/settings/applications"))))
-                        .setNegativeButton(R.string.common_word_cancel, null)
-                        .show());
+                v -> startGitHubAuthorization());
 
         addSectionTitle(getString(R.string.cooper_github_repositories));
         addActionCard(getString(R.string.cooper_github_browse_repositories), getString(R.string.cooper_github_browse_repositories_description),
@@ -107,6 +109,69 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                         .setMessage(R.string.cooper_github_status_dialog_body)
                         .setPositiveButton(R.string.common_word_ok, null)
                         .show());
+        handleOAuthCallback(getIntent());
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        handleOAuthCallback(intent);
+    }
+
+    private void startGitHubAuthorization() {
+        if (BuildConfig.COOPER_GITHUB_CLIENT_ID == null || BuildConfig.COOPER_GITHUB_CLIENT_ID.trim().isEmpty()) {
+            new MaterialAlertDialogBuilder(this)
+                    .setTitle(R.string.cooper_github_connection_title)
+                    .setMessage(R.string.cooper_github_oauth_not_configured)
+                    .setPositiveButton(R.string.cooper_github_open_settings, (dialog, which) ->
+                            startActivity(new Intent(Intent.ACTION_VIEW,
+                                    Uri.parse("https://github.com/settings/developers"))))
+                    .setNegativeButton(R.string.common_word_cancel, null)
+                    .show();
+            return;
+        }
+        try {
+            Uri authorizationUrl = new GitHubAuthManager(this)
+                    .beginAuthorization(BuildConfig.COOPER_GITHUB_CLIENT_ID);
+            startActivity(new Intent(Intent.ACTION_VIEW, authorizationUrl));
+        } catch (Exception e) {
+            showAuthError(e.getMessage());
+        }
+    }
+
+    private void handleOAuthCallback(Intent intent) {
+        if (intent == null || !Intent.ACTION_VIEW.equals(intent.getAction()) || intent.getData() == null) return;
+        Uri callback = intent.getData();
+        if (!"cooper".equals(callback.getScheme()) || !"github-callback".equals(callback.getHost())) return;
+        setIntent(new Intent(this, GithubManagerActivity.class));
+        authExecutor.execute(() -> {
+            try {
+                new GitHubAuthManager(getApplicationContext()).completeAuthorization(
+                        callback, BuildConfig.COOPER_GITHUB_CLIENT_ID);
+                new Handler(Looper.getMainLooper()).post(() -> {
+                    Snackbar.make(content, R.string.cooper_github_signin_success, Snackbar.LENGTH_LONG).show();
+                    recreate();
+                });
+            } catch (Exception e) {
+                String safeMessage = e.getMessage() == null ? "Authorization failed." : e.getMessage();
+                new Handler(Looper.getMainLooper()).post(() -> showAuthError(safeMessage));
+            }
+        });
+    }
+
+    private void showAuthError(String message) {
+        new MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.cooper_github_connection_title)
+                .setMessage(getString(R.string.cooper_github_signin_failed, message))
+                .setPositiveButton(R.string.common_word_ok, null)
+                .show();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        authExecutor.shutdown();
     }
 
     private void addSectionTitle(String title) {
