@@ -82,4 +82,12 @@
     <string name="cooper_github_select_project">Select project</string>
     <string name="cooper_github_commit_local">Commit local changes</string>
     <string name="cooper_github_commit_local_description">Review selected project files and create a verified local commit. Remote sync is a separate operation.</string>
+    <string name="cooper_github_commit_message_hint">Commit message</string>
+    <string name="cooper_github_author_name_hint">Git author name</string>
+    <string name="cooper_github_author_email_hint">Git author email</string>
+    <string name="cooper_github_commit_review_title">Review local commit</string>
+    <string name="cooper_github_commit_review_body">Create a local commit with %1$d selected files? Remote upload will not occur.</string>
+    <string name="cooper_github_commit_success">Local commit created and verified: %1$s</string>
+    <string name="cooper_github_commit_failed">Could not create the local commit: %1$s</string>
+    <string name="cooper_github_conflicts_block_commit">Resolve the listed merge conflicts before creating a commit.</string>
 </resources>
