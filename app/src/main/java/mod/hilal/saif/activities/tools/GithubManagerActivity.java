@@ -112,9 +112,11 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         setContentView(root);
         addSectionTitle(getString(R.string.cooper_github_smart_safe));
         boolean credentialStored = new GitCredentialStore(this).hasCredential();
-        addInfoCard(getString(R.string.cooper_github_account),
-                getString(credentialStored ? R.string.cooper_github_credential_saved : R.string.cooper_github_not_connected),
-                getString(credentialStored ? R.string.cooper_github_credential_saved_desc : R.string.cooper_github_auth_not_configured));
+        if (!credentialStored) {
+            addInfoCard(getString(R.string.cooper_github_account),
+                    getString(R.string.cooper_github_not_connected),
+                    getString(R.string.cooper_github_auth_not_configured));
+        }
         if (credentialStored) {
             addGitHubProfileCard();
         } else {
@@ -750,9 +752,6 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
     }
 
     private void addGitHubProfileCard() {
-        MaterialCardView card = new MaterialCardView(this);
-        card.setRadius(dp(24));
-        card.setCardElevation(dp(4));
         LinearLayout panel = new LinearLayout(this);
         panel.setOrientation(LinearLayout.VERTICAL);
         panel.setGravity(Gravity.CENTER);
@@ -773,10 +772,10 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         accountBio.setGravity(Gravity.CENTER);
         accountBio.setPadding(0, dp(8), 0, dp(16));
         panel.addView(accountBio);
-        card.addView(panel);
-        LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        cardParams.bottomMargin = dp(10);
-        content.addView(card, 1, cardParams);
+        panel.setBackgroundColor(android.graphics.Color.TRANSPARENT);
+        LinearLayout.LayoutParams profileParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        profileParams.bottomMargin = dp(12);
+        content.addView(panel, 1, profileParams);
         avatar.setScaleX(0.88f); avatar.setScaleY(0.88f);
         avatar.animate().scaleX(1f).scaleY(1f).setDuration(450).start();
         addActionCard("Disconnect GitHub", "Sign out of this account from Cooper.", v -> confirmDisconnectGitHub());
@@ -1449,6 +1448,11 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         LinearLayout row = new LinearLayout(this);
         row.setGravity(Gravity.CENTER_VERTICAL);
         row.setPadding(dp(16), dp(14), dp(16), dp(14));
+        TextView leadingIcon = text(iconForTitle(title), 22, false);
+        leadingIcon.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(dp(36), dp(36));
+        iconParams.rightMargin = dp(12);
+        row.addView(leadingIcon, iconParams);
         LinearLayout column = new LinearLayout(this);
         column.setOrientation(LinearLayout.VERTICAL);
         column.addView(text(title, 15, true));
@@ -1461,6 +1465,25 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         row.addView(arrow);
         card.addView(row);
         content.addView(card);
+    }
+
+    private String iconForTitle(String title) {
+        String value = title == null ? "" : title.toLowerCase(java.util.Locale.ROOT);
+        if (value.contains("disconnect") || value.contains("logout")) return "↪";
+        if (value.contains("account") || value.contains("profile")) return "●";
+        if (value.contains("repository") || value.contains("repositories")) return "⑂";
+        if (value.contains("project") || value.contains("link")) return "🔗";
+        if (value.contains("pull request")) return "⇄";
+        if (value.contains("branch")) return "⑂";
+        if (value.contains("commit")) return "✓";
+        if (value.contains("push") || value.contains("upload")) return "↑";
+        if (value.contains("pull") || value.contains("fetch") || value.contains("sync")) return "↓";
+        if (value.contains("diff") || value.contains("change") || value.contains("inspect")) return "⌕";
+        if (value.contains("safety") || value.contains("policy") || value.contains("secure")) return "♢";
+        if (value.contains("status") || value.contains("initialize")) return "◷";
+        if (value.contains("implementation")) return "ⓘ";
+        if (value.contains("connect")) return "↗";
+        return "›";
     }
 
     private MaterialCardView card() {
