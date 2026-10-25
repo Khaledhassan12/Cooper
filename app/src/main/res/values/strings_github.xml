@@ -117,4 +117,14 @@
     <string name="cooper_github_fetch_success">Fetch completed. The local working files were not changed.</string>
     <string name="cooper_github_push_success">Push completed and remote branch verified at commit %1$s.</string>
     <string name="cooper_github_pull_success">Pull completed and local HEAD verified at commit %1$s.</string>
+    <string name="cooper_github_sync_state">Inspect sync state</string>
+    <string name="cooper_github_sync_state_detail">State: %1$s\nBranch: %2$s\nLocal HEAD: %3$s\nRemote HEAD: %4$s\nAhead by: %5$d commit(s)\nBehind by: %6$d commit(s)\nChanged files: %7$d</string>
+    <string name="cooper_github_local_branches">Manage local branches</string>
+    <string name="cooper_github_create_branch">Create local branch</string>
+    <string name="cooper_github_branch_name_hint">New branch name</string>
+    <string name="cooper_github_checkout_branch">Switch branch</string>
+    <string name="cooper_github_checkout_confirm">Switch from %1$s to %2$s? Cooper will block the switch if local changes are not clean.</string>
+    <string name="cooper_github_branch_created">Local branch created and verified: %1$s</string>
+    <string name="cooper_github_branch_switched">Switched to branch %1$s and verified the active branch.</string>
+    <string name="cooper_github_branch_failed">Branch operation failed: %1$s</string>
 </resources>
