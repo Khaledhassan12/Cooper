@@ -45,6 +45,9 @@ public final class GitSafetyGuard {
                     return new Validation(Code.INVALID_PATH, "An empty or invalid project path was rejected.", safe);
                 }
                 String portable = raw.replace('\\', '/');
+                if (portable.equals(".") || portable.equals("./") || portable.trim().isEmpty()) {
+                    return new Validation(Code.INVALID_PATH, "The project root itself cannot be staged as a file path.", safe);
+                }
                 if (portable.startsWith("/") || portable.matches("^[A-Za-z]:.*")) {
                     return new Validation(Code.PATH_OUTSIDE_PROJECT, "Absolute paths are not permitted.", safe);
                 }
