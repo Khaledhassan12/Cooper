@@ -128,6 +128,9 @@ dependencies {
     implementation "androidx.viewpager:viewpager:1.1.0"
     implementation "androidx.swiperefreshlayout:swiperefreshlayout:1.2.0"
     implementation "com.google.android.material:material:1.14.0"
+
+    // Cooper local Git engine; pure-Java JGit, no system Git binary required.
+    implementation "org.eclipse.jgit:org.eclipse.jgit:6.10.1.202505221210-r"
     implementation "com.airbnb.android:lottie:6.7.1"
     implementation "com.google.android.flexbox:flexbox:3.0.0"
 
