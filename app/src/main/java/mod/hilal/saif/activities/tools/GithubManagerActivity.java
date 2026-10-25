@@ -234,7 +234,6 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         code.setGravity(Gravity.CENTER);
         code.setLetterSpacing(0.08f);
         code.setPadding(dp(12), dp(14), dp(12), dp(14));
-        code.setBackgroundResource(com.google.android.material.R.drawable.m3_tabs_legacy_indicator);
         code.setClickable(true);
         code.setFocusable(true);
         code.setContentDescription("Copy GitHub device code " + device.userCode);
