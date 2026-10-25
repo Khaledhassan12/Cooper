@@ -124,6 +124,10 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                     v -> startGitHubAuthorization());
         }
 
+        addSectionTitle(getString(R.string.cooper_github_directly_section));
+        addActionCard(getString(R.string.cooper_github_directly_title), getString(R.string.cooper_github_directly_description),
+                v -> showDirectlyGitBottomSheet());
+
         addSectionTitle(getString(R.string.cooper_github_repositories));
         addActionCard(getString(R.string.cooper_github_browse_repositories), getString(R.string.cooper_github_browse_repositories_description),
                 v -> loadRepositories());
@@ -166,6 +170,102 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                         .setMessage(R.string.cooper_github_status_dialog_body)
                         .setPositiveButton(R.string.common_word_ok, null)
                         .show());
+    }
+
+
+    /**
+     * Beginner-oriented entry point. The advanced Git Manager remains available below.
+     * This first stage deliberately reuses the existing project binding and repository
+     * creation safeguards instead of maintaining a second Git execution backend.
+     */
+    private void showDirectlyGitBottomSheet() {
+        if (!new GitCredentialStore(this).hasCredential()) {
+            new MaterialAlertDialogBuilder(this)
+                    .setTitle(R.string.cooper_github_directly_title)
+                    .setMessage(R.string.cooper_github_directly_login_required)
+                    .setNegativeButton(R.string.common_word_cancel, null)
+                    .setPositiveButton(R.string.cooper_github_connect, (dialog, which) -> startGitHubAuthorization())
+                    .show();
+            return;
+        }
+
+        com.google.android.material.bottomsheet.BottomSheetDialog sheet =
+                new com.google.android.material.bottomsheet.BottomSheetDialog(this);
+        LinearLayout panel = new LinearLayout(this);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setPadding(dp(24), dp(14), dp(24), dp(24));
+        panel.setBackgroundColor(com.google.android.material.color.MaterialColors.getColor(
+                this, com.google.android.material.R.attr.colorSurface, 0xFFFFFFFF));
+
+        TextView title = text(getString(R.string.cooper_github_directly_title), 25, true);
+        title.setGravity(Gravity.CENTER);
+        title.setAlpha(0f);
+        panel.addView(title, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        title.animate().alpha(1f).setDuration(500).start();
+
+        TextView subtitle = text(getString(R.string.cooper_github_directly_intro), 14, false);
+        subtitle.setGravity(Gravity.CENTER);
+        subtitle.setPadding(0, dp(8), 0, dp(18));
+        panel.addView(subtitle);
+
+        MaterialCardView projectCard = new MaterialCardView(this);
+        projectCard.setRadius(dp(20));
+        projectCard.setCardElevation(dp(1));
+        projectCard.setStrokeWidth(dp(1));
+        LinearLayout projectContent = new LinearLayout(this);
+        projectContent.setGravity(Gravity.CENTER_VERTICAL);
+        projectContent.setPadding(dp(16), dp(16), dp(16), dp(16));
+        ImageView projectIcon = new ImageView(this);
+        projectIcon.setImageResource(android.R.drawable.ic_menu_manage);
+        projectIcon.setContentDescription(getString(R.string.cooper_github_directly_project_icon));
+        projectContent.addView(projectIcon, new LinearLayout.LayoutParams(dp(44), dp(44)));
+        LinearLayout projectText = new LinearLayout(this);
+        projectText.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout.LayoutParams projectTextParams = new LinearLayout.LayoutParams(0,
+                ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        projectTextParams.leftMargin = dp(14);
+        TextView projectName = text(getString(R.string.cooper_github_directly_no_project), 19, true);
+        TextView projectDetails = text(getString(R.string.cooper_github_directly_project_details), 12, false);
+        projectText.addView(projectName);
+        projectText.addView(projectDetails);
+        projectContent.addView(projectText, projectTextParams);
+        projectCard.addView(projectContent);
+        panel.addView(projectCard);
+
+        com.google.android.material.button.MaterialButton projectButton =
+                new com.google.android.material.button.MaterialButton(this);
+        projectButton.setText(R.string.cooper_github_directly_choose_project);
+        projectButton.setIconResource(android.R.drawable.ic_menu_search);
+        LinearLayout.LayoutParams chooseParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(54));
+        chooseParams.topMargin = dp(14);
+        panel.addView(projectButton, chooseParams);
+
+        TextView note = text(getString(R.string.cooper_github_directly_safety_note), 13, false);
+        note.setPadding(dp(4), dp(14), dp(4), dp(10));
+        panel.addView(note);
+
+        com.google.android.material.button.MaterialButton advancedButton =
+                new com.google.android.material.button.MaterialButton(this);
+        advancedButton.setText(R.string.cooper_github_directly_advanced);
+        advancedButton.setIconResource(android.R.drawable.ic_menu_preferences);
+        panel.addView(advancedButton, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(50)));
+        advancedButton.setOnClickListener(v -> sheet.dismiss());
+
+        projectButton.setOnClickListener(v -> {
+            sheet.dismiss();
+            loadProjectSelection();
+            Snackbar.make(content, R.string.cooper_github_directly_project_picker_hint,
+                    Snackbar.LENGTH_LONG).show();
+        });
+
+        sheet.setContentView(panel);
+        sheet.setOnCancelListener(dialog -> {
+            // The sheet is an informational entry point; no project or remote mutation occurs here.
+        });
+        sheet.show();
     }
 
     private void startGitHubAuthorization() {
