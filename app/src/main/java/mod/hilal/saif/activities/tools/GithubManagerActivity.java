@@ -32,6 +32,7 @@ import pro.sketchware.BuildConfig;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Cooper GitHub Manager landing screen.
@@ -43,6 +44,8 @@ import java.util.concurrent.Executors;
 public class GithubManagerActivity extends BaseAppCompatActivity {
     private LinearLayout content;
     private final ExecutorService authExecutor = Executors.newSingleThreadExecutor();
+    private final ExecutorService authPollingExecutor = Executors.newSingleThreadExecutor();
+    private final AtomicBoolean authCancelled = new AtomicBoolean(false);
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
@@ -132,14 +135,6 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                         .setMessage(R.string.cooper_github_status_dialog_body)
                         .setPositiveButton(R.string.common_word_ok, null)
                         .show());
-        handleOAuthCallback(getIntent());
-    }
-
-    @Override
-    protected void onNewIntent(Intent intent) {
-        super.onNewIntent(intent);
-        setIntent(intent);
-        handleOAuthCallback(intent);
     }
 
     private void startGitHubAuthorization() {
@@ -158,13 +153,43 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                     .show();
             return;
         }
-        try {
-            Uri authorizationUrl = new GitHubAuthManager(this)
-                    .beginAuthorization(BuildConfig.COOPER_GITHUB_CLIENT_ID);
-            startActivity(new Intent(Intent.ACTION_VIEW, authorizationUrl));
-        } catch (Exception e) {
-            showAuthError(e.getMessage());
-        }
+        startDeviceAuthorization();
+    }
+
+    private void startDeviceAuthorization() {
+        authCancelled.set(false);
+        authExecutor.execute(() -> {
+            try {
+                GitHubAuthManager manager = new GitHubAuthManager(getApplicationContext());
+                GitHubAuthManager.DeviceAuthorization device =
+                        manager.beginDeviceAuthorization(BuildConfig.COOPER_GITHUB_CLIENT_ID);
+                new Handler(Looper.getMainLooper()).post(() ->
+                        new MaterialAlertDialogBuilder(this)
+                                .setTitle(R.string.cooper_github_device_code_title)
+                                .setMessage(getString(R.string.cooper_github_device_code_message, device.userCode))
+                                .setPositiveButton(R.string.cooper_github_open_settings, (dialog, which) ->
+                                        startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(device.verificationUri))))
+                                .setNegativeButton(R.string.common_word_cancel,
+                                        (dialog, which) -> authCancelled.set(true))
+                                .setOnCancelListener(dialog -> authCancelled.set(true))
+                                .show());
+                authPollingExecutor.execute(() -> {
+                    try {
+                        manager.pollForAccessToken(BuildConfig.COOPER_GITHUB_CLIENT_ID, device, authCancelled);
+                        new Handler(Looper.getMainLooper()).post(() ->
+                                Snackbar.make(content, R.string.cooper_github_signin_success, Snackbar.LENGTH_LONG).show());
+                    } catch (Exception e) {
+                        if (e instanceof GitHubAuthManager.AuthException
+                                && "CANCELLED".equals(((GitHubAuthManager.AuthException) e).safeCode)) return;
+                        String message = e.getMessage() == null ? "GitHub sign-in failed." : e.getMessage();
+                        new Handler(Looper.getMainLooper()).post(() -> showAuthError(message));
+                    }
+                });
+            } catch (Exception e) {
+                String message = e.getMessage() == null ? "GitHub sign-in could not start." : e.getMessage();
+                new Handler(Looper.getMainLooper()).post(() -> showAuthError(message));
+            }
+        });
     }
 
     private void loadProjectSelection() {
@@ -1126,26 +1151,6 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         });
     }
 
-    private void handleOAuthCallback(Intent intent) {
-        if (intent == null || !Intent.ACTION_VIEW.equals(intent.getAction()) || intent.getData() == null) return;
-        Uri callback = intent.getData();
-        if (!"cooper".equals(callback.getScheme()) || !"github-callback".equals(callback.getHost())) return;
-        setIntent(new Intent(this, GithubManagerActivity.class));
-        authExecutor.execute(() -> {
-            try {
-                new GitHubAuthManager(getApplicationContext()).completeAuthorization(
-                        callback, BuildConfig.COOPER_GITHUB_CLIENT_ID);
-                new Handler(Looper.getMainLooper()).post(() -> {
-                    Snackbar.make(content, R.string.cooper_github_signin_success, Snackbar.LENGTH_LONG).show();
-                    recreate();
-                });
-            } catch (Exception e) {
-                String safeMessage = e.getMessage() == null ? "Authorization failed." : e.getMessage();
-                new Handler(Looper.getMainLooper()).post(() -> showAuthError(safeMessage));
-            }
-        });
-    }
-
     private void showAuthError(String message) {
         new MaterialAlertDialogBuilder(this)
                 .setTitle(R.string.cooper_github_connection_title)
@@ -1157,7 +1162,9 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        authCancelled.set(true);
         authExecutor.shutdown();
+        authPollingExecutor.shutdown();
     }
 
     private void addSectionTitle(String title) {
