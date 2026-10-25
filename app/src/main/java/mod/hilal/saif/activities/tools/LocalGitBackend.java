@@ -125,8 +125,11 @@ public final class LocalGitBackend {
         try (Git git = openRoot(root)) {
             for (String path : relativePaths) {
                 File file = new File(root, path);
-                if (file.exists() && file.isFile()) {
+                if (file.exists() && file.isFile() && !isBinaryPath(path)) {
                     String source = readTextBounded(file, 2 * 1024 * 1024);
+                    if (source == null) {
+                        throw new GitFailure("UNSCANNABLE_FILE", "Cooper cannot safely scan this large text file; it was not staged: " + path);
+                    }
                     List<GitSecretScanner.Finding> findings = GitSecretScanner.scan(path, source);
                     if (GitSecretScanner.blocksUpload(findings)) {
                         throw new GitFailure("SENSITIVE_CONTENT", "A selected file was blocked by Cooper's secret preflight: " + path);
@@ -342,6 +345,10 @@ public final class LocalGitBackend {
                     tree.setRecursive(true);
                     while (tree.next()) {
                         String path = tree.getPathString();
+                        if (GitSafetyGuard.isExcludedByDefault(path)) {
+                            throw new GitFailure("EXCLUDED_HISTORY_PATH",
+                                    "Push blocked because outgoing commit history contains a generated or excluded file: " + path);
+                        }
                         if (GitSafetyGuard.isSensitivePath(path)) {
                             throw new GitFailure("SENSITIVE_HISTORY_PATH",
                                     "Push blocked because commit history contains a sensitive file path: " + path);
@@ -467,7 +474,7 @@ public final class LocalGitBackend {
     }
 
     private static String readTextBounded(File file, int maxBytes) throws IOException {
-        if (file.length() > maxBytes) return "";
+        if (file.length() > maxBytes) return null;
         try (FileInputStream input = new FileInputStream(file);
              ByteArrayOutputStream output = new ByteArrayOutputStream()) {
             byte[] buffer = new byte[8192];
