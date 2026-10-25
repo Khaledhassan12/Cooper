@@ -256,7 +256,7 @@ public final class LocalGitBackend {
             return result.getMessages() == null ? "" : result.getMessages();
         } catch (GitFailure e) {
             throw e;
-        } catch (GitAPIException | IOException e) {
+        } catch (GitAPIException e) {
             throw new GitFailure("FETCH_FAILED", "Cooper could not fetch the GitHub remote. Refresh remote state before retrying.", e);
         }
     }

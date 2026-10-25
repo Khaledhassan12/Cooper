@@ -1227,7 +1227,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
     }
 
     @Override
-    protected void onDestroy() {
+    public void onDestroy() {
         super.onDestroy();
         authCancelled.set(true);
         authExecutor.shutdown();
