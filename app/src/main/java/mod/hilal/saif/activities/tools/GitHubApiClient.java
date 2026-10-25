@@ -86,7 +86,9 @@ public final class GitHubApiClient {
         validateSlug(owner, "owner");
         validateSlug(repository, "repository");
         if (blank(branch) || page < 1) throw new IllegalArgumentException("Branch and positive page are required.");
-        String encodedBranch = java.net.URLEncoder.encode(branch, StandardCharsets.UTF_8);
+        String encodedBranch;
+        try { encodedBranch = java.net.URLEncoder.encode(branch, "UTF-8"); }
+        catch (java.io.UnsupportedEncodingException e) { throw new ApiException(0, "ENCODING_ERROR", "Cooper could not encode the branch name."); }
         JSONObject response = requestArray("GET", "/repos/" + owner + "/" + repository
                 + "/commits?sha=" + encodedBranch + "&per_page=100&page=" + page, null);
         JSONArray items = response.optJSONArray("items");
