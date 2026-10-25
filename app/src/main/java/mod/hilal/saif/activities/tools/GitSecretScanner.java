@@ -28,7 +28,8 @@ public final class GitSecretScanner {
         Pattern.compile("(?i)github_pat_[A-Za-z0-9_]{20,}"),
         Pattern.compile("(?i)(api[_-]?key|client[_-]?secret|access[_-]?token|password)\\s*[:=]\\s*[\"'][^\"'\\s]{8,}[\"']"),
         Pattern.compile("-----BEGIN (RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----"),
-        Pattern.compile("(?i)AKIA[0-9A-Z]{16}")
+        Pattern.compile("(?i)AKIA[0-9A-Z]{16}"),
+        Pattern.compile("(?i)(api[_-]?key|client[_-]?secret|access[_-]?token|password)\\s*[:=]\\s*[A-Za-z0-9_./+\\-]{16,}"),
     };
 
     private GitSecretScanner() {}
