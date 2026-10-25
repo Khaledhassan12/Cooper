@@ -212,12 +212,6 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         tokenInput.setTransformationMethod(android.text.method.PasswordTransformationMethod.getInstance());
         form.addView(tokenInput, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        new MaterialAlertDialogBuilder(this)
-                .setTitle("Connect with Access Token")
-                .setView(form)
-                .setNegativeButton(R.string.common_word_cancel, null)
-                .setPositiveButton("Verify and connect", null)
-                .create();
         AlertDialog dialog = new MaterialAlertDialogBuilder(this)
                 .setTitle("Connect with Access Token")
                 .setView(form)
