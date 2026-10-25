@@ -21,7 +21,6 @@
     </queries>
 
     <application
-        <activity android:name="mod.hilal.saif.activities.tools.GithubManagerActivity" android:exported="false" />
         android:name=".SketchApplication"
         android:allowBackup="true"
         android:appComponentFactory="androidx.core.app.CoreComponentFactory"
@@ -444,5 +443,8 @@
                android:name="autoStoreLocales"
                android:value="true" />
         </service>
+        <activity
+            android:name="mod.hilal.saif.activities.tools.GithubManagerActivity"
+            android:exported="false" />
     </application>
 </manifest>
