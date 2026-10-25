@@ -225,8 +225,17 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         LinearLayout.LayoutParams projectTextParams = new LinearLayout.LayoutParams(0,
                 ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
         projectTextParams.leftMargin = dp(14);
-        TextView projectName = text(getString(R.string.cooper_github_directly_no_project), 19, true);
-        TextView projectDetails = text(getString(R.string.cooper_github_directly_project_details), 12, false);
+        GitProjectBindingStore.Binding selectedBinding = null;
+        try {
+            selectedBinding = new GitProjectBindingStore(getApplicationContext()).getBoundProject();
+        } catch (Exception ignored) { }
+        TextView projectName = text(selectedBinding == null
+                ? getString(R.string.cooper_github_directly_no_project)
+                : selectedBinding.workspaceName, 19, true);
+        TextView projectDetails = text(selectedBinding == null
+                ? getString(R.string.cooper_github_directly_project_details)
+                : getString(R.string.cooper_github_directly_selected_project_details,
+                        selectedBinding.scId, selectedBinding.projectRoot.getAbsolutePath()), 12, false);
         projectText.addView(projectName);
         projectText.addView(projectDetails);
         projectContent.addView(projectText, projectTextParams);
@@ -256,9 +265,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
 
         projectButton.setOnClickListener(v -> {
             sheet.dismiss();
-            loadProjectSelection();
-            Snackbar.make(content, R.string.cooper_github_directly_project_picker_hint,
-                    Snackbar.LENGTH_LONG).show();
+            loadDirectlyGitProjectSelection();
         });
 
         sheet.setContentView(panel);
@@ -266,6 +273,59 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
             // The sheet is an informational entry point; no project or remote mutation occurs here.
         });
         sheet.show();
+    }
+
+
+    private void loadDirectlyGitProjectSelection() {
+        authExecutor.execute(() -> {
+            try {
+                java.util.ArrayList<java.util.HashMap<String, Object>> projects = a.a.a.lC.a();
+                java.util.ArrayList<String> labels = new java.util.ArrayList<>();
+                java.util.ArrayList<String> ids = new java.util.ArrayList<>();
+                for (java.util.HashMap<String, Object> project : projects) {
+                    String id = String.valueOf(project.get("sc_id"));
+                    if (!id.matches("[0-9]{1,12}")) continue;
+                    String workspace = String.valueOf(project.get("my_ws_name"));
+                    String appName = String.valueOf(project.get("my_app_name"));
+                    labels.add(workspace + " — " + appName + "  (ID " + id + ")");
+                    ids.add(id);
+                }
+                new Handler(Looper.getMainLooper()).post(() -> {
+                    if (isFinishing() || isDestroyed()) return;
+                    if (labels.isEmpty()) {
+                        new MaterialAlertDialogBuilder(this)
+                                .setTitle(R.string.cooper_github_project_picker_title)
+                                .setMessage(R.string.cooper_github_project_picker_empty)
+                                .setPositiveButton(R.string.common_word_ok, null).show();
+                        return;
+                    }
+                    new MaterialAlertDialogBuilder(this)
+                            .setTitle(R.string.cooper_github_directly_choose_project)
+                            .setItems(labels.toArray(new String[0]), (dialog, which) ->
+                                    bindProjectForDirectlyGit(ids.get(which)))
+                            .setNegativeButton(R.string.common_word_cancel, null).show();
+                });
+            } catch (Exception e) {
+                showProjectBindingError(e);
+            }
+        });
+    }
+
+    private void bindProjectForDirectlyGit(String scId) {
+        authExecutor.execute(() -> {
+            try {
+                GitProjectBindingStore.Binding binding =
+                        new GitProjectBindingStore(getApplicationContext()).bind(scId);
+                new Handler(Looper.getMainLooper()).post(() -> {
+                    if (isFinishing() || isDestroyed()) return;
+                    Snackbar.make(content, getString(R.string.cooper_github_project_bound,
+                            binding.workspaceName, binding.scId), Snackbar.LENGTH_SHORT).show();
+                    showDirectlyGitBottomSheet();
+                });
+            } catch (Exception e) {
+                showProjectBindingError(e);
+            }
+        });
     }
 
     private void startGitHubAuthorization() {
