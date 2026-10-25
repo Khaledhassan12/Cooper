@@ -110,6 +110,12 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                 v -> inspectLocalGit());
         addActionCard(getString(R.string.cooper_github_commit_local), getString(R.string.cooper_github_commit_local_description),
                 v -> inspectLocalGit());
+        addActionCard(getString(R.string.cooper_github_fetch_remote), "Fetch remote refs without changing project files.",
+                v -> runRemoteGitOperation("FETCH"));
+        addActionCard(getString(R.string.cooper_github_push_remote), "Push the current committed branch after explicit approval and a secret scan.",
+                v -> runRemoteGitOperation("PUSH"));
+        addActionCard(getString(R.string.cooper_github_pull_remote), "Apply remote changes only when the local worktree is clean and you approve the operation.",
+                v -> runRemoteGitOperation("PULL"));
 
         addSectionTitle(getString(R.string.cooper_github_safety));
         addInfoCard(getString(R.string.cooper_github_operation_policy), getString(R.string.cooper_github_smart_review),
@@ -442,6 +448,9 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                 new LocalGitBackend().initialize(binding.projectRoot, true);
                 LocalGitBackend.Snapshot verified = new LocalGitBackend().inspect(binding.projectRoot);
                 if (!verified.initialized) throw new IllegalStateException("Git initialization read-back failed.");
+                if (!binding.remoteUrl().isEmpty()) {
+                    new LocalGitBackend().configureRemote(binding.projectRoot, binding.remoteUrl(), true);
+                }
                 new Handler(Looper.getMainLooper()).post(() -> {
                     Snackbar.make(content, R.string.cooper_github_initialize_git_success, Snackbar.LENGTH_LONG).show();
                     showLocalStatus(binding, verified);
@@ -514,12 +523,14 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                 org.json.JSONArray repositories = apiClient().listRepositories(1, 50);
                 java.util.ArrayList<String> labels = new java.util.ArrayList<>();
                 java.util.ArrayList<String> urls = new java.util.ArrayList<>();
+                java.util.ArrayList<String> fullNames = new java.util.ArrayList<>();
                 for (int i = 0; i < repositories.length(); i++) {
                     org.json.JSONObject repository = repositories.getJSONObject(i);
                     String fullName = repository.optString("full_name", "");
                     if (fullName.isEmpty()) continue;
                     labels.add(fullName + (repository.optBoolean("private") ? "  •  Private" : "  •  Public"));
                     urls.add(repository.optString("html_url", ""));
+                    fullNames.add(fullName);
                 }
                 new Handler(Looper.getMainLooper()).post(() -> {
                     if (labels.isEmpty()) {
@@ -532,12 +543,9 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                     String[] items = labels.toArray(new String[0]);
                     new MaterialAlertDialogBuilder(this)
                             .setTitle(R.string.cooper_github_repository_list_title)
-                            .setItems(items, (dialog, which) -> {
-                                String url = urls.get(which);
-                                if (url.startsWith("https://github.com/")) {
-                                    startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
-                                }
-                            }).setNegativeButton(R.string.common_word_cancel, null).show();
+                            .setItems(items, (dialog, which) ->
+                                    showRepositoryActions(fullNames.get(which), urls.get(which)))
+                            .setNegativeButton(R.string.common_word_cancel, null).show();
                 });
             } catch (Exception e) {
                 String message = e.getMessage() == null ? "Repository request failed." : e.getMessage();
@@ -648,6 +656,190 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                                 .setTitle(R.string.cooper_github_create_pull_request)
                                 .setMessage(getString(R.string.cooper_github_pr_failed, message))
                                 .setPositiveButton(R.string.common_word_ok, null).show());
+            }
+        });
+    }
+
+    private void showRepositoryActions(String fullName, String url) {
+        String[] options = new String[] {
+                getString(R.string.cooper_github_open_settings),
+                getString(R.string.cooper_github_link_remote)
+        };
+        new MaterialAlertDialogBuilder(this)
+                .setTitle(fullName)
+                .setItems(options, (dialog, which) -> {
+                    if (which == 0) {
+                        if (url.startsWith("https://github.com/")) {
+                            startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
+                        }
+                    } else {
+                        String[] parts = fullName.split("/", 2);
+                        if (parts.length == 2) linkRemoteToBoundProject(parts[0], parts[1]);
+                    }
+                })
+                .setNegativeButton(R.string.common_word_cancel, null).show();
+    }
+
+    private void linkRemoteToBoundProject(String owner, String repository) {
+        authExecutor.execute(() -> {
+            try {
+                GitProjectBindingStore store = new GitProjectBindingStore(getApplicationContext());
+                GitProjectBindingStore.Binding binding = store.getBoundProject();
+                if (binding == null) {
+                    new Handler(Looper.getMainLooper()).post(() ->
+                            new MaterialAlertDialogBuilder(this)
+                                    .setTitle(R.string.cooper_github_link_remote)
+                                    .setMessage(R.string.cooper_github_project_not_bound)
+                                    .setPositiveButton(R.string.cooper_github_select_project,
+                                            (dialog, which) -> loadProjectSelection())
+                                    .setNegativeButton(R.string.common_word_cancel, null).show());
+                    return;
+                }
+                new Handler(Looper.getMainLooper()).post(() ->
+                        new MaterialAlertDialogBuilder(this)
+                                .setTitle(R.string.cooper_github_link_remote)
+                                .setMessage(getString(R.string.cooper_github_link_remote_confirm,
+                                        owner, repository, binding.workspaceName))
+                                .setNegativeButton(R.string.common_word_cancel, null)
+                                .setPositiveButton(R.string.cooper_github_link_remote,
+                                        (dialog, which) -> persistRemoteBinding(owner, repository, binding))
+                                .show());
+            } catch (Exception e) {
+                showProjectBindingError(e);
+            }
+        });
+    }
+
+    private void persistRemoteBinding(String owner, String repository, GitProjectBindingStore.Binding binding) {
+        authExecutor.execute(() -> {
+            try {
+                GitProjectBindingStore store = new GitProjectBindingStore(getApplicationContext());
+                store.linkRemote(owner, repository);
+                LocalGitBackend backend = new LocalGitBackend();
+                LocalGitBackend.Snapshot snapshot = backend.inspect(binding.projectRoot);
+                if (snapshot.initialized) {
+                    backend.configureRemote(binding.projectRoot,
+                            "https://github.com/" + owner + "/" + repository + ".git", true);
+                }
+                new Handler(Looper.getMainLooper()).post(() ->
+                        Snackbar.make(content, getString(R.string.cooper_github_remote_linked,
+                                owner + "/" + repository, binding.workspaceName), Snackbar.LENGTH_LONG).show());
+            } catch (Exception e) {
+                showLocalGitError(e);
+            }
+        });
+    }
+
+    private void runRemoteGitOperation(String operation) {
+        authExecutor.execute(() -> {
+            try {
+                GitProjectBindingStore.Binding binding =
+                        new GitProjectBindingStore(getApplicationContext()).getBoundProject();
+                if (binding == null) throw new IllegalStateException("Select a Cooper project first.");
+                if (binding.remoteUrl().isEmpty()) {
+                    new Handler(Looper.getMainLooper()).post(() ->
+                            new MaterialAlertDialogBuilder(this)
+                                    .setTitle(R.string.cooper_github_link_remote)
+                                    .setMessage(R.string.cooper_github_remote_not_linked)
+                                    .setPositiveButton(R.string.cooper_github_browse_repositories,
+                                            (dialog, which) -> loadRepositories())
+                                    .setNegativeButton(R.string.common_word_cancel, null).show());
+                    return;
+                }
+                LocalGitBackend backend = new LocalGitBackend();
+                LocalGitBackend.Snapshot snapshot = backend.inspect(binding.projectRoot);
+                if (!snapshot.initialized) throw new IllegalStateException("Initialize local Git before remote synchronization.");
+                if (operation.equals("FETCH")) {
+                    String token = new GitCredentialStore(getApplicationContext()).readAccessToken();
+                    backend.configureRemote(binding.projectRoot, binding.remoteUrl(), true);
+                    backend.fetch(binding.projectRoot, token);
+                    new Handler(Looper.getMainLooper()).post(() ->
+                            Snackbar.make(content, R.string.cooper_github_fetch_success, Snackbar.LENGTH_LONG).show());
+                    return;
+                }
+                if (operation.equals("PUSH")) {
+                    if (!snapshot.conflicting.isEmpty() || !snapshot.modified.isEmpty() || !snapshot.added.isEmpty()
+                            || !snapshot.removed.isEmpty() || !snapshot.untracked.isEmpty() || !snapshot.staged.isEmpty()) {
+                        throw new IllegalStateException("Push is blocked until all local changes are reviewed and committed.");
+                    }
+                    String token = new GitCredentialStore(getApplicationContext()).readAccessToken();
+                    new Handler(Looper.getMainLooper()).post(() ->
+                            new MaterialAlertDialogBuilder(this)
+                                    .setTitle(R.string.cooper_github_push_remote)
+                                    .setMessage(getString(R.string.cooper_github_push_confirm,
+                                            snapshot.currentBranch, shortCommit(snapshot.headCommit),
+                                            binding.remoteOwner + "/" + binding.remoteRepository))
+                                    .setNegativeButton(R.string.common_word_cancel, null)
+                                    .setPositiveButton(R.string.cooper_github_push_remote,
+                                            (dialog, which) -> performRemotePush(binding, snapshot, token))
+                                    .show());
+                    return;
+                }
+                if (operation.equals("PULL")) {
+                    if (!snapshot.conflicting.isEmpty() || !snapshot.modified.isEmpty() || !snapshot.added.isEmpty()
+                            || !snapshot.removed.isEmpty() || !snapshot.untracked.isEmpty() || !snapshot.staged.isEmpty()) {
+                        throw new IllegalStateException("Pull is blocked until all local changes are reviewed and committed.");
+                    }
+                    String token = new GitCredentialStore(getApplicationContext()).readAccessToken();
+                    new Handler(Looper.getMainLooper()).post(() ->
+                            new MaterialAlertDialogBuilder(this)
+                                    .setTitle(R.string.cooper_github_pull_remote)
+                                    .setMessage(getString(R.string.cooper_github_pull_confirm,
+                                            snapshot.currentBranch, binding.remoteOwner + "/" + binding.remoteRepository))
+                                    .setNegativeButton(R.string.common_word_cancel, null)
+                                    .setPositiveButton(R.string.cooper_github_pull_remote,
+                                            (dialog, which) -> performRemotePull(binding, snapshot, token))
+                                    .show());
+                }
+            } catch (Exception e) {
+                showLocalGitError(e);
+            }
+        });
+    }
+
+    private void performRemotePush(GitProjectBindingStore.Binding binding,
+                                   LocalGitBackend.Snapshot planned, String token) {
+        authExecutor.execute(() -> {
+            try {
+                LocalGitBackend backend = new LocalGitBackend();
+                backend.configureRemote(binding.projectRoot, binding.remoteUrl(), true);
+                String expected = backend.push(binding.projectRoot, token, true);
+                org.json.JSONObject remoteBranch = apiClient().getBranch(
+                        binding.remoteOwner, binding.remoteRepository, planned.currentBranch);
+                org.json.JSONObject commit = remoteBranch.optJSONObject("commit");
+                String remoteSha = commit == null ? "" : commit.optString("sha", "");
+                if (!expected.equals(remoteSha)) {
+                    throw new IllegalStateException("Push result is not yet verified on GitHub. Check the remote branch before retrying.");
+                }
+                new Handler(Looper.getMainLooper()).post(() ->
+                        new MaterialAlertDialogBuilder(this)
+                                .setTitle(R.string.cooper_github_push_remote)
+                                .setMessage(getString(R.string.cooper_github_push_success, shortCommit(expected)))
+                                .setPositiveButton(R.string.common_word_ok, null).show());
+            } catch (Exception e) {
+                showLocalGitError(e);
+            }
+        });
+    }
+
+    private void performRemotePull(GitProjectBindingStore.Binding binding,
+                                   LocalGitBackend.Snapshot planned, String token) {
+        authExecutor.execute(() -> {
+            try {
+                LocalGitBackend backend = new LocalGitBackend();
+                backend.configureRemote(binding.projectRoot, binding.remoteUrl(), true);
+                String expected = backend.pull(binding.projectRoot, token, true);
+                LocalGitBackend.Snapshot verified = backend.inspect(binding.projectRoot);
+                if (!expected.equals(verified.headCommit)) {
+                    throw new IllegalStateException("Pull result could not be verified against local HEAD.");
+                }
+                new Handler(Looper.getMainLooper()).post(() ->
+                        new MaterialAlertDialogBuilder(this)
+                                .setTitle(R.string.cooper_github_pull_remote)
+                                .setMessage(getString(R.string.cooper_github_pull_success, shortCommit(expected)))
+                                .setPositiveButton(R.string.common_word_ok, null).show());
+            } catch (Exception e) {
+                showLocalGitError(e);
             }
         });
     }
