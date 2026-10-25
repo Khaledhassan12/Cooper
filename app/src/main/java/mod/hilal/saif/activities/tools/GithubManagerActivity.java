@@ -5,6 +5,9 @@ import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Typeface;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
@@ -13,6 +16,7 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
+import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.EditText;
 import android.widget.CheckBox;
@@ -729,6 +733,72 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         });
     }
 
+    private void addGitHubProfileCard() {
+        MaterialCardView card = new MaterialCardView(this);
+        card.setRadius(dp(24));
+        card.setCardElevation(dp(4));
+        LinearLayout panel = new LinearLayout(this);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setGravity(Gravity.CENTER);
+        panel.setPadding(dp(20), dp(20), dp(20), dp(18));
+        ImageView avatar = new ImageView(this);
+        GradientDrawable circle = new GradientDrawable();
+        circle.setShape(GradientDrawable.OVAL);
+        circle.setColor(0xFF526C63);
+        avatar.setBackground(circle);
+        avatar.setClipToOutline(true);
+        LinearLayout.LayoutParams imageParams = new LinearLayout.LayoutParams(dp(108), dp(108));
+        imageParams.bottomMargin = dp(12);
+        panel.addView(avatar, imageParams);
+        TextView accountName = text("Loading GitHub profile…", 21, true);
+        accountName.setGravity(Gravity.CENTER);
+        panel.addView(accountName);
+        TextView accountBio = text("Connected to GitHub", 14, false);
+        accountBio.setGravity(Gravity.CENTER);
+        accountBio.setPadding(0, dp(8), 0, dp(16));
+        panel.addView(accountBio);
+        card.addView(panel);
+        LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        cardParams.bottomMargin = dp(10);
+        content.addView(card, 1, cardParams);
+        avatar.setScaleX(0.88f); avatar.setScaleY(0.88f);
+        avatar.animate().scaleX(1f).scaleY(1f).setDuration(450).start();
+        addActionCard("Disconnect GitHub", "Sign out of this account from Cooper.", v -> confirmDisconnectGitHub());
+        authExecutor.execute(() -> {
+            try {
+                org.json.JSONObject user = apiClient().getAuthenticatedAccount();
+                String login = user.optString("name", "");
+                if (login.trim().isEmpty()) login = user.optString("login", "GitHub user");
+                String bio = user.optString("bio", "");
+                if (bio.trim().isEmpty()) {
+                    String[] ideas = {"Building ideas, one commit at a time ✨", "Curious mind. Creative builds. Open-source spirit 🚀", "Turning small ideas into meaningful projects 🌱", "Learning, creating, and sharing with the community 💫", "Code today. Create tomorrow. Keep exploring 🧭", "Making the digital world a little more useful 💡", "Open-source explorer with a builder’s mindset 🛠️", "Powered by curiosity and a love for making things 🌌"};
+                    bio = ideas[Math.floorMod(user.optString("login", "").hashCode(), ideas.length)];
+                }
+                String displayName = login; String displayBio = bio; String avatarUrl = user.optString("avatar_url", "");
+                Bitmap bitmap = null;
+                if (avatarUrl.startsWith("https://")) {
+                    java.net.HttpURLConnection connection = (java.net.HttpURLConnection) new java.net.URL(avatarUrl).openConnection();
+                    connection.setConnectTimeout(8000); connection.setReadTimeout(8000);
+                    try (java.io.InputStream stream = connection.getInputStream()) { bitmap = BitmapFactory.decodeStream(stream); }
+                    finally { connection.disconnect(); }
+                }
+                Bitmap profileBitmap = bitmap;
+                new Handler(Looper.getMainLooper()).post(() -> {
+                    if (isFinishing() || isDestroyed()) return;
+                    accountName.setText("");
+                    final int[] pos = {0};
+                    Handler typing = new Handler(Looper.getMainLooper());
+                    Runnable effect = new Runnable() { public void run() { if (isFinishing() || isDestroyed()) return; pos[0] = Math.min(displayName.length(), pos[0] + 1); accountName.setText(displayName.substring(0, pos[0])); if (pos[0] < displayName.length()) typing.postDelayed(this, 35); } };
+                    typing.post(effect);
+                    accountBio.setText(displayBio);
+                    if (profileBitmap != null) avatar.setImageBitmap(profileBitmap);
+                    avatar.setContentDescription("GitHub profile picture for " + displayName);
+                });
+            } catch (Exception ignored) {
+                new Handler(Looper.getMainLooper()).post(() -> { if (!isFinishing() && !isDestroyed()) { accountName.setText("GitHub account connected"); accountBio.setText("Profile details are temporarily unavailable."); } });
+            }
+        });
+    }
     private void confirmDisconnectGitHub() {
         new MaterialAlertDialogBuilder(this)
                 .setTitle(R.string.cooper_github_disconnect)
