@@ -1426,9 +1426,16 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
 
     private void addInfoCard(String title, String status, String description) {
         MaterialCardView card = card();
+        LinearLayout row = new LinearLayout(this);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(dp(16), dp(14), dp(16), dp(14));
+        TextView leadingIcon = text(iconForTitle(title), 22, false);
+        leadingIcon.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(dp(36), dp(36));
+        iconParams.rightMargin = dp(12);
+        row.addView(leadingIcon, iconParams);
         LinearLayout column = new LinearLayout(this);
         column.setOrientation(LinearLayout.VERTICAL);
-        column.setPadding(dp(16), dp(14), dp(16), dp(14));
         TextView heading = text(title, 16, true);
         TextView state = text(status, 14, true);
         state.setPadding(0, dp(6), 0, dp(4));
@@ -1436,7 +1443,8 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         column.addView(heading);
         column.addView(state);
         column.addView(detail);
-        card.addView(column);
+        row.addView(column, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        card.addView(row);
         content.addView(card);
     }
 
