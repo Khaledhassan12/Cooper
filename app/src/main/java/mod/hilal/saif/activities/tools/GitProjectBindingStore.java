@@ -66,8 +66,13 @@ public final class GitProjectBindingStore {
             throw new IllegalStateException("The selected Cooper project directory does not match its project metadata.");
         }
         String workspace = safeValue(metadata.get("my_ws_name"), "Cooper project");
-        boolean saved = preferences.edit().putString(KEY_SC_ID, scId)
-                .putString(KEY_WORKSPACE_NAME, workspace).commit();
+        SharedPreferences.Editor editor = preferences.edit().putString(KEY_SC_ID, scId)
+                .putString(KEY_WORKSPACE_NAME, workspace);
+        String previousId = preferences.getString(KEY_SC_ID, null);
+        if (previousId != null && !previousId.equals(scId)) {
+            editor.remove(KEY_REMOTE_OWNER).remove(KEY_REMOTE_REPOSITORY);
+        }
+        boolean saved = editor.commit();
         if (!saved) throw new IllegalStateException("Cooper could not save the project binding.");
         return new Binding(scId, workspace, safeValue(metadata.get("my_app_name"), ""), root,
                 preferences.getString(KEY_REMOTE_OWNER, ""), preferences.getString(KEY_REMOTE_REPOSITORY, ""));
