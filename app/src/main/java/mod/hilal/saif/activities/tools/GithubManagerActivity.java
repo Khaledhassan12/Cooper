@@ -497,7 +497,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
 
     private void loadRepositories() {
         if (!new GitCredentialStore(this).hasCredential()) {
-            showNotReady(getString(R.string.cooper_github_connect));
+            startGitHubAuthorization();
             return;
         }
         authExecutor.execute(() -> {
@@ -543,7 +543,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
 
     private void showCreateRepositoryDialog() {
         if (!new GitCredentialStore(this).hasCredential()) {
-            showNotReady(getString(R.string.cooper_github_connect));
+            startGitHubAuthorization();
             return;
         }
         LinearLayout form = new LinearLayout(this);
