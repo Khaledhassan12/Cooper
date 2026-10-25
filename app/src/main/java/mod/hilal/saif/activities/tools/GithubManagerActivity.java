@@ -85,6 +85,10 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                 getString(credentialStored ? R.string.cooper_github_credential_saved_desc : R.string.cooper_github_auth_not_configured));
         addActionCard(getString(R.string.cooper_github_connect), getString(R.string.cooper_github_connect_description),
                 v -> startGitHubAuthorization());
+        if (new GitCredentialStore(this).hasCredential()) {
+            addActionCard(getString(R.string.cooper_github_disconnect), getString(R.string.cooper_github_disconnect_confirm),
+                    v -> confirmDisconnectGitHub());
+        }
 
         addSectionTitle(getString(R.string.cooper_github_repositories));
         addActionCard(getString(R.string.cooper_github_browse_repositories), getString(R.string.cooper_github_browse_repositories_description),
@@ -93,6 +97,11 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                 v -> loadProjectSelection());
         addActionCard(getString(R.string.cooper_github_create_repository), getString(R.string.cooper_github_create_repository_description),
                 v -> showCreateRepositoryDialog());
+
+        addSectionTitle(getString(R.string.cooper_github_pull_requests));
+        addActionCard(getString(R.string.cooper_github_create_pull_request),
+                "Create a Pull Request with explicit review and remote read-back verification.",
+                v -> showCreatePullRequestDialog());
 
         addSectionTitle(getString(R.string.cooper_github_local_git));
         addInfoCard(getString(R.string.cooper_github_local_status), getString(R.string.cooper_github_not_initialized),
@@ -536,6 +545,108 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                         new MaterialAlertDialogBuilder(this)
                                 .setTitle(R.string.cooper_github_repository_list_title)
                                 .setMessage(getString(R.string.cooper_github_repository_list_failed, message))
+                                .setPositiveButton(R.string.common_word_ok, null).show());
+            }
+        });
+    }
+
+    private void confirmDisconnectGitHub() {
+        new MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.cooper_github_disconnect)
+                .setMessage(R.string.cooper_github_disconnect_confirm)
+                .setNegativeButton(R.string.common_word_cancel, null)
+                .setPositiveButton(R.string.cooper_github_disconnect, (dialog, which) -> {
+                    new GitCredentialStore(getApplicationContext()).clear();
+                    Snackbar.make(content, R.string.cooper_github_disconnected, Snackbar.LENGTH_LONG).show();
+                    recreate();
+                }).show();
+    }
+
+    private void showCreatePullRequestDialog() {
+        if (!new GitCredentialStore(this).hasCredential()) {
+            startGitHubAuthorization();
+            return;
+        }
+        LinearLayout form = new LinearLayout(this);
+        form.setOrientation(LinearLayout.VERTICAL);
+        form.setPadding(dp(24), dp(8), dp(24), dp(4));
+        EditText owner = field(form, R.string.cooper_github_pr_owner_hint, true);
+        EditText repository = field(form, R.string.cooper_github_pr_repository_hint, true);
+        EditText head = field(form, R.string.cooper_github_pr_head_hint, true);
+        EditText base = field(form, R.string.cooper_github_pr_base_hint, true);
+        EditText title = field(form, R.string.cooper_github_pr_title_hint, true);
+        EditText body = field(form, R.string.cooper_github_pr_body_hint, false);
+        body.setMinLines(2);
+        body.setMaxLines(4);
+        new MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.cooper_github_create_pull_request)
+                .setView(form)
+                .setNegativeButton(R.string.common_word_cancel, null)
+                .setPositiveButton(R.string.cooper_github_create_pull_request, (dialog, which) -> {
+                    String repoOwner = owner.getText().toString().trim();
+                    String repoName = repository.getText().toString().trim();
+                    String source = head.getText().toString().trim();
+                    String target = base.getText().toString().trim();
+                    String prTitle = title.getText().toString().trim();
+                    String prBody = body.getText().toString();
+                    if (repoOwner.isEmpty() || repoName.isEmpty() || source.isEmpty()
+                            || target.isEmpty() || prTitle.isEmpty() || source.equals(target)) {
+                        Snackbar.make(content, R.string.cooper_github_create_pull_request, Snackbar.LENGTH_LONG).show();
+                        return;
+                    }
+                    new MaterialAlertDialogBuilder(this)
+                            .setTitle(R.string.cooper_github_create_pull_request)
+                            .setMessage(getString(R.string.cooper_github_pr_review, source, target, repoOwner, repoName)
+                                    + "\n\n" + prTitle + "\n\n" + prBody)
+                            .setNegativeButton(R.string.common_word_cancel, null)
+                            .setPositiveButton(R.string.cooper_github_create_pull_request,
+                                    (confirm, pressed) -> createPullRequest(repoOwner, repoName, prTitle, prBody, source, target))
+                            .show();
+                }).show();
+    }
+
+    private EditText field(LinearLayout form, int hint, boolean singleLine) {
+        EditText field = new EditText(this);
+        field.setHint(hint);
+        field.setSingleLine(singleLine);
+        form.addView(field, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        return field;
+    }
+
+    private void createPullRequest(String owner, String repository, String title,
+                                   String body, String head, String base) {
+        authExecutor.execute(() -> {
+            try {
+                org.json.JSONObject created = apiClient().createPullRequest(
+                        owner, repository, title, body, head, base, true);
+                int number = created.optInt("number", 0);
+                if (number < 1) throw new IllegalStateException("GitHub did not return a valid Pull Request number.");
+                org.json.JSONObject verified = apiClient().getPullRequest(owner, repository, number);
+                if (verified.optInt("number", 0) != number
+                        || !head.equals(verified.optJSONObject("head") == null ? "" :
+                        verified.optJSONObject("head").optString("ref", ""))
+                        || !base.equals(verified.optJSONObject("base") == null ? "" :
+                        verified.optJSONObject("base").optString("ref", ""))) {
+                    throw new IllegalStateException("Pull Request read-back did not match the requested branches.");
+                }
+                String url = verified.optString("html_url", "");
+                new Handler(Looper.getMainLooper()).post(() ->
+                        new MaterialAlertDialogBuilder(this)
+                                .setTitle(R.string.cooper_github_create_pull_request)
+                                .setMessage(getString(R.string.cooper_github_pr_created, number) + "\n" + url)
+                                .setPositiveButton(R.string.cooper_github_open_settings, (dialog, which) -> {
+                                    if (url.startsWith("https://github.com/")) {
+                                        startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
+                                    }
+                                })
+                                .setNegativeButton(R.string.common_word_ok, null).show());
+            } catch (Exception e) {
+                String message = e.getMessage() == null ? "Pull Request operation failed." : e.getMessage();
+                new Handler(Looper.getMainLooper()).post(() ->
+                        new MaterialAlertDialogBuilder(this)
+                                .setTitle(R.string.cooper_github_create_pull_request)
+                                .setMessage(getString(R.string.cooper_github_pr_failed, message))
                                 .setPositiveButton(R.string.common_word_ok, null).show());
             }
         });
