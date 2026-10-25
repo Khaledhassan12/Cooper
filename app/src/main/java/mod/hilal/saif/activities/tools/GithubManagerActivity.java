@@ -65,35 +65,51 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         enableEdgeToEdgeNoContrast();
         super.onCreate(savedInstanceState);
 
-        LinearLayout root = new LinearLayout(this);
-        root.setOrientation(LinearLayout.VERTICAL);
-        root.setLayoutParams(new ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        androidx.coordinatorlayout.widget.CoordinatorLayout root = new androidx.coordinatorlayout.widget.CoordinatorLayout(this);
+        root.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        root.setClipToPadding(false);
+
+        com.google.android.material.appbar.AppBarLayout appBar = new com.google.android.material.appbar.AppBarLayout(this);
+        appBar.setFitsSystemWindows(true);
+        appBar.setLayoutParams(new androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        com.google.android.material.appbar.CollapsingToolbarLayout collapsing = new com.google.android.material.appbar.CollapsingToolbarLayout(this);
+        collapsing.setTitle(getString(R.string.cooper_github_manager_title));
+        collapsing.setFitsSystemWindows(true);
+        collapsing.setExpandedTitleTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_DisplaySmall);
+        collapsing.setCollapsedTitleTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_TitleMedium);
+        collapsing.setLayoutParams(new com.google.android.material.appbar.AppBarLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, getResources().getDimensionPixelSize(com.google.android.material.R.dimen.m3_appbar_size_large)));
+        ((com.google.android.material.appbar.AppBarLayout.LayoutParams) collapsing.getLayoutParams()).setScrollFlags(com.google.android.material.appbar.AppBarLayout.LayoutParams.SCROLL_FLAG_SCROLL | com.google.android.material.appbar.AppBarLayout.LayoutParams.SCROLL_FLAG_EXIT_UNTIL_COLLAPSED);
 
         MaterialToolbar toolbar = new MaterialToolbar(this);
-        toolbar.setTitle(R.string.cooper_github_manager_title);
+        toolbar.setTitle("");
         toolbar.setNavigationIcon(androidx.appcompat.R.drawable.abc_ic_ab_back_material);
         toolbar.setNavigationOnClickListener(Helper.getBackPressedClickListener(this));
-        root.addView(toolbar, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(56)));
+        com.google.android.material.appbar.CollapsingToolbarLayout.LayoutParams toolbarParams = new com.google.android.material.appbar.CollapsingToolbarLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, getResources().getDimensionPixelSize(com.google.android.material.R.dimen.m3_appbar_size));
+        toolbarParams.setCollapseMode(com.google.android.material.appbar.CollapsingToolbarLayout.LayoutParams.COLLAPSE_MODE_PIN);
+        collapsing.addView(toolbar, toolbarParams);
+        appBar.addView(collapsing);
+        root.addView(appBar);
 
-        ScrollView scroll = new ScrollView(this);
+        androidx.core.widget.NestedScrollView scroll = new androidx.core.widget.NestedScrollView(this);
         scroll.setClipToPadding(false);
+        scroll.setFillViewport(false);
+        scroll.setNestedScrollingEnabled(true);
         content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
         content.setPadding(dp(16), dp(12), dp(16), dp(24));
-        scroll.addView(content);
-        root.addView(scroll, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
+        scroll.addView(content, new androidx.core.widget.NestedScrollView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams scrollParams = new androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+        scrollParams.setBehavior(new com.google.android.material.appbar.AppBarLayout.ScrollingViewBehavior());
+        root.addView(scroll, scrollParams);
 
         ViewCompat.setOnApplyWindowInsetsListener(root, (v, insets) -> {
-            Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars()
-                    | WindowInsetsCompat.Type.displayCutout());
-            v.setPadding(bars.left, bars.top, bars.right, 0);
+            Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout());
+            v.setPadding(bars.left, 0, bars.right, bars.bottom);
+            appBar.setPadding(0, bars.top, 0, 0);
             return insets;
         });
         setContentView(root);
-
         addSectionTitle(getString(R.string.cooper_github_smart_safe));
         boolean credentialStored = new GitCredentialStore(this).hasCredential();
         addInfoCard(getString(R.string.cooper_github_account),
