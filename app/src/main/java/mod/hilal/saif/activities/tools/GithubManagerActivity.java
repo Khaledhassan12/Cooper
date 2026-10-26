@@ -69,6 +69,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
     private String directlyDraftDescription = "";
     private String directlyDraftReadmeMode = "";
     private String directlyDraftReadmeContent = "";
+    private boolean directlyDraftIsPrivate = true;
     private boolean directlyRecoveryPromptShown = false;
 
     @Override
@@ -82,6 +83,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
             directlyDraftDescription = savedInstanceState.getString("cooper_directly_draft_description", "");
             directlyDraftReadmeMode = savedInstanceState.getString("cooper_directly_draft_readme_mode", "");
             directlyDraftReadmeContent = savedInstanceState.getString("cooper_directly_draft_readme_content", "");
+            directlyDraftIsPrivate = savedInstanceState.getBoolean("cooper_directly_draft_private", true);
             directlyPendingImages = new java.util.ArrayList<>();
             java.util.ArrayList<String> savedUris = savedInstanceState.getStringArrayList("cooper_directly_draft_image_uris");
             if (savedUris != null) {
@@ -154,6 +156,10 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         addSectionTitle(getString(R.string.cooper_github_directly_section));
         addActionCard(getString(R.string.cooper_github_directly_title), getString(R.string.cooper_github_directly_description),
                 v -> showDirectlyGitBottomSheet());
+        addActionCard("Cooper Git · Publication history", "View verified Directly Git publication records saved on this device.",
+                v -> showCooperGitPublicationHistory());
+        addActionCard("Clean Directly Git recovery", "Review and clear a stale recovery blocker without deleting project files or changing GitHub repositories.",
+                v -> confirmClearDirectlyGitRecovery());
 
         addSectionTitle(getString(R.string.cooper_github_repositories));
         addActionCard(getString(R.string.cooper_github_browse_repositories), getString(R.string.cooper_github_browse_repositories_description),
@@ -359,6 +365,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
             directlyDraftDescription = "";
             directlyDraftReadmeMode = "";
             directlyDraftReadmeContent = "";
+            directlyDraftIsPrivate = true;
             directlyPendingImages = new java.util.ArrayList<>();
         }
         final com.google.android.material.bottomsheet.BottomSheetDialog sheet =
@@ -470,6 +477,24 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
             intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
             startActivityForResult(intent, 7314);
         });
+        final boolean[] repositoryPrivate = new boolean[]{restoreDraft ? directlyDraftIsPrivate : true};
+        com.google.android.material.chip.ChipGroup visibilityChoices = new com.google.android.material.chip.ChipGroup(this);
+        visibilityChoices.setSingleSelection(true);
+        visibilityChoices.setSelectionRequired(true);
+        com.google.android.material.chip.Chip privateChip = new com.google.android.material.chip.Chip(this);
+        privateChip.setText("Private repository");
+        privateChip.setCheckable(true);
+        com.google.android.material.chip.Chip publicChip = new com.google.android.material.chip.Chip(this);
+        publicChip.setText("Public repository");
+        publicChip.setCheckable(true);
+        visibilityChoices.addView(privateChip);
+        visibilityChoices.addView(publicChip);
+        privateChip.setChecked(repositoryPrivate[0]);
+        publicChip.setChecked(!repositoryPrivate[0]);
+        privateChip.setOnClickListener(v -> { repositoryPrivate[0] = true; directlyDraftIsPrivate = true; });
+        publicChip.setOnClickListener(v -> { repositoryPrivate[0] = false; directlyDraftIsPrivate = false; });
+        panel.addView(text("Repository visibility — choose who can access this repository", 14, true));
+        panel.addView(visibilityChoices);
         final String[] readmeMode = new String[]{restoreDraft ? directlyDraftReadmeMode : ""};
         com.google.android.material.chip.ChipGroup choices = new com.google.android.material.chip.ChipGroup(this);
         choices.setSingleSelection(true);
@@ -519,7 +544,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                     .setNegativeButton(R.string.common_word_cancel, null)
                     .setPositiveButton(R.string.cooper_github_directly_git_push, (d, w) ->
                             beginDirectlyGitPublish(sheet, binding, name, description.getText().toString().trim(),
-                                    readmeMode[0], readmeContent[0], new java.util.ArrayList<>(selectedImages)))
+                                    readmeMode[0], readmeContent[0], repositoryPrivate[0], new java.util.ArrayList<>(selectedImages)))
                     .show();
         });
         sheet.setContentView(panel);
@@ -592,14 +617,14 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
     private void beginDirectlyGitPublish(com.google.android.material.bottomsheet.BottomSheetDialog formSheet,
                                          GitProjectBindingStore.Binding binding, String name,
                                          String description, String readmeMode, String readmeContent,
-                                         java.util.ArrayList<Uri> images) {
+                                         boolean repositoryPrivate, java.util.ArrayList<Uri> images) {
         if (isFinishing() || isDestroyed()) return;
         authExecutor.execute(() -> {
             final DirectlyGitPublisher publisher = new DirectlyGitPublisher(
                     getApplicationContext(), BuildConfig.COOPER_GITHUB_CLIENT_ID);
             final DirectlyGitPublisher.Plan plan;
             try {
-                plan = publisher.prepare(binding, name, description, readmeMode, readmeContent, images);
+                plan = publisher.prepare(binding, name, description, readmeMode, readmeContent, repositoryPrivate, images);
             } catch (Exception error) {
                 String message = error.getMessage() == null
                         ? "Cooper could not prepare the publishing plan." : error.getMessage();
@@ -2275,6 +2300,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         outState.putString("cooper_directly_draft_description", directlyDraftDescription);
         outState.putString("cooper_directly_draft_readme_mode", directlyDraftReadmeMode);
         outState.putString("cooper_directly_draft_readme_content", directlyDraftReadmeContent);
+        outState.putBoolean("cooper_directly_draft_private", directlyDraftIsPrivate);
         java.util.ArrayList<String> imageUris = new java.util.ArrayList<>();
         if (directlyPendingImages != null) {
             for (Uri uri : directlyPendingImages) if (uri != null) imageUris.add(uri.toString());
