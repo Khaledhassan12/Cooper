@@ -158,7 +158,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         addSectionTitle(getString(R.string.cooper_github_directly_section));
         addActionCard(getString(R.string.cooper_github_directly_title), getString(R.string.cooper_github_directly_description),
                 v -> showDirectlyGitBottomSheet());
-        addActionCard("Cooper Git · Publication history", "View verified Directly Git publication records saved on this device.",
+        addActionCard("Cooper Git · Publication history", "View verified Directly Git and Advanced Git publication records saved on this device.",
                 v -> showCooperGitPublicationHistory());
         addActionCard("Clean Directly Git recovery", "Review and clear a stale recovery blocker without deleting project files or changing GitHub repositories.",
                 v -> confirmClearDirectlyGitRecovery());
@@ -2160,10 +2160,18 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                 if (!expected.equals(remoteSha)) {
                     throw new IllegalStateException("Push result is not yet verified on GitHub. Check the remote branch before retrying.");
                 }
+                org.json.JSONObject remoteRepository = apiClient().getRepository(
+                        binding.remoteOwner, binding.remoteRepository);
+                boolean historySaved = DirectlyGitPublisher.recordVerifiedPublication(
+                        getApplicationContext(), binding, binding.remoteOwner, binding.remoteRepository,
+                        remoteRepository.optString("html_url", "https://github.com/" + binding.remoteOwner + "/" + binding.remoteRepository),
+                        expected, planned.currentBranch, remoteRepository.optBoolean("private", true), "ADVANCED_GIT");
                 new Handler(Looper.getMainLooper()).post(() ->
                         new MaterialAlertDialogBuilder(this)
                                 .setTitle(R.string.cooper_github_push_remote)
-                                .setMessage(getString(R.string.cooper_github_push_success, shortCommit(expected)))
+                                .setMessage(getString(R.string.cooper_github_push_success, shortCommit(expected))
+                                        + (historySaved ? "\n\nSaved to Cooper Git publication history."
+                                        : "\n\nPush was verified, but Cooper could not save its publication-history entry."))
                                 .setPositiveButton(R.string.common_word_ok, null).show());
             } catch (Exception e) {
                 showLocalGitError(e);
