@@ -794,7 +794,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                             icon.setScaleType(ImageView.ScaleType.CENTER_CROP);
                             Bitmap bitmap = icons.get(position);
                             if (bitmap != null) icon.setImageBitmap(bitmap);
-                            else icon.setImageResource(android.R.drawable.sym_def_app_icon);
+                            else icon.setImageResource(pro.sketchware.R.drawable.ic_mtrl_android);
                             icon.setContentDescription(getString(R.string.cooper_github_project_icon_content_description));
                             LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(dp(48), dp(48));
                             iconParams.rightMargin = dp(14);
@@ -818,67 +818,25 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
 
     @Nullable
     private Bitmap loadDirectlyGitProjectIcon(String scId, java.util.HashMap<String, Object> metadata) {
-        java.util.ArrayList<java.io.File> candidates = new java.util.ArrayList<>();
-        java.io.File listRoot = new java.io.File(a.a.a.wq.c(scId));
-        java.io.File dataRoot = new java.io.File(a.a.a.wq.b(scId));
-        // Read the saved project record as well as the project-list metadata. Icon key names
-        // differ between Cooper/Sketchware versions, so support the common real metadata keys.
-        java.util.HashMap<String, Object> fields = new java.util.HashMap<>();
-        if (metadata != null) fields.putAll(metadata);
-        java.io.File projectRecord = new java.io.File(listRoot, "project");
-        if (projectRecord.isFile() && projectRecord.length() > 0L && projectRecord.length() < 2L * 1024L * 1024L) {
-            try {
-                String json = new String(java.nio.file.Files.readAllBytes(projectRecord.toPath()), java.nio.charset.StandardCharsets.UTF_8);
-                org.json.JSONObject record = new org.json.JSONObject(json);
-                java.util.Iterator<String> keys = record.keys();
-                while (keys.hasNext()) {
-                    String key = keys.next();
-                    if (!fields.containsKey(key)) fields.put(key, record.opt(key));
+        // Match the canonical project-list implementation in ProjectsAdapter:
+        // custom icons live at wq.e()/scId/icon.png and are enabled by custom_icon.
+        try {
+            java.io.File iconFile = new java.io.File(
+                    new java.io.File(a.a.a.wq.e(), scId), "icon.png");
+            boolean customIcon = metadata != null
+                    && a.a.a.yB.a(metadata, "custom_icon");
+            if (customIcon && iconFile.isFile() && iconFile.length() > 0L) {
+                android.graphics.BitmapFactory.Options options = new android.graphics.BitmapFactory.Options();
+                options.inJustDecodeBounds = true;
+                android.graphics.BitmapFactory.decodeFile(iconFile.getAbsolutePath(), options);
+                if (options.outWidth > 0 && options.outHeight > 0) {
+                    options.inJustDecodeBounds = false;
+                    options.inSampleSize = Math.max(1, Math.min(options.outWidth, options.outHeight) / 192);
+                    Bitmap bitmap = android.graphics.BitmapFactory.decodeFile(iconFile.getAbsolutePath(), options);
+                    if (bitmap != null) return bitmap;
                 }
-            } catch (Exception ignored) { }
-        }
-        String[] iconKeys = {"custom_icon", "project_icon", "projectIcon", "icon_path", "iconPath",
-                "app_icon", "appIcon", "icon", "launcher_icon", "launcherIcon"};
-        for (String key : iconKeys) {
-            Object value = fields.get(key);
-            if (value == null) continue;
-            String path = String.valueOf(value).trim();
-            if (path.isEmpty() || "null".equalsIgnoreCase(path)) continue;
-            java.io.File supplied = new java.io.File(path);
-            if (supplied.isAbsolute()) candidates.add(supplied);
-            else {
-                candidates.add(new java.io.File(listRoot, path));
-                candidates.add(new java.io.File(dataRoot, path));
-                candidates.add(new java.io.File(new java.io.File(dataRoot, "files"), path));
             }
-        }
-        for (java.io.File root : new java.io.File[]{listRoot, dataRoot,
-                new java.io.File(dataRoot, "files"), new java.io.File(dataRoot, "res"),
-                new java.io.File(dataRoot, "resources"), new java.io.File(dataRoot, "app"),
-                new java.io.File(listRoot, "res")}) {
-            for (String name : new String[]{"icon.png", "icon.webp", "icon.jpg", "icon.jpeg",
-                    "app_icon.png", "app_icon.webp", "project_icon.png", "project_icon.webp",
-                    "ic_launcher.png", "ic_launcher.webp", "launcher.png", "launcher.webp"}) {
-                candidates.add(new java.io.File(root, name));
-            }
-        }
-        for (java.io.File candidate : candidates) {
-            try {
-                java.io.File canonical = candidate.getCanonicalFile();
-                if (!canonical.isFile() || canonical.length() <= 0L || canonical.length() > 8L * 1024L * 1024L) continue;
-                BitmapFactory.Options bounds = new BitmapFactory.Options();
-                bounds.inJustDecodeBounds = true;
-                BitmapFactory.decodeFile(canonical.getAbsolutePath(), bounds);
-                if (bounds.outWidth <= 0 || bounds.outHeight <= 0) continue;
-                BitmapFactory.Options options = new BitmapFactory.Options();
-                int largest = Math.max(bounds.outWidth, bounds.outHeight);
-                options.inSampleSize = 1;
-                while (largest / options.inSampleSize > 128) options.inSampleSize *= 2;
-                options.inPreferredConfig = Bitmap.Config.ARGB_8888;
-                Bitmap bitmap = BitmapFactory.decodeFile(canonical.getAbsolutePath(), options);
-                if (bitmap != null) return bitmap;
-            } catch (Exception ignored) { }
-        }
+        } catch (Exception ignored) { }
         return null;
     }
 
@@ -2636,9 +2594,8 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                     projectIcon.setImageBitmap(projectBitmap);
                     iconCard.addView(projectIcon, new MaterialCardView.LayoutParams(dp(52), dp(52)));
                 } else {
-                    TextView fallback = text(displayName.substring(0, 1).toUpperCase(java.util.Locale.ROOT), 22, true);
-                    fallback.setGravity(Gravity.CENTER);
-                    iconCard.addView(fallback, new MaterialCardView.LayoutParams(dp(52), dp(52)));
+                    projectIcon.setImageResource(pro.sketchware.R.drawable.ic_mtrl_android);
+                    iconCard.addView(projectIcon, new MaterialCardView.LayoutParams(dp(52), dp(52)));
                 }
                 LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(dp(52), dp(52));
                 iconParams.rightMargin = dp(12);
