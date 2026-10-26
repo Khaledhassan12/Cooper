@@ -283,6 +283,7 @@ public final class LocalGitBackend {
             @Override public void update(int completed) { }
             @Override public void endTask() { }
             @Override public boolean isCancelled() { return isPushCancelled(cancelled); }
+            @Override public void showDuration(boolean enabled) { }
         };
         try (Git git = openRoot(root)) {
             Repository repository = git.getRepository();
