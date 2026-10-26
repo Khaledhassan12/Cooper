@@ -570,7 +570,7 @@ public class Ix {
                 String javaName = projectFileBean.getJavaName();
                 String cls = javaName.substring(0, javaName.indexOf(".java"));
                 activityTag.addAttribute("android", "name",
-                        projectFileBean.hasCustomPackage() ? projectFileBean.packageName + "." + cls : "." + cls);
+                        projectFileBean.hasCustomPackage() ? projectFileBean.getCustomPackage() + "." + cls : "." + cls);
 
                 if (!AndroidManifestInjector.getActivityAttrs(activityTag, c.sc_id, projectFileBean.getJavaName())) {
                     activityTag.addAttribute("android", "configChanges", "orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout");
