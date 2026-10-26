@@ -2357,6 +2357,8 @@ Please try again later"</string>
     <string name="cooper_github_directly_readme_contributors">Contributors</string>
     <string name="cooper_github_directly_readme_information">Introduction / additional information</string>
     <string name="cooper_github_directly_readme_title">Create README</string>
+    <string name="cooper_github_directly_readme_format_markdown">Markdown</string>
+    <string name="cooper_github_directly_readme_format_text">Plain text</string>
     <string name="cooper_github_directly_discard_title">Discard publishing session?</string>
     <string name="cooper_github_directly_discard_message">Your entered details and selected images will be lost.</string>
     <string name="cooper_github_directly_keep_editing">Continue editing</string>
