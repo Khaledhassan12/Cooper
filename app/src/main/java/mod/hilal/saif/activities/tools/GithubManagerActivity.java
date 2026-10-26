@@ -59,6 +59,8 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
     @Nullable private AlertDialog authDialog;
     @Nullable private GitHubAuthManager.DeviceAuthorization pendingDeviceAuthorization;
     private boolean authInProgress = false;
+    @Nullable private TextView directlyPendingImageState;
+    @Nullable private java.util.ArrayList<Uri> directlyPendingImages;
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
@@ -324,9 +326,9 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
             intent.addCategory(Intent.CATEGORY_OPENABLE);
             intent.setType("image/*");
             intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
-            startActivityForResult(intent, 7314);
             directlyPendingImageState = imageState;
             directlyPendingImages = selectedImages;
+            startActivityForResult(intent, 7314);
         });
         final String[] readmeMode = new String[]{""};
         com.google.android.material.chip.ChipGroup choices = new com.google.android.material.chip.ChipGroup(this);
@@ -1002,6 +1004,58 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                 showLocalGitError(e);
             }
         });
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode != 7314) return;
+        TextView stateView = directlyPendingImageState;
+        java.util.ArrayList<Uri> current = directlyPendingImages;
+        directlyPendingImageState = null;
+        directlyPendingImages = null;
+        if (resultCode != RESULT_OK || data == null || current == null || stateView == null) return;
+        java.util.ArrayList<Uri> picked = new java.util.ArrayList<>();
+        android.content.ClipData clip = data.getClipData();
+        if (clip != null) {
+            for (int i = 0; i < clip.getItemCount(); i++) {
+                Uri uri = clip.getItemAt(i).getUri();
+                if (uri != null && !picked.contains(uri)) picked.add(uri);
+            }
+        } else if (data.getData() != null) {
+            picked.add(data.getData());
+        }
+        java.util.ArrayList<Uri> combined = new java.util.ArrayList<>(current);
+        for (Uri uri : picked) if (!combined.contains(uri)) combined.add(uri);
+        if (combined.size() > 6) {
+            Snackbar.make(content, R.string.cooper_github_directly_image_limit, Snackbar.LENGTH_LONG).show();
+            return;
+        }
+        for (Uri uri : picked) {
+            try {
+                String type = getContentResolver().getType(uri);
+                if (type == null || !type.toLowerCase(java.util.Locale.ROOT).startsWith("image/")) {
+                    Snackbar.make(content, R.string.cooper_github_directly_invalid_image, Snackbar.LENGTH_LONG).show();
+                    return;
+                }
+                try (java.io.InputStream input = getContentResolver().openInputStream(uri)) {
+                    if (input == null || input.read() < 0) {
+                        Snackbar.make(content, R.string.cooper_github_directly_unreadable_image, Snackbar.LENGTH_LONG).show();
+                        return;
+                    }
+                }
+                try {
+                    getContentResolver().takePersistableUriPermission(uri,
+                            Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                } catch (SecurityException ignored) { }
+            } catch (Exception e) {
+                Snackbar.make(content, R.string.cooper_github_directly_unreadable_image, Snackbar.LENGTH_LONG).show();
+                return;
+            }
+        }
+        current.clear();
+        current.addAll(combined);
+        stateView.setText(getString(R.string.cooper_github_directly_images_selected, current.size()));
     }
 
     private void showProjectBindingError(Exception error) {
