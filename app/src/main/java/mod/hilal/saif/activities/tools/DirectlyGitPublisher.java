@@ -67,14 +67,14 @@ public final class DirectlyGitPublisher {
         }
 
         public String getOwner() { return owner; }
-        public String getSummary() {
+        public String getSummary(Context context) {
             StringBuilder value = new StringBuilder();
-            value.append("Project: ").append(binding.workspaceName).append(" (ID ").append(binding.scId).append(")\n")
-                    .append("Repository: ").append(owner).append("/").append(repositoryName).append("\n")
-                    .append("README mode: ").append(readmeMode).append("\n")
-                    .append("Images: ").append(images.size()).append("\n")
-                    .append("Included files: ").append(files.size()).append("\n")
-                    .append("Excluded generated/cache files: ").append(excludedCount).append("\n\n");
+            value.append(context.getString(R.string.cooper_github_directly_review_project, binding.workspaceName, binding.scId)).append("\n")
+                    .append(context.getString(R.string.cooper_github_directly_review_repository, owner, repositoryName)).append("\n")
+                    .append(context.getString(R.string.cooper_github_directly_review_readme_mode, readmeMode)).append("\n")
+                    .append(context.getString(R.string.cooper_github_directly_review_images, images.size())).append("\n")
+                    .append(context.getString(R.string.cooper_github_directly_review_included_files, files.size())).append("\n")
+                    .append(context.getString(R.string.cooper_github_directly_review_excluded_files, excludedCount)).append("\n\n");
             int limit = Math.min(files.size(), 160);
             for (int i = 0; i < limit; i++) value.append("• ").append(files.get(i)).append("\n");
             if (files.size() > limit) value.append("… and ").append(files.size() - limit).append(" more file(s).\n");
