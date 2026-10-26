@@ -1253,7 +1253,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
             GradientDrawable badgeBackground = new GradientDrawable();
             badgeBackground.setShape(GradientDrawable.OVAL);
             badgeBackground.setColor(com.google.android.material.color.MaterialColors.getColor(
-                    this, com.google.android.material.R.attr.colorPrimary, 0xFF365D4A));
+                    this, androidx.appcompat.R.attr.colorPrimary, 0xFF365D4A));
             badge.setBackground(badgeBackground);
             FrameLayout.LayoutParams badgeParams = new FrameLayout.LayoutParams(dp(24), dp(24), Gravity.TOP | Gravity.START);
             frame.addView(badge, badgeParams);
