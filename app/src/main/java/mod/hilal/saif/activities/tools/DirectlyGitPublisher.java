@@ -206,7 +206,7 @@ public final class DirectlyGitPublisher {
         ArrayList<File> generated = new ArrayList<>();
         long startedAt = System.currentTimeMillis();
         try {
-            phase(progress, "Revalidating project and GitHub credentials");
+            phase(progress, context.getString(R.string.cooper_github_directly_phase_validate));
             checkCancelled(cancelled);
             GitProjectBindingStore.Binding current = bindings.getBoundProject();
             if (current == null || !plan.binding.scId.equals(current.scId)
@@ -219,7 +219,7 @@ public final class DirectlyGitPublisher {
             ensureRepositoryDoesNotExist(plan.owner, plan.repositoryName);
             checkCancelled(cancelled);
 
-            phase(progress, "Preparing README and selected images");
+            phase(progress, context.getString(R.string.cooper_github_directly_phase_assets));
             if (!"EMPTY".equals(plan.readmeMode)) {
                 File readme = new File(current.projectRoot, "README.md");
                 if (readme.exists()) throw new IllegalStateException("README.md appeared after review; refusing to overwrite it.");
@@ -239,7 +239,7 @@ public final class DirectlyGitPublisher {
                 generated.add(target);
             }
 
-            phase(progress, "Building and validating the reviewed file manifest");
+            phase(progress, context.getString(R.string.cooper_github_directly_phase_manifest));
             ArrayList<String> manifest = new ArrayList<>();
             collectManifest(current.projectRoot, current.projectRoot, manifest, new long[]{0L});
             Collections.sort(manifest);
@@ -247,7 +247,7 @@ public final class DirectlyGitPublisher {
             for (String path : manifest) scanFile(current.projectRoot, path);
             checkCancelled(cancelled);
 
-            phase(progress, "Preparing the local commit");
+            phase(progress, context.getString(R.string.cooper_github_directly_phase_commit));
             LocalGitBackend.Snapshot before = backend.inspect(current.projectRoot);
             if (!before.initialized) backend.initialize(current.projectRoot, true);
             LocalGitBackend.Snapshot snapshot = backend.inspect(current.projectRoot);
@@ -266,7 +266,7 @@ public final class DirectlyGitPublisher {
             if (local.headCommit == null || local.headCommit.trim().isEmpty()) throw new IllegalStateException("No local commit exists to publish.");
             String expectedSha = local.headCommit;
 
-            phase(progress, "Creating a new GitHub repository");
+            phase(progress, context.getString(R.string.cooper_github_directly_phase_create));
             checkCancelled(cancelled);
             JSONObject remote;
             try {
@@ -297,19 +297,19 @@ public final class DirectlyGitPublisher {
             }
             if (cancelled != null && cancelled.get()) throw new PublishException("Publishing was stopped after the remote repository was created. The repository was retained; no push was attempted.", true, repositoryUrl, null);
 
-            phase(progress, "Configuring the new remote");
+            phase(progress, context.getString(R.string.cooper_github_directly_phase_remote));
             backend.configureRemote(current.projectRoot, "https://github.com/" + plan.owner + "/" + plan.repositoryName + ".git", true);
-            phase(progress, "Pushing the reviewed branch and commit");
+            phase(progress, context.getString(R.string.cooper_github_directly_phase_push));
             String pushedSha = backend.push(current.projectRoot, token, true);
             if (!expectedSha.equals(pushedSha)) throw new IllegalStateException("The push result did not match the reviewed local commit.");
 
-            phase(progress, "Verifying the remote branch and commit");
+            phase(progress, context.getString(R.string.cooper_github_directly_phase_verify));
             JSONObject branch = api.getBranch(plan.owner, plan.repositoryName, local.currentBranch);
             JSONObject commit = branch.optJSONObject("commit");
             String remoteSha = commit == null ? "" : commit.optString("sha", "");
             if (!expectedSha.equals(remoteSha)) throw new IllegalStateException("GitHub's remote branch SHA does not match the local commit. Publication remains unverified.");
 
-            phase(progress, "Saving the verified project association");
+            phase(progress, context.getString(R.string.cooper_github_directly_phase_finalize));
             if (!published.edit().putString("project_" + plan.binding.scId, plan.owner + "/" + plan.repositoryName)
                     .putString("commit_" + plan.binding.scId, expectedSha).commit()) {
                 throw new IllegalStateException("Remote commit was verified, but Cooper could not persist the publication record.");
