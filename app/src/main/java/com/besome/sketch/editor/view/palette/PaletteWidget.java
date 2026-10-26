@@ -33,6 +33,8 @@ import dev.aldi.sayuti.editor.view.palette.IconSwipeRefreshLayout;
 import dev.aldi.sayuti.editor.view.palette.IconTabLayout;
 import dev.aldi.sayuti.editor.view.palette.IconTextInputLayout;
 import dev.aldi.sayuti.editor.view.palette.IconViewPager;
+import dev.aldi.sayuti.editor.view.palette.IconViewPager2;
+import dev.aldi.sayuti.editor.view.palette.IconMaterialSwitch;
 import dev.aldi.sayuti.editor.view.palette.IconWaveSideBar;
 import dev.aldi.sayuti.editor.view.palette.IconYoutubePlayer;
 import extensions.anbui.daydream.viewbeans.view.palette.DRIconBottomSheetDragHandleView;
@@ -199,6 +201,8 @@ public class PaletteWidget extends LinearLayout {
             case "TimePicker" -> new IconTimePicker(context);
             case "AnalogClock" -> new IconAnalogClock(context);
             case "ViewPager" -> new IconViewPager(context);
+            case "ViewPager2" -> new IconViewPager2(context);
+            case "MaterialSwitch" -> new IconMaterialSwitch(context);
             case "BadgeView" -> new IconBadgeView(context);
             case "PatternLockView" -> new IconPatternLockView(context);
             case "WaveSideBar" -> new IconWaveSideBar(context);

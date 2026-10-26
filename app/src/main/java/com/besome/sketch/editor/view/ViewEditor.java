@@ -38,6 +38,7 @@ import com.besome.sketch.editor.view.palette.IconLinearVertical;
 import com.besome.sketch.editor.view.palette.IconMapView;
 import com.besome.sketch.editor.view.palette.PaletteFavorite;
 import com.besome.sketch.editor.view.palette.PaletteWidget;
+import com.besome.sketch.editor.manage.library.material3.Material3LibraryManager;
 import com.google.android.material.card.MaterialCardView;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
@@ -698,6 +699,9 @@ public class ViewEditor extends RelativeLayout implements View.OnClickListener, 
                 bB.b(getContext(), getString(R.string.design_library_guide_setup_first), bB.TOAST_NORMAL).show();
                 return;
             } else if (currentTouchedView instanceof AndroidxOrMaterialView && !isAppCompatEnabled) {
+                bB.b(getContext(), getString(R.string.design_library_guide_setup_first), bB.TOAST_NORMAL).show();
+                return;
+            } else if (currentTouchedView instanceof Material3View && !new Material3LibraryManager(a).isMaterial3Enabled()) {
                 bB.b(getContext(), getString(R.string.design_library_guide_setup_first), bB.TOAST_NORMAL).show();
                 return;
             }

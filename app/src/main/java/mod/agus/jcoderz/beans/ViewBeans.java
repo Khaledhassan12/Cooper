@@ -39,6 +39,8 @@ public class ViewBeans {
     public static final int VIEW_TYPE_WIDGET_OTPVIEW = 46;
     public static final int VIEW_TYPE_WIDGET_CODEVIEW = 47;
     public static final int VIEW_TYPE_WIDGET_RECYCLERVIEW = 48;
+    public static final int VIEW_TYPE_WIDGET_MATERIALSWITCH = 49;
+    public static final int VIEW_TYPE_LAYOUT_VIEWPAGER2 = 50;
 
     /**
      * Map that stores both a view's type and type name.
@@ -74,6 +76,8 @@ public class ViewBeans {
             .put(VIEW_TYPE_WIDGET_OTPVIEW, "OTPView")
             .put(VIEW_TYPE_WIDGET_CODEVIEW, "CodeView")
             .put(VIEW_TYPE_WIDGET_RECYCLERVIEW, "RecyclerView")
+            .put(VIEW_TYPE_LAYOUT_VIEWPAGER2, "ViewPager2")
+            .put(VIEW_TYPE_WIDGET_MATERIALSWITCH, "MaterialSwitch")
             .build();
             //LoadingIndicator, MaterialDivider and BottomSheetDragHandleView are not added so as not to add onClick event.
 
@@ -103,7 +107,7 @@ public class ViewBeans {
                  VIEW_TYPE_WIDGET_DIGITALCLOCK -> R.drawable.ic_mtrl_time;
             case VIEW_TYPE_WIDGET_DATEPICKER -> R.drawable.ic_mtrl_calendar;
             case VIEW_TYPE_LAYOUT_TABLAYOUT -> R.drawable.ic_mtrl_tabs;
-            case VIEW_TYPE_LAYOUT_VIEWPAGER -> R.drawable.ic_mtrl_viewpager;
+            case VIEW_TYPE_LAYOUT_VIEWPAGER, VIEW_TYPE_LAYOUT_VIEWPAGER2 -> R.drawable.ic_mtrl_viewpager;
             case VIEW_TYPE_LAYOUT_BOTTOMNAVIGATIONVIEW -> R.drawable.ic_mtrl_bottom_navigation;
             case VIEW_TYPE_WIDGET_BADGEVIEW -> R.drawable.ic_mtrl_badge;
             case VIEW_TYPE_WIDGET_PATTERNLOCKVIEW -> R.drawable.ic_mtrl_pattern;
@@ -113,6 +117,7 @@ public class ViewBeans {
             case VIEW_TYPE_LAYOUT_SWIPEREFRESHLAYOUT -> R.drawable.ic_mtrl_refresh;
             case VIEW_TYPE_LAYOUT_RADIOGROUP -> R.drawable.ic_mtrl_radio_partitial;
             case VIEW_TYPE_WIDGET_MATERIALBUTTON -> R.drawable.ic_mtrl_button_click;
+            case VIEW_TYPE_WIDGET_MATERIALSWITCH -> R.drawable.ic_mtrl_switch;
             case VIEW_TYPE_WIDGET_SIGNINBUTTON -> R.drawable.ic_mtrl_login;
             case VIEW_TYPE_WIDGET_CIRCLEIMAGEVIEW -> R.drawable.ic_mtrl_camera;
             case VIEW_TYPE_WIDGET_LOTTIEANIMATIONVIEW -> R.drawable.ic_mtrl_animation;

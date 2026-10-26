@@ -118,6 +118,7 @@ public class jq {
      */
     public boolean isDebugBuild = false;
 
+
     /**
      * If the built-in library AppCompat (contains the Jetpack AppCompat artefacts and
      * Material Design Components) is enabled.

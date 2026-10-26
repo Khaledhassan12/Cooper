@@ -149,6 +149,8 @@ public class wq {
             case 46 -> "otpview";
             case 47 -> "codeview";
             case 48 -> "recyclerview";
+            case 49 -> "materialswitch";
+            case 50 -> "viewpager2";
             case DayDreamViewBeans.VIEW_TYPE_WIDGET_LOADINGINDICATOR -> "loadingindicator";
             case DayDreamViewBeans.VIEW_TYPE_WIDGET_MATERIALDIVIDER -> "materialdivider";
             case DayDreamViewBeans.VIEW_TYPE_WIDGET_BOTTOMSHEETDRAGHANDLEVIEW -> "bottomsheetdraghandleview";

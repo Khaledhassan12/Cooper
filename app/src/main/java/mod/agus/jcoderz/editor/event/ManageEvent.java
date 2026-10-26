@@ -750,6 +750,10 @@ public class ManageEvent {
                     targetId + ".addOnPageChangeListener(new ViewPager.OnPageChangeListener() {\r\n" +
                             listenerLogic + "\r\n" +
                             "});";
+            case "OnPageChangeCallback" ->
+                    targetId + ".registerOnPageChangeCallback(new ViewPager2.OnPageChangeCallback() {\r\n" +
+                            listenerLogic + "\r\n" +
+                            "});";
             case "OnErrorListener" ->
                     targetId + ".setOnErrorListener(new MediaPlayer.OnErrorListener() {\r\n" +
                             listenerLogic + "\r\n" +

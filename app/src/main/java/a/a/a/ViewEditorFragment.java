@@ -263,6 +263,7 @@ public class ViewEditorFragment extends qA {
 		viewEditor.addWidget(PaletteWidget.b.g, "", "CheckBox", "CheckBox");
 		viewEditor.extraWidget("", "RadioButton", "RadioButton");
 		viewEditor.addWidget(PaletteWidget.b.i, "", "Switch", "Switch");
+        viewEditor.extraWidget("", "MaterialSwitch", "MaterialSwitch");
 		viewEditor.addWidget(PaletteWidget.b.j, "", "SeekBar", "SeekBar");
 		viewEditor.addWidget(PaletteWidget.b.m, "", "ProgressBar", "ProgressBar");
 		viewEditor.extraWidget("", "LoadingIndicator", "LoadingIndicator");
@@ -280,6 +281,7 @@ public class ViewEditorFragment extends qA {
 		viewEditor.extraWidget("", "RecyclerView", "RecyclerView");
 		viewEditor.addWidget(PaletteWidget.b.f, "", "Spinner", "Spinner");
 		viewEditor.extraWidget("", "ViewPager", "ViewPager");
+        viewEditor.extraWidget("", "ViewPager2", "ViewPager2");
 		widgetsCreatorManager.addWidgetsByTitle("List");
 		
 		viewEditor.paletteWidget.extraTitle("Library", 1);

@@ -125,6 +125,9 @@ public class Gx {
             case "Switch":
                 classInfos = "View.Clickable.TextView.Button.CompoundButton.Switch";
                 break;
+            case "MaterialSwitch":
+                classInfos = "View.Widget.MaterialSwitch";
+                break;
 
             case "SeekBar":
                 classInfos = "View.SeekBar";
@@ -220,6 +223,9 @@ public class Gx {
 
             case "ViewPager":
                 classInfos = "View.ViewGroup.ViewPager";
+                break;
+            case "ViewPager2":
+                classInfos = "View.ViewGroup.ViewPager2";
                 break;
 
             case "BottomNavigationView":

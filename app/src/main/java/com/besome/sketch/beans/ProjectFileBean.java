@@ -7,6 +7,9 @@ import androidx.annotation.IntDef;
 
 import com.google.gson.annotations.Expose;
 
+import extensions.anbui.daydream.configs.Configs;
+import extensions.anbui.daydream.settings.DayDreamProjectSettings;
+
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -221,6 +224,20 @@ public class ProjectFileBean extends SelectableBean implements Parcelable {
     @Override
     public int describeContents() {
         return 0;
+    }
+
+    public String getCustomPackage() {
+        if (fileType != PROJECT_FILE_TYPE_ACTIVITY || fileName == null) return "";
+        return DayDreamProjectSettings.getActivityPackage(Configs.currentProjectID, fileName);
+    }
+
+    public boolean hasCustomPackage() {
+        return !getCustomPackage().isEmpty();
+    }
+
+    public String getPackageName(String projectPackage) {
+        String pkg = getCustomPackage();
+        return pkg.isEmpty() ? projectPackage : pkg;
     }
 
     public String getActivityName() {

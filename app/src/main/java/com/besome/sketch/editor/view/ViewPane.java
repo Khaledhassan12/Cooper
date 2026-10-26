@@ -87,6 +87,8 @@ import dev.aldi.sayuti.editor.view.item.ItemMaterialButton;
 import dev.aldi.sayuti.editor.view.item.ItemOTPView;
 import dev.aldi.sayuti.editor.view.item.ItemPatternLockView;
 import dev.aldi.sayuti.editor.view.item.ItemViewPager;
+import dev.aldi.sayuti.editor.view.item.ItemViewPager2;
+import dev.aldi.sayuti.editor.view.item.ItemMaterialSwitch;
 import dev.aldi.sayuti.editor.view.item.ItemWaveSideBar;
 import dev.aldi.sayuti.editor.view.item.ItemYoutubePlayer;
 import extensions.anbui.daydream.viewbeans.beans.DayDreamViewBeans;
@@ -314,6 +316,8 @@ public class ViewPane extends RelativeLayout {
             case ViewBeans.VIEW_TYPE_WIDGET_DIGITALCLOCK -> new ItemDigitalClock(context);
             case ViewBeans.VIEW_TYPE_LAYOUT_TABLAYOUT -> new ItemTabLayout(context);
             case ViewBeans.VIEW_TYPE_LAYOUT_VIEWPAGER -> new ItemViewPager(context);
+            case ViewBeans.VIEW_TYPE_LAYOUT_VIEWPAGER2 -> new ItemViewPager2(context);
+            case ViewBeans.VIEW_TYPE_WIDGET_MATERIALSWITCH -> new ItemMaterialSwitch(context);
             case ViewBeans.VIEW_TYPE_LAYOUT_BOTTOMNAVIGATIONVIEW ->
                     new ItemBottomNavigationView(context);
             case ViewBeans.VIEW_TYPE_WIDGET_BADGEVIEW -> new ItemBadgeView(context);
@@ -461,13 +465,14 @@ public class ViewPane extends RelativeLayout {
         view.setScaleY(resolveDimenToFloat(viewBean.resScaleY, viewBean.scaleY));
         
         String backgroundResource = viewBean.layout.backgroundResource;
-        boolean isLinear = viewBean.type == ViewBean.VIEW_TYPE_LAYOUT_LINEAR;
         boolean isCard = viewBean.type == ViewBeans.VIEW_TYPE_LAYOUT_CARDVIEW;
-        
-        if (backgroundResource != null && !backgroundResource.isEmpty() && (isLinear || (PREVIEW_CARD_ANDROID_BACKGROUND && isCard))) {
+
+        // Apply project drawable backgrounds to every preview widget, preserving CardView's native background by default.
+        if (backgroundResource != null && !backgroundResource.isEmpty() && (!isCard || PREVIEW_CARD_ANDROID_BACKGROUND)) {
             try {
-                if (resourcesManager != null && resourcesManager.h(backgroundResource) == ProjectResourceBean.PROJECT_RES_TYPE_RESOURCE) {
-                    view.setBackgroundResource(getContext().getResources().getIdentifier(backgroundResource, "drawable", getContext().getPackageName()));
+                int builtInDrawableId = getContext().getResources().getIdentifier(backgroundResource, "drawable", getContext().getPackageName());
+                if (resourcesManager != null && resourcesManager.h(backgroundResource) == ProjectResourceBean.PROJECT_RES_TYPE_RESOURCE && builtInDrawableId != 0) {
+                    view.setBackgroundResource(builtInDrawableId);
                 } else {
                     Drawable customD = DrawablePreviewRenderer.getDrawableFromProject(sc_id, backgroundResource, 0, material3LibraryManager.canUseNightVariantColors());
                     if (customD != null) {
