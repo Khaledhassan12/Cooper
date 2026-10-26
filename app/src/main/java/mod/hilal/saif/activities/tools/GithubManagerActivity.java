@@ -158,9 +158,9 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         addSectionTitle(getString(R.string.cooper_github_directly_section));
         addActionCard(getString(R.string.cooper_github_directly_title), getString(R.string.cooper_github_directly_description),
                 v -> showDirectlyGitBottomSheet());
-        addActionCard("Cooper Git · Publication history", "View verified Directly Git and Advanced Git publication records saved on this device.",
+        addActionCard(getString(R.string.cooper_github_history_action_title), getString(R.string.cooper_github_history_action_description),
                 v -> showCooperGitPublicationHistory());
-        addActionCard("Clean Directly Git recovery", "Review and clear a stale recovery blocker without deleting project files or changing GitHub repositories.",
+        addActionCard(getString(R.string.cooper_github_recovery_clean_action_title), getString(R.string.cooper_github_recovery_clean_action_description),
                 v -> confirmClearDirectlyGitRecovery());
 
         addSectionTitle(getString(R.string.cooper_github_repositories));
@@ -485,10 +485,10 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         visibilityChoices.setSingleSelection(true);
         visibilityChoices.setSelectionRequired(true);
         com.google.android.material.chip.Chip privateChip = new com.google.android.material.chip.Chip(this);
-        privateChip.setText("Private repository");
+        privateChip.setText(R.string.cooper_github_directly_visibility_private);
         privateChip.setCheckable(true);
         com.google.android.material.chip.Chip publicChip = new com.google.android.material.chip.Chip(this);
-        publicChip.setText("Public repository");
+        publicChip.setText(R.string.cooper_github_directly_visibility_public);
         publicChip.setCheckable(true);
         visibilityChoices.addView(privateChip);
         visibilityChoices.addView(publicChip);
@@ -496,7 +496,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         publicChip.setChecked(visibilityChosen[0] && !repositoryPrivate[0]);
         privateChip.setOnClickListener(v -> { repositoryPrivate[0] = true; visibilityChosen[0] = true; directlyDraftIsPrivate = true; directlyDraftVisibilityChosen = true; });
         publicChip.setOnClickListener(v -> { repositoryPrivate[0] = false; visibilityChosen[0] = true; directlyDraftIsPrivate = false; directlyDraftVisibilityChosen = true; });
-        panel.addView(text("Repository visibility — choose who can access this repository", 14, true));
+        panel.addView(text(getString(R.string.cooper_github_directly_visibility_hint), 14, true));
         panel.addView(visibilityChoices);
         final String[] readmeMode = new String[]{restoreDraft ? directlyDraftReadmeMode : ""};
         com.google.android.material.chip.ChipGroup choices = new com.google.android.material.chip.ChipGroup(this);
@@ -542,7 +542,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                 return;
             }
             if (!visibilityChosen[0]) {
-                Snackbar.make(panel, "Choose Public or Private repository visibility before publishing.", Snackbar.LENGTH_LONG).show();
+                Snackbar.make(panel, R.string.cooper_github_directly_visibility_required, Snackbar.LENGTH_LONG).show();
                 return;
             }
             new MaterialAlertDialogBuilder(this)
@@ -795,7 +795,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                             Bitmap bitmap = icons.get(position);
                             if (bitmap != null) icon.setImageBitmap(bitmap);
                             else icon.setImageResource(android.R.drawable.sym_def_app_icon);
-                            icon.setContentDescription("Project application icon");
+                            icon.setContentDescription(getString(R.string.cooper_github_project_icon_content_description));
                             LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(dp(48), dp(48));
                             iconParams.rightMargin = dp(14);
                             row.addView(icon, iconParams);
@@ -2237,8 +2237,8 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                         new MaterialAlertDialogBuilder(this)
                                 .setTitle(R.string.cooper_github_push_remote)
                                 .setMessage(getString(R.string.cooper_github_push_success, shortCommit(expected))
-                                        + (historySaved ? "\n\nSaved to Cooper Git publication history."
-                                        : "\n\nPush was verified, but Cooper could not save its publication-history entry."))
+                                        + "\n\n" + getString(historySaved ? R.string.cooper_github_history_saved
+                                        : R.string.cooper_github_history_save_failed))
                                 .setPositiveButton(R.string.common_word_ok, null).show());
             } catch (Exception e) {
                 showLocalGitError(e);
@@ -2422,7 +2422,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                             if (connected) runDirectlyGitRecovery();
                             else startGitHubAuthorization();
                         });
-        builder.setNeutralButton("Select saved project", (dialog, which) -> {
+        builder.setNeutralButton(R.string.cooper_github_recovery_select_saved_project, (dialog, which) -> {
             directlyRecoveryPromptShown = false;
             rebindSavedRecoveryProject(scId, session.optString("projectRoot", ""));
         });
@@ -2440,7 +2440,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                 java.io.File metadataFile = new java.io.File(a.a.a.wq.c(scId), "project").getCanonicalFile();
                 if (!actualRoot.isDirectory() || !metadataFile.isFile()
                         || !actualRoot.getCanonicalPath().equals(new java.io.File(expectedRoot).getCanonicalPath())) {
-                    throw new IllegalStateException("The original project path no longer matches the saved recovery record. Clear recovery only after inspecting local and remote state.");
+                    throw new IllegalStateException(getString(R.string.cooper_github_recovery_original_project_mismatch));
                 }
                 GitProjectBindingStore.Binding binding =
                         new GitProjectBindingStore(getApplicationContext()).bind(scId);
@@ -2449,7 +2449,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                 }
                 new Handler(Looper.getMainLooper()).post(() -> {
                     if (isFinishing() || isDestroyed()) return;
-                    Snackbar.make(content, "Original recovery project selected: " + binding.workspaceName, Snackbar.LENGTH_LONG).show();
+                    Snackbar.make(content, getString(R.string.cooper_github_recovery_original_project_selected, binding.workspaceName), Snackbar.LENGTH_LONG).show();
                     directlyRecoveryPromptShown = false;
                     showDirectlyGitRecoveryPrompt();
                 });
@@ -2459,7 +2459,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                     directlyRecoveryPromptShown = false;
                     new MaterialAlertDialogBuilder(this)
                             .setTitle(R.string.cooper_github_directly_recovery_title)
-                            .setMessage(error.getMessage() == null ? "Cooper could not safely select the saved project." : error.getMessage())
+                            .setMessage(error.getMessage() == null ? getString(R.string.cooper_github_recovery_original_project_failed) : error.getMessage())
                             .setPositiveButton(R.string.common_word_ok, null).show();
                 });
             }
@@ -2577,14 +2577,14 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         com.google.android.material.bottomsheet.BottomSheetDialog sheet =
                 new com.google.android.material.bottomsheet.BottomSheetDialog(this);
         LinearLayout panel = directlyPanel();
-        TextView title = text("Cooper Git 🔥", 25, true);
+        TextView title = text(getString(R.string.cooper_github_history_title), 25, true);
         title.setGravity(Gravity.CENTER_VERTICAL);
         panel.addView(title);
-        TextView subtitle = text("Verified publication history · " + history.length() + " record(s)", 13, false);
+        TextView subtitle = text(getString(R.string.cooper_github_history_subtitle, history.length()), 13, false);
         subtitle.setPadding(0, dp(4), 0, dp(16));
         panel.addView(subtitle);
         if (history.length() == 0) {
-            TextView empty = text("No verified Directly Git publications have been recorded on this device yet.", 14, false);
+            TextView empty = text(getString(R.string.cooper_github_history_empty), 14, false);
             empty.setPadding(0, dp(16), 0, dp(20));
             panel.addView(empty);
         } else {
@@ -2612,21 +2612,23 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                 details.addView(text(displayName, 18, true));
                 details.addView(text(entry.optString("owner", "") + "/" + entry.optString("repositoryName", ""), 13, false));
                 String packageName = entry.optString("packageName", "").trim();
-                if (!packageName.isEmpty()) details.addView(text("Package: " + packageName, 12, false));
+                if (!packageName.isEmpty()) details.addView(text(getString(R.string.cooper_github_history_package, packageName), 12, false));
                 String projectId = entry.optString("projectId", "").trim();
-                if (!projectId.isEmpty()) details.addView(text("Project ID: " + projectId, 12, false));
+                if (!projectId.isEmpty()) details.addView(text(getString(R.string.cooper_github_history_project_id, projectId), 12, false));
                 long timestamp = entry.optLong("publishedAt", 0L);
                 if (timestamp > 0L) {
                     String date = java.text.DateFormat.getDateTimeInstance(
                             java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT)
                             .format(new java.util.Date(timestamp));
-                    details.addView(text(date, 12, false));
+                    details.addView(text(getString(R.string.cooper_github_history_date, date), 12, false));
                 }
-                details.addView(text(entry.optString("method", "DIRECTLY_GIT").replace('_', ' ')
-                        + " · " + (entry.optBoolean("private", true) ? "Private" : "Public")
-                        + " · " + entry.optString("branch", ""), 12, true));
+                details.addView(text(getString(R.string.cooper_github_history_method,
+                        entry.optString("method", "DIRECTLY_GIT").replace('_', ' '),
+                        entry.optBoolean("private", true) ? getString(R.string.cooper_github_directly_visibility_private)
+                                : getString(R.string.cooper_github_directly_visibility_public),
+                        entry.optString("branch", "")), 12, true));
                 String sha = entry.optString("commitSha", "");
-                if (!sha.isEmpty()) details.addView(text("Commit: " + sha, 11, false));
+                if (!sha.isEmpty()) details.addView(text(getString(R.string.cooper_github_history_commit, sha), 11, false));
                 row.addView(details, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
                 row.setClickable(true);
                 row.setFocusable(true);
@@ -2656,25 +2658,25 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         org.json.JSONObject pending = DirectlyGitPublisher.getPendingSession(this);
         if (pending == null) {
             new MaterialAlertDialogBuilder(this)
-                    .setTitle("No recovery session")
-                    .setMessage("There is no saved Directly Git recovery blocker to clear.")
+                    .setTitle(R.string.cooper_github_recovery_no_session_title)
+                    .setMessage(R.string.cooper_github_recovery_no_session_message)
                     .setPositiveButton(R.string.common_word_ok, null).show();
             return;
         }
         String target = pending.optString("owner", "") + "/" + pending.optString("repositoryName", "");
-        String details = "Saved stage: " + pending.optString("state", "Unknown")
-                + "\nProject ID: " + pending.optString("projectId", "Unknown")
-                + "\nExpected commit: " + pending.optString("commitSha", "Unknown")
-                + "\n\nClearing removes only Cooper's saved recovery record. It does not delete project files or the GitHub repository, and it does not undo a push. Inspect local and remote state first.\n\nTarget: " + target;
+        String details = getString(R.string.cooper_github_recovery_clear_details,
+                pending.optString("state", getString(R.string.cooper_github_directly_metadata_unavailable)),
+                pending.optString("projectId", getString(R.string.cooper_github_directly_metadata_unavailable)),
+                pending.optString("commitSha", getString(R.string.cooper_github_directly_metadata_unavailable)), target);
         new MaterialAlertDialogBuilder(this)
-                .setTitle("Clear recovery session?")
+                .setTitle(R.string.cooper_github_recovery_clear_title)
                 .setMessage(details)
                 .setNegativeButton(R.string.common_word_cancel, null)
-                .setPositiveButton("Clear saved session", (dialog, which) -> {
+                .setPositiveButton(R.string.cooper_github_recovery_clear_button, (dialog, which) -> {
                     if (DirectlyGitPublisher.clearPendingSession(this)) {
-                        Snackbar.make(content, "Saved recovery blocker cleared. Local and remote data were not changed.", Snackbar.LENGTH_LONG).show();
+                        Snackbar.make(content, R.string.cooper_github_recovery_clear_success, Snackbar.LENGTH_LONG).show();
                     } else {
-                        Snackbar.make(content, "Cooper could not clear the saved recovery record.", Snackbar.LENGTH_LONG).show();
+                        Snackbar.make(content, R.string.cooper_github_recovery_clear_failed, Snackbar.LENGTH_LONG).show();
                     }
                 }).show();
     }
