@@ -88,6 +88,7 @@ import dev.aldi.sayuti.editor.view.item.ItemOTPView;
 import dev.aldi.sayuti.editor.view.item.ItemPatternLockView;
 import dev.aldi.sayuti.editor.view.item.ItemViewPager;
 import dev.aldi.sayuti.editor.view.item.ItemViewPager2;
+import dev.aldi.sayuti.editor.view.item.ItemMaterialSwitch;
 import dev.aldi.sayuti.editor.view.item.ItemWaveSideBar;
 import dev.aldi.sayuti.editor.view.item.ItemYoutubePlayer;
 import extensions.anbui.daydream.viewbeans.beans.DayDreamViewBeans;
@@ -316,6 +317,7 @@ public class ViewPane extends RelativeLayout {
             case ViewBeans.VIEW_TYPE_LAYOUT_TABLAYOUT -> new ItemTabLayout(context);
             case ViewBeans.VIEW_TYPE_LAYOUT_VIEWPAGER -> new ItemViewPager(context);
             case ViewBeans.VIEW_TYPE_LAYOUT_VIEWPAGER2 -> new ItemViewPager2(context);
+            case ViewBeans.VIEW_TYPE_WIDGET_MATERIALSWITCH -> new ItemMaterialSwitch(context);
             case ViewBeans.VIEW_TYPE_LAYOUT_BOTTOMNAVIGATIONVIEW ->
                     new ItemBottomNavigationView(context);
             case ViewBeans.VIEW_TYPE_WIDGET_BADGEVIEW -> new ItemBadgeView(context);
