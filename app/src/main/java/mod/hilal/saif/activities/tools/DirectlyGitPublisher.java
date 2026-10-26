@@ -452,6 +452,9 @@ public final class DirectlyGitPublisher {
             if (!plan.owner.equals(returnedOwner) || !plan.repositoryName.equals(remote.optString("name", ""))) {
                 throw new IllegalStateException("GitHub returned a repository identity different from the reviewed target.");
             }
+            if (remote.optBoolean("private", true) != plan.isPrivate) {
+                throw new IllegalStateException("GitHub repository visibility differs from the reviewed Public/Private choice. Cooper stopped before pushing.");
+            }
             remoteCreated = true;
             repositoryUrl = remote.optString("html_url", repositoryUrl);
             if (!repositoryUrl.equals("https://github.com/" + plan.owner + "/" + plan.repositoryName)
