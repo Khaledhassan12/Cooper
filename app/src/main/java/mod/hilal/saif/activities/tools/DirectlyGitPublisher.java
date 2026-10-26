@@ -26,6 +26,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * synchronous by design and MUST be invoked on a worker thread.
  */
 public final class DirectlyGitPublisher {
+    private static final AtomicBoolean ACTIVE_PUBLISH = new AtomicBoolean(false);
     public interface ProgressListener {
         void onPhase(String phase);
     }
@@ -206,6 +207,17 @@ public final class DirectlyGitPublisher {
     }
 
     public Result publish(Plan plan, AtomicBoolean cancelled, ProgressListener progress) throws Exception {
+        if (!ACTIVE_PUBLISH.compareAndSet(false, true)) {
+            throw new PublishException("Another Directly Git publishing operation is already running.", false, "", null);
+        }
+        try {
+            return publishInternal(plan, cancelled, progress);
+        } finally {
+            ACTIVE_PUBLISH.set(false);
+        }
+    }
+
+    private Result publishInternal(Plan plan, AtomicBoolean cancelled, ProgressListener progress) throws Exception {
         if (plan == null) throw new IllegalArgumentException("A reviewed publishing plan is required.");
         boolean remoteCreated = false;
         boolean localCommitCreated = false;
@@ -347,6 +359,7 @@ public final class DirectlyGitPublisher {
     }
 
     private int collectManifest(File root, File directory, List<String> files, long[] totalBytes) throws Exception {
+        if (!directory.equals(root) && new File(directory, ".git").exists()) return 1;
         File[] children = directory.listFiles();
         if (children == null) throw new IOException("Cooper could not read the selected project directory.");
         java.util.Arrays.sort(children, Comparator.comparing(File::getName, String.CASE_INSENSITIVE_ORDER));
