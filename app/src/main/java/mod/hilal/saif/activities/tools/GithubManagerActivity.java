@@ -2664,10 +2664,15 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
             return;
         }
         String target = pending.optString("owner", "") + "/" + pending.optString("repositoryName", "");
-        String details = getString(R.string.cooper_github_recovery_clear_details,
-                pending.optString("state", getString(R.string.cooper_github_directly_metadata_unavailable)),
-                pending.optString("projectId", getString(R.string.cooper_github_directly_metadata_unavailable)),
-                pending.optString("commitSha", getString(R.string.cooper_github_directly_metadata_unavailable)), target);
+        String unavailable = getString(R.string.cooper_github_directly_metadata_unavailable);
+        String details = getString(R.string.cooper_github_recovery_saved_stage) + ": "
+                + pending.optString("state", unavailable) + "\n"
+                + getString(R.string.cooper_github_recovery_project_id) + ": "
+                + pending.optString("projectId", unavailable) + "\n"
+                + getString(R.string.cooper_github_recovery_expected_commit) + ": "
+                + pending.optString("commitSha", unavailable) + "\n\n"
+                + getString(R.string.cooper_github_recovery_clear_details) + "\n\n"
+                + getString(R.string.cooper_github_recovery_target) + ": " + target;
         new MaterialAlertDialogBuilder(this)
                 .setTitle(R.string.cooper_github_recovery_clear_title)
                 .setMessage(details)
