@@ -50,6 +50,7 @@ public class AddViewActivity extends BaseAppCompatActivity {
     private int requestCode;
     private ProjectFileBean projectFileBean;
     private String P;
+    private String selectedPackage = "";
     private ArrayList<FeatureItem> featureItems;
     private FeaturesAdapter featuresAdapter;
 
@@ -340,6 +341,7 @@ public class AddViewActivity extends BaseAppCompatActivity {
         DayDreamProjectSettings.setImportGlideTransformations(Configs.currentProjectID, filename, binding.swImportglidetransformations.isChecked());
         DayDreamProjectSettings.setImportAndroidBilling(Configs.currentProjectID, filename, binding.swImportandroidbilling.isChecked());
         DayDreamProjectSettings.setImportRetrofit2(Configs.currentProjectID, filename, binding.swImportretrofit2.isChecked());
+        DayDreamProjectSettings.setActivityPackage(Configs.currentProjectID, filename, selectedPackage);
     }
 
     @Override
@@ -399,7 +401,7 @@ public class AddViewActivity extends BaseAppCompatActivity {
 
                 String newPkg = resolvePackageInput();
                 if (newPkg == null) return;
-                projectFileBean.packageName = newPkg;
+                selectedPackage = newPkg;
 
                 projectFileBean.orientation = getSelectedButtonIndex(binding.screenOrientationSelector);
                 projectFileBean.keyboardSetting = getSelectedButtonIndex(binding.keyboardSettingsSelector);
@@ -427,6 +429,7 @@ public class AddViewActivity extends BaseAppCompatActivity {
             } else if (isValid(nameValidator)) {
                 String pkg = resolvePackageInput();
                 if (pkg == null) return;
+                selectedPackage = pkg;
 
                 String var4 = Helper.getText(binding.edName);
 
@@ -434,7 +437,6 @@ public class AddViewActivity extends BaseAppCompatActivity {
                 DayDreamProjectSettings.setActivityType(Configs.currentProjectID, var4, getSuffix(binding.viewTypeSelector));
 
                 ProjectFileBean projectFileBean = new ProjectFileBean(ProjectFileBean.PROJECT_FILE_TYPE_ACTIVITY, var4, getSelectedButtonIndex(binding.screenOrientationSelector), getSelectedButtonIndex(binding.keyboardSettingsSelector), featureToolbar, !featureStatusBar, featureFab, featureDrawer);
-                projectFileBean.packageName = pkg;
                 Intent intent = new Intent();
                 intent.putExtra("project_file", projectFileBean);
                 if (P != null) {

@@ -117,8 +117,6 @@ public class jq {
      * If we're building a debug APK, meaning that e.g. test ads should be used.
      */
     public boolean isDebugBuild = false;
-    
-    public final ArrayList<String> customActivityImports = new ArrayList<>();
 
     /**
      * If the built-in library AppCompat (contains the Jetpack AppCompat artefacts and
