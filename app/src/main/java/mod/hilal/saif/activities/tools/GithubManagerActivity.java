@@ -2422,8 +2422,48 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                             if (connected) runDirectlyGitRecovery();
                             else startGitHubAuthorization();
                         });
+        builder.setNeutralButton("Select saved project", (dialog, which) -> {
+            directlyRecoveryPromptShown = false;
+            rebindSavedRecoveryProject(scId, session.optString("projectRoot", ""));
+        });
         builder.setOnCancelListener(dialog -> directlyRecoveryPromptShown = false);
         builder.show();
+    }
+
+    private void rebindSavedRecoveryProject(String scId, String expectedRoot) {
+        authExecutor.execute(() -> {
+            try {
+                if (scId == null || !scId.matches("[0-9]{1,12}") || expectedRoot == null || expectedRoot.isEmpty()) {
+                    throw new IllegalStateException("The saved recovery record does not contain a verifiable project identity.");
+                }
+                java.io.File actualRoot = new java.io.File(a.a.a.wq.b(scId)).getCanonicalFile();
+                java.io.File metadataFile = new java.io.File(a.a.a.wq.c(scId), "project").getCanonicalFile();
+                if (!actualRoot.isDirectory() || !metadataFile.isFile()
+                        || !actualRoot.getCanonicalPath().equals(new java.io.File(expectedRoot).getCanonicalPath())) {
+                    throw new IllegalStateException("The original project path no longer matches the saved recovery record. Clear recovery only after inspecting local and remote state.");
+                }
+                GitProjectBindingStore.Binding binding =
+                        new GitProjectBindingStore(getApplicationContext()).bind(scId);
+                if (!binding.projectRoot.getCanonicalPath().equals(new java.io.File(expectedRoot).getCanonicalPath())) {
+                    throw new IllegalStateException("Cooper could not re-verify the original project binding.");
+                }
+                new Handler(Looper.getMainLooper()).post(() -> {
+                    if (isFinishing() || isDestroyed()) return;
+                    Snackbar.make(content, "Original recovery project selected: " + binding.workspaceName, Snackbar.LENGTH_LONG).show();
+                    directlyRecoveryPromptShown = false;
+                    showDirectlyGitRecoveryPrompt();
+                });
+            } catch (Exception error) {
+                new Handler(Looper.getMainLooper()).post(() -> {
+                    if (isFinishing() || isDestroyed()) return;
+                    directlyRecoveryPromptShown = false;
+                    new MaterialAlertDialogBuilder(this)
+                            .setTitle(R.string.cooper_github_directly_recovery_title)
+                            .setMessage(error.getMessage() == null ? "Cooper could not safely select the saved project." : error.getMessage())
+                            .setPositiveButton(R.string.common_word_ok, null).show();
+                });
+            }
+        });
     }
 
     private void runDirectlyGitRecovery() {
