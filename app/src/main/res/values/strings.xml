@@ -2415,5 +2415,10 @@ Do not create another repository with the same name. Inspect the remote state be
     <string name="cooper_github_directly_recovery_failed">Cooper could not safely resume this session. The saved recovery data remains available; inspect the local and remote state before trying again.\n\n%1$s</string>
     <string name="cooper_github_directly_pending_session_exists">An interrupted publication for %1$s/%2$s is still saved. Verify and resume it from GitHub Manager before starting another Directly Git session.</string>
     <string name="cooper_github_directly_recovery_project_mismatch">The interrupted publication belongs to a different Cooper project. Select the original project before restoring this draft.</string>
+    <string name="cooper_github_directly_package_name">Package ID: %1$s</string>
+    <string name="cooper_github_directly_package_unavailable">Package ID: not available in project metadata</string>
+    <string name="cooper_github_directly_application_version">App version: %1$s (code %2$s)</string>
+    <string name="cooper_github_directly_version_unavailable">App version metadata: not available</string>
+    <string name="cooper_github_directly_metadata_unavailable">not available</string>
     <string name="cooper_github_directly_close">Close</string>
 </resources>

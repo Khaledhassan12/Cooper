@@ -278,6 +278,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         details.addView(text(binding == null ? getString(R.string.cooper_github_directly_project_details)
                 : getString(R.string.cooper_github_directly_selected_project_details,
                 binding.scId, binding.projectRoot.getAbsolutePath()), 12, false));
+        if (binding != null) addDirectlyGitProjectMetadata(details, binding);
         row.addView(details, detailParams);
         projectCard.addView(row);
         panel.addView(projectCard);
@@ -318,6 +319,24 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         });
         sheet.setContentView(panel);
         sheet.show();
+    }
+
+    private void addDirectlyGitProjectMetadata(LinearLayout target,
+                                              GitProjectBindingStore.Binding binding) {
+        String packageName = binding.packageName == null ? "" : binding.packageName.trim();
+        target.addView(text(packageName.isEmpty()
+                ? getString(R.string.cooper_github_directly_package_unavailable)
+                : getString(R.string.cooper_github_directly_package_name, packageName), 13, false));
+
+        String versionName = binding.versionName == null ? "" : binding.versionName.trim();
+        String versionCode = binding.versionCode == null ? "" : binding.versionCode.trim();
+        if (!versionName.isEmpty() || !versionCode.isEmpty()) {
+            target.addView(text(getString(R.string.cooper_github_directly_application_version,
+                    versionName.isEmpty() ? getString(R.string.cooper_github_directly_metadata_unavailable) : versionName,
+                    versionCode.isEmpty() ? getString(R.string.cooper_github_directly_metadata_unavailable) : versionCode), 13, false));
+        } else {
+            target.addView(text(getString(R.string.cooper_github_directly_version_unavailable), 12, false));
+        }
     }
 
     private LinearLayout directlyPanel() {
@@ -374,6 +393,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         if (binding.appName != null && !binding.appName.trim().isEmpty()) {
             panel.addView(text(getString(R.string.cooper_github_directly_application_name, binding.appName), 14, false));
         }
+        addDirectlyGitProjectMetadata(panel, binding);
         panel.addView(text(binding.projectRoot.getAbsolutePath(), 12, false));
         EditText repoName = new EditText(this);
         repoName.setSingleLine(true);
@@ -683,7 +703,13 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                             .setTitle(remoteCreated ? R.string.cooper_github_directly_publish_partial_title
                                     : R.string.cooper_github_directly_publish_failed_title)
                             .setMessage(message)
-                            .setPositiveButton(R.string.common_word_ok, null);
+                            .setPositiveButton(R.string.common_word_ok, (d, which) ->
+                                    new Handler(Looper.getMainLooper()).post(() -> {
+                                        directlyRecoveryPromptShown = false;
+                                        if (DirectlyGitPublisher.hasPendingSession(this)) {
+                                            showDirectlyGitRecoveryPrompt();
+                                        }
+                                    }));
                     if (remoteCreated && !remoteUrl.isEmpty()) {
                         errorDialog.setNeutralButton(R.string.cooper_github_open_repository, (d, which) -> {
                             try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(remoteUrl))); }
