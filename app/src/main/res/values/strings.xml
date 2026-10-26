@@ -2519,4 +2519,10 @@ Do not create another repository with the same name. Inspect the remote state be
     <string name="cooper_github_open_repository">Open repository</string>
     <string name="cooper_github_directly_image_preview">Selected project image %1$d</string>
     <string name="cooper_github_directly_remove_image">Remove selected image %1$d</string>
+    <string name="cooper_github_directly_review_project">Project: %1$s (ID %2$s)</string>
+    <string name="cooper_github_directly_review_repository">Repository: %1$s/%2$s</string>
+    <string name="cooper_github_directly_review_readme_mode">README mode: %1$s</string>
+    <string name="cooper_github_directly_review_images">Images selected: %1$d</string>
+    <string name="cooper_github_directly_review_included_files">Files to include: %1$d</string>
+    <string name="cooper_github_directly_review_excluded_files">Generated/cache files excluded: %1$d</string>
 </resources>
