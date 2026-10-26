@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.Objects;
 
 import a.a.a.YB;
+import a.a.a.lC;
 import a.a.a.bB;
 import a.a.a.rq;
 import a.a.a.uq;
@@ -100,6 +101,20 @@ public class AddViewActivity extends BaseAppCompatActivity {
                 }
             }
         }
+    }
+
+    private String getProjectPackage() {
+        return String.valueOf(lC.b(Configs.currentProjectID).get("my_sc_pkg_name"));
+    }
+
+    private String resolvePackageInput() {
+        String pkg = Helper.getText(binding.edPackage).trim();
+        if (!pkg.isEmpty() && !pkg.matches("[a-z][a-z0-9_]*(\\\\.[a-z][a-z0-9_]*)*")) {
+            binding.tiPackage.setError("Invalid package name");
+            return null;
+        }
+        binding.tiPackage.setError(null);
+        return pkg.equals(getProjectPackage()) ? "" : pkg;
     }
 
     private boolean isValid(YB validator) {
@@ -381,6 +396,10 @@ public class AddViewActivity extends BaseAppCompatActivity {
                         return;
                 }
 
+                String newPkg = resolvePackageInput();
+                if (newPkg == null) return;
+                projectFileBean.packageName = newPkg;
+
                 projectFileBean.orientation = getSelectedButtonIndex(binding.screenOrientationSelector);
                 projectFileBean.keyboardSetting = getSelectedButtonIndex(binding.keyboardSettingsSelector);
                 if (!featureToolbar) {
@@ -410,7 +429,10 @@ public class AddViewActivity extends BaseAppCompatActivity {
                 if (binding.cbAddSuffix.isChecked()) var4 += getSuffix(binding.viewTypeSelector);
                 DayDreamProjectSettings.setActivityType(Configs.currentProjectID, var4, getSuffix(binding.viewTypeSelector));
 
+                String pkg = resolvePackageInput();
+                if (pkg == null) return;
                 ProjectFileBean projectFileBean = new ProjectFileBean(ProjectFileBean.PROJECT_FILE_TYPE_ACTIVITY, var4, getSelectedButtonIndex(binding.screenOrientationSelector), getSelectedButtonIndex(binding.keyboardSettingsSelector), featureToolbar, !featureStatusBar, featureFab, featureDrawer);
+                projectFileBean.packageName = pkg;
                 Intent intent = new Intent();
                 intent.putExtra("project_file", projectFileBean);
                 if (P != null) {
@@ -434,6 +456,8 @@ public class AddViewActivity extends BaseAppCompatActivity {
         if (requestCode == 265) {
             //nameValidator = new YB(getApplicationContext(), binding.tiName, uq.b, new ArrayList<>(), projectFileBean.fileName);
             binding.edName.setText(projectFileBean.fileName);
+            binding.edPackage.setText(projectFileBean.getPackageName(getProjectPackage()));
+            binding.edPackage.setSelection(binding.edPackage.length());
 
             if (projectFileBean.fileName.equals("main")) {
                 binding.edName.setEnabled(false);
@@ -479,6 +503,8 @@ public class AddViewActivity extends BaseAppCompatActivity {
                 }
             });
         } else {
+            binding.edPackage.setText(getProjectPackage());
+            binding.edPackage.setSelection(binding.edPackage.length());
             featureToolbar = true;
             featureStatusBar = true;
             nameValidator = new YB(getApplicationContext(), binding.tiName, uq.b, screenNames);
