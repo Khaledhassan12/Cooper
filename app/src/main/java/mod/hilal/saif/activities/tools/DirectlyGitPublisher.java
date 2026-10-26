@@ -138,6 +138,42 @@ public final class DirectlyGitPublisher {
         return value != null && !value.trim().isEmpty();
     }
 
+    public static org.json.JSONArray getPublicationHistory(Context context) {
+        if (context == null) return new org.json.JSONArray();
+        String value = context.getApplicationContext().getSharedPreferences(
+                "cooper_directly_git_publications", Context.MODE_PRIVATE)
+                .getString("publication_history_v1", "[]");
+        try { return new org.json.JSONArray(value == null ? "[]" : value); }
+        catch (Exception ignored) { return new org.json.JSONArray(); }
+    }
+
+    public static boolean clearPendingSession(Context context) {
+        if (context == null) return false;
+        return context.getApplicationContext().getSharedPreferences(
+                "cooper_directly_git_publications", Context.MODE_PRIVATE)
+                .edit().remove(PENDING_SESSION_KEY).commit();
+    }
+
+    private static org.json.JSONArray appendHistory(org.json.JSONArray history, GitProjectBindingStore.Binding binding,
+                                                     String owner, String name, String url, String sha, String branch,
+                                                     boolean isPrivate) throws org.json.JSONException {
+        org.json.JSONObject entry = new org.json.JSONObject();
+        entry.put("projectId", binding.scId);
+        entry.put("workspaceName", binding.workspaceName);
+        entry.put("appName", binding.appName);
+        entry.put("packageName", binding.packageName);
+        entry.put("owner", owner);
+        entry.put("repositoryName", name);
+        entry.put("repositoryUrl", url);
+        entry.put("commitSha", sha);
+        entry.put("branch", branch);
+        entry.put("private", isPrivate);
+        entry.put("method", "DIRECTLY_GIT");
+        entry.put("publishedAt", System.currentTimeMillis());
+        history.put(entry);
+        return history;
+    }
+
     public static JSONObject getPendingSession(Context context) {
         if (context == null) return null;
         String value = context.getApplicationContext()
@@ -425,8 +461,16 @@ public final class DirectlyGitPublisher {
             persistPendingSession(sessionState, current, plan.owner, plan.repositoryName, plan.description,
                     branchName, expectedSha, repositoryUrl, startedAt, "", plan.isPrivate);
             bindings.linkRemote(plan.owner, plan.repositoryName);
+            org.json.JSONArray history;
+            try {
+                history = appendHistory(getPublicationHistory(context), plan.binding, plan.owner,
+                        plan.repositoryName, repositoryUrl, expectedSha, branchName, plan.isPrivate);
+            } catch (org.json.JSONException historyError) {
+                throw new IOException("The verified publication history could not be prepared.", historyError);
+            }
             if (!published.edit().putString("project_" + plan.binding.scId, plan.owner + "/" + plan.repositoryName)
                     .putString("commit_" + plan.binding.scId, expectedSha)
+                    .putString("publication_history_v1", history.toString())
                     .remove(PENDING_SESSION_KEY).commit()) {
                 throw new IllegalStateException("Remote commit was verified, but Cooper could not persist the publication record. Recovery data was retained.");
             }
@@ -589,8 +633,17 @@ public final class DirectlyGitPublisher {
             persistPendingSession("REMOTE_VERIFIED", current, owner, name, description,
                     branchName, expectedSha, repositoryUrl, startedAt, "", session.optBoolean("private", true));
             bindings.linkRemote(owner, name);
+            org.json.JSONArray history;
+            try {
+                history = appendHistory(getPublicationHistory(context), current, owner, name,
+                        repositoryUrl, expectedSha, branchName, session.optBoolean("private", true));
+            } catch (org.json.JSONException historyError) {
+                throw new IOException("The recovered publication history could not be prepared.", historyError);
+            }
             if (!published.edit().putString("project_" + scId, owner + "/" + name)
-                    .putString("commit_" + scId, expectedSha).remove(PENDING_SESSION_KEY).commit()) {
+                    .putString("commit_" + scId, expectedSha)
+                    .putString("publication_history_v1", history.toString())
+                    .remove(PENDING_SESSION_KEY).commit()) {
                 throw new IllegalStateException("The remote commit was verified, but the final project association could not be saved. Recovery data remains available.");
             }
             return new Result(repositoryUrl, expectedSha, branchName);
