@@ -271,7 +271,6 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
             loadDirectlyGitProjectSelection();
         });
         sheet.setContentView(panel);
-        sheet.setOnCancelListener(d -> confirmDirectlyDismiss(() -> {}));
         sheet.show();
     }
 
@@ -286,7 +285,20 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
 
     private void showDirectlyGitRepositoryForm(GitProjectBindingStore.Binding binding) {
         if (isFinishing() || isDestroyed()) return;
+        final com.google.android.material.bottomsheet.BottomSheetDialog sheet =
+                new com.google.android.material.bottomsheet.BottomSheetDialog(this);
+        sheet.setCancelable(false);
+        sheet.setCanceledOnTouchOutside(false);
         LinearLayout panel = directlyPanel();
+        com.google.android.material.button.MaterialButton closeForm =
+                new com.google.android.material.button.MaterialButton(this);
+        closeForm.setText(R.string.cooper_github_directly_close);
+        closeForm.setIconResource(android.R.drawable.ic_menu_close_clear_cancel);
+        closeForm.setOnClickListener(v -> confirmDirectlyDismiss(sheet::dismiss));
+        LinearLayout.LayoutParams closeParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, dp(48));
+        closeParams.gravity = Gravity.END;
+        panel.addView(closeForm, closeParams);
         TextView title = text(getString(R.string.cooper_github_directly_title), 23, true);
         title.setGravity(Gravity.CENTER);
         title.setAlpha(0f);
@@ -381,8 +393,6 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(56));
         pushParams.topMargin = dp(18);
         panel.addView(push, pushParams);
-        com.google.android.material.bottomsheet.BottomSheetDialog sheet =
-                new com.google.android.material.bottomsheet.BottomSheetDialog(this);
         push.setOnClickListener(v -> {
             String name = repoName.getText().toString().trim();
             if (!name.matches("[A-Za-z0-9_.-]{1,100}") || name.equals(".") || name.equals("..")
@@ -404,7 +414,6 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                     .show();
         });
         sheet.setContentView(panel);
-        sheet.setOnCancelListener(d -> confirmDirectlyDismiss(() -> {}));
         sheet.show();
     }
 
@@ -452,7 +461,8 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                 .show();
     }
 
-    private void beginDirectlyGitPublish(GitProjectBindingStore.Binding binding, String name,
+    private void beginDirectlyGitPublish(com.google.android.material.bottomsheet.BottomSheetDialog formSheet,
+                                         GitProjectBindingStore.Binding binding, String name,
                                          String description, String readmeMode, String readmeContent,
                                          java.util.ArrayList<Uri> images) {
         if (isFinishing() || isDestroyed()) return;
@@ -482,7 +492,10 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                         .setMessage(plan.getSummary(this))
                         .setNegativeButton(R.string.common_word_cancel, null)
                         .setPositiveButton(R.string.cooper_github_directly_git_push,
-                                (dialog, which) -> runDirectlyGitPublish(publisher, plan))
+                                (dialog, which) -> {
+                                    if (formSheet.isShowing()) formSheet.dismiss();
+                                    runDirectlyGitPublish(publisher, plan);
+                                })
                         .show();
             });
         });
