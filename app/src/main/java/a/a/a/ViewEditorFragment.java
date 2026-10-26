@@ -280,6 +280,7 @@ public class ViewEditorFragment extends qA {
 		viewEditor.extraWidget("", "RecyclerView", "RecyclerView");
 		viewEditor.addWidget(PaletteWidget.b.f, "", "Spinner", "Spinner");
 		viewEditor.extraWidget("", "ViewPager", "ViewPager");
+        viewEditor.extraWidget("", "ViewPager2", "ViewPager2");
 		widgetsCreatorManager.addWidgetsByTitle("List");
 		
 		viewEditor.paletteWidget.extraTitle("Library", 1);
