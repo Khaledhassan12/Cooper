@@ -117,7 +117,7 @@ public class ViewBeans {
             case VIEW_TYPE_LAYOUT_SWIPEREFRESHLAYOUT -> R.drawable.ic_mtrl_refresh;
             case VIEW_TYPE_LAYOUT_RADIOGROUP -> R.drawable.ic_mtrl_radio_partitial;
             case VIEW_TYPE_WIDGET_MATERIALBUTTON -> R.drawable.ic_mtrl_button_click;
-            case VIEW_TYPE_WIDGET_MATERIALSWITCH -> R.drawable.ic_mtrl_switch;
+            case VIEW_TYPE_WIDGET_MATERIALSWITCH -> R.drawable.ic_mtrl_toggle;
             case VIEW_TYPE_WIDGET_SIGNINBUTTON -> R.drawable.ic_mtrl_login;
             case VIEW_TYPE_WIDGET_CIRCLEIMAGEVIEW -> R.drawable.ic_mtrl_camera;
             case VIEW_TYPE_WIDGET_LOTTIEANIMATIONVIEW -> R.drawable.ic_mtrl_animation;
