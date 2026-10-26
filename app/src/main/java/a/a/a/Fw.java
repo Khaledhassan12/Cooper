@@ -204,7 +204,9 @@ public class Fw extends qA {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == REQUEST_CODE_ADD_VIEW_ACTIVITY) {
             if (resultCode == Activity.RESULT_OK) {
-                b(data.getParcelableExtra("project_file"));
+                ProjectFileBean editedFile = data.getParcelableExtra("project_file");
+                b(editedFile);
+                activitiesFiles.get(projectFilesAdapter.layoutPosition).packageName = editedFile.packageName;
                 projectFilesAdapter.notifyItemChanged(projectFilesAdapter.layoutPosition);
             }
         } else if (requestCode == REQUEST_CODE_PRESET_ACTIVITY && resultCode == Activity.RESULT_OK) {
