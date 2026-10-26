@@ -460,7 +460,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                 if (isFinishing() || isDestroyed()) return;
                 new MaterialAlertDialogBuilder(this)
                         .setTitle(R.string.cooper_github_directly_publish_confirm)
-                        .setMessage(plan.getSummary())
+                        .setMessage(plan.getSummary(this))
                         .setNegativeButton(R.string.common_word_cancel, null)
                         .setPositiveButton(R.string.cooper_github_directly_git_push,
                                 (dialog, which) -> runDirectlyGitPublish(publisher, plan))
