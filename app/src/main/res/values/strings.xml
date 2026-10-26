@@ -2525,4 +2525,5 @@ Do not create another repository with the same name. Inspect the remote state be
     <string name="cooper_github_directly_review_images">Images selected: %1$d</string>
     <string name="cooper_github_directly_review_included_files">Files to include: %1$d</string>
     <string name="cooper_github_directly_review_excluded_files">Generated/cache files excluded: %1$d</string>
+    <string name="cooper_github_directly_review_visibility">Visibility: private (safer default)</string>
 </resources>
