@@ -44,6 +44,7 @@ public class Jx {
 	public static final Pattern WIDGET_NAME_PATTERN = Pattern.compile("\\w*\\..*\\.");
 	private final ProjectSettings settings;
 	private final PermissionManager permissionManager;
+	private final String projectPackage;
 	private final String packageName;
 	private final ProjectFileBean projectFileBean;
 	private final eC projectDataManager;
@@ -101,7 +102,8 @@ public class Jx {
 	private Material3LibraryManager materialLibraryManager;
 	
 	public Jx(jq jqVar, ProjectFileBean projectFileBean, eC eCVar) {
-		packageName = jqVar.packageName;
+		projectPackage = jqVar.packageName;
+		packageName = projectFileBean.getPackageName(jqVar.packageName);
 		this.projectFileBean = projectFileBean;
 		projectDataManager = eCVar;
 		buildConfig = jqVar;
@@ -261,9 +263,18 @@ public class Jx {
 			addImport("android.content.pm.PackageManager");
 		}
 		if (isAndroidStudioExport && isViewBindingEnabled) {
-			addImport(packageName + ".databinding.*");
+			addImport(projectPackage + ".databinding.*");
 		}
 		
+		if (projectFileBean.hasCustomPackage()) {
+			addImport(projectPackage + ".*");
+			addImport(projectPackage + ".R");
+			if (isViewBindingEnabled) addImport(projectPackage + ".databinding.*");
+		}
+		String self = packageName + "." + projectFileBean.getActivityName();
+		for (String imp : buildConfig.customActivityImports) {
+			if (!imp.equals(self)) addImport(imp);
+		}
 		removeExtraImports();
 		Collections.sort(imports);
 		for (String anImport : imports) {
