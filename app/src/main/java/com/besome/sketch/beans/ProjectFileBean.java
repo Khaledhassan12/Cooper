@@ -53,6 +53,8 @@ public class ProjectFileBean extends SelectableBean implements Parcelable {
     public static final int THEME_NOACTIONBAR = 1;
     public static final int THEME_NONE = -1;
     @Expose
+    public String packageName;
+    @Expose
     public String fileName;
     @Expose
     public int fileType;
@@ -159,6 +161,7 @@ public class ProjectFileBean extends SelectableBean implements Parcelable {
         keyboardSetting = parcel.readInt();
         options = parcel.readInt();
         presetName = parcel.readString();
+        packageName = parcel.readString();
     }
 
     public static String getActivityName(String name) {
@@ -215,12 +218,21 @@ public class ProjectFileBean extends SelectableBean implements Parcelable {
         keyboardSetting = bean.keyboardSetting;
         options = bean.options;
         presetName = bean.presetName;
+        packageName = bean.packageName;
         theme = THEME_NONE;
     }
 
     @Override
     public int describeContents() {
         return 0;
+    }
+
+    public boolean hasCustomPackage() {
+        return packageName != null && !packageName.isEmpty();
+    }
+
+    public String getPackageName(String projectPackage) {
+        return hasCustomPackage() ? packageName : projectPackage;
     }
 
     public String getActivityName() {
@@ -283,6 +295,7 @@ public class ProjectFileBean extends SelectableBean implements Parcelable {
         dest.writeInt(keyboardSetting);
         dest.writeInt(options);
         dest.writeString(presetName);
+        dest.writeString(packageName);
     }
 
     @IntDef(flag = true,
