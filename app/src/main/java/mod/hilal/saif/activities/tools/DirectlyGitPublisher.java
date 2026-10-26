@@ -490,7 +490,7 @@ public final class DirectlyGitPublisher {
                 try {
                     persistPendingSession(stateToKeep, plan.binding, plan.owner, plan.repositoryName,
                             plan.description, branchName, expectedSha, repositoryUrl, startedAt,
-                            e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage());
+                            e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage(), plan.isPrivate);
                 } catch (Exception persistenceError) {
                     e.addSuppressed(persistenceError);
                 }
@@ -625,7 +625,7 @@ public final class DirectlyGitPublisher {
                 actualSha = commit == null ? "" : commit.optString("sha", "");
                 if (!expectedSha.equals(actualSha)) {
                     persistPendingSession("PUSH_VERIFY_PENDING", current, owner, name, description,
-                            branchName, expectedSha, repositoryUrl, startedAt, "Remote SHA did not match the saved commit");
+                            branchName, expectedSha, repositoryUrl, startedAt, "Remote SHA did not match the saved commit", session.optBoolean("private", true));
                     throw new IllegalStateException("Remote branch SHA could not be verified after recovery push.");
                 }
             }
