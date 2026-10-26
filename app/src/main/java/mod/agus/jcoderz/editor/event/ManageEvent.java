@@ -57,6 +57,12 @@ public class ManageEvent {
             events.add("onPageSelected");
             events.add("onPageChanged");
         }
+        if (gx.a("ViewPager2")) {
+            events.add("onBindCustomView");
+            events.add("onPageScrolled");
+            events.add("onPageSelected");
+            events.add("onPageChanged");
+        }
         if (gx.a("TabLayout")) {
             events.add("onTabSelected");
             events.add("onTabUnselected");
@@ -126,6 +132,9 @@ public class ManageEvent {
         if (gx.a("ViewPager")) {
             listeners.add("OnPageChangeListener");
             listeners.add("OnAdapterChangeListener");
+        }
+        if (gx.a("ViewPager2")) {
+            listeners.add("OnPageChangeCallback");
         }
         if (gx.a("TabLayout")) {
             listeners.add("OnTabSelectedListener");
@@ -246,6 +255,12 @@ public class ManageEvent {
                 list.add("onPageSelected");
                 list.add("onPageChanged");
                 return;
+                
+            case "OnPageChangeCallback":
+                list.add("onPageScrolled");
+                list.add("onPageSelected");
+                list.add("onPageChanged");
+                return;    
 
             case "OnErrorListener":
                 list.add("onError");
@@ -748,6 +763,10 @@ public class ManageEvent {
             case "authUpdateProfileComplete" -> DRFirebaseCodeGenerator.authUpdateProfileComplete(targetId, listenerLogic);
             case "OnPageChangeListener" ->
                     targetId + ".addOnPageChangeListener(new ViewPager.OnPageChangeListener() {\r\n" +
+                            listenerLogic + "\r\n" +
+                            "});";
+            case "OnPageChangeCallback" ->
+                    targetId + ".registerOnPageChangeCallback(new ViewPager2.OnPageChangeCallback() {\r\n" +
                             listenerLogic + "\r\n" +
                             "});";
             case "OnErrorListener" ->

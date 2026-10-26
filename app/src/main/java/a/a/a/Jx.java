@@ -44,6 +44,7 @@ public class Jx {
 	public static final Pattern WIDGET_NAME_PATTERN = Pattern.compile("\\w*\\..*\\.");
 	private final ProjectSettings settings;
 	private final PermissionManager permissionManager;
+	private final String projectPackage;
 	private final String packageName;
 	private final ProjectFileBean projectFileBean;
 	private final eC projectDataManager;
@@ -101,7 +102,8 @@ public class Jx {
 	private Material3LibraryManager materialLibraryManager;
 	
 	public Jx(jq jqVar, ProjectFileBean projectFileBean, eC eCVar) {
-		packageName = jqVar.packageName;
+		projectPackage = jqVar.packageName;
+		packageName = projectFileBean.getPackageName(jqVar.packageName);
 		this.projectFileBean = projectFileBean;
 		projectDataManager = eCVar;
 		buildConfig = jqVar;
@@ -261,9 +263,13 @@ public class Jx {
 			addImport("android.content.pm.PackageManager");
 		}
 		if (isAndroidStudioExport && isViewBindingEnabled) {
-			addImport(packageName + ".databinding.*");
+			addImport(projectPackage + ".databinding.*");
 		}
 		
+		if (projectFileBean.hasCustomPackage()) {
+			addImport(projectPackage + ".R");
+			if (isViewBindingEnabled) addImport(projectPackage + ".databinding.*");
+		}
 		removeExtraImports();
 		Collections.sort(imports);
 		for (String anImport : imports) {
@@ -1096,6 +1102,10 @@ public class Jx {
 			String adapterCode;
 			if (viewBean.type == ViewBeans.VIEW_TYPE_LAYOUT_VIEWPAGER) {
 				adapterCode = Lx.pagerAdapter(ox, viewBean.id, viewBean.customView, projectDataManager.d(xmlName), adapterLogic, isViewBindingEnabled);
+			} else if (viewBean.type == ViewBeans.VIEW_TYPE_LAYOUT_VIEWPAGER2) {
+				adapterCode = Lx.recyclerViewAdapter(ox, viewBean.id, viewBean.customView, projectDataManager.d(xmlName), adapterLogic, isViewBindingEnabled);
+				addImport("androidx.viewpager2.widget.ViewPager2");
+				addImport("androidx.recyclerview.widget.RecyclerView");
 			} else if (viewBean.type == ViewBeans.VIEW_TYPE_WIDGET_RECYCLERVIEW) {
 				adapterCode = Lx.recyclerViewAdapter(ox, viewBean.id, viewBean.customView, projectDataManager.d(xmlName), adapterLogic, isViewBindingEnabled);
 				addImport("androidx.recyclerview.widget.LinearLayoutManager");
@@ -1362,7 +1372,8 @@ public class Jx {
 			ViewBeans.VIEW_TYPE_WIDGET_LOTTIEANIMATIONVIEW,
 			ViewBeans.VIEW_TYPE_WIDGET_YOUTUBEPLAYERVIEW,
 			ViewBeans.VIEW_TYPE_LAYOUT_TABLAYOUT,
-			ViewBeans.VIEW_TYPE_LAYOUT_VIEWPAGER ->
+			ViewBeans.VIEW_TYPE_LAYOUT_VIEWPAGER, 
+            ViewBeans.VIEW_TYPE_LAYOUT_VIEWPAGER2 ->
 			true;
 			default -> false;
 		};

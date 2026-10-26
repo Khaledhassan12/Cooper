@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.Objects;
 
 import a.a.a.YB;
+import a.a.a.lC;
 import a.a.a.bB;
 import a.a.a.rq;
 import a.a.a.uq;
@@ -49,6 +50,7 @@ public class AddViewActivity extends BaseAppCompatActivity {
     private int requestCode;
     private ProjectFileBean projectFileBean;
     private String P;
+    private String selectedPackage = "";
     private ArrayList<FeatureItem> featureItems;
     private FeaturesAdapter featuresAdapter;
 
@@ -100,6 +102,21 @@ public class AddViewActivity extends BaseAppCompatActivity {
                 }
             }
         }
+    }
+
+    private String getProjectPackage() {
+        return String.valueOf(lC.b(Configs.currentProjectID).get("my_sc_pkg_name"));
+    }
+
+    // Return "" kalau sama dengan package project, null kalau tidak valid
+    private String resolvePackageInput() {
+        String pkg = Helper.getText(binding.edPackage).trim();
+        if (!pkg.isEmpty() && !pkg.matches("[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*")) {
+            binding.tiPackage.setError("Invalid package name");
+            return null;
+        }
+        binding.tiPackage.setError(null);
+        return pkg.equals(getProjectPackage()) ? "" : pkg;
     }
 
     private boolean isValid(YB validator) {
@@ -324,6 +341,7 @@ public class AddViewActivity extends BaseAppCompatActivity {
         DayDreamProjectSettings.setImportGlideTransformations(Configs.currentProjectID, filename, binding.swImportglidetransformations.isChecked());
         DayDreamProjectSettings.setImportAndroidBilling(Configs.currentProjectID, filename, binding.swImportandroidbilling.isChecked());
         DayDreamProjectSettings.setImportRetrofit2(Configs.currentProjectID, filename, binding.swImportretrofit2.isChecked());
+        DayDreamProjectSettings.setActivityPackage(Configs.currentProjectID, filename, selectedPackage);
     }
 
     @Override
@@ -381,6 +399,10 @@ public class AddViewActivity extends BaseAppCompatActivity {
                         return;
                 }
 
+                String newPkg = resolvePackageInput();
+                if (newPkg == null) return;
+                selectedPackage = newPkg;
+
                 projectFileBean.orientation = getSelectedButtonIndex(binding.screenOrientationSelector);
                 projectFileBean.keyboardSetting = getSelectedButtonIndex(binding.keyboardSettingsSelector);
                 if (!featureToolbar) {
@@ -405,6 +427,10 @@ public class AddViewActivity extends BaseAppCompatActivity {
 
                 finish();
             } else if (isValid(nameValidator)) {
+                String pkg = resolvePackageInput();
+                if (pkg == null) return;
+                selectedPackage = pkg;
+
                 String var4 = Helper.getText(binding.edName);
 
                 if (binding.cbAddSuffix.isChecked()) var4 += getSuffix(binding.viewTypeSelector);
@@ -434,6 +460,8 @@ public class AddViewActivity extends BaseAppCompatActivity {
         if (requestCode == 265) {
             //nameValidator = new YB(getApplicationContext(), binding.tiName, uq.b, new ArrayList<>(), projectFileBean.fileName);
             binding.edName.setText(projectFileBean.fileName);
+            binding.edPackage.setText(projectFileBean.getPackageName(getProjectPackage()));
+            binding.edPackage.setSelection(binding.edPackage.length());
 
             if (projectFileBean.fileName.equals("main")) {
                 binding.edName.setEnabled(false);
@@ -479,6 +507,8 @@ public class AddViewActivity extends BaseAppCompatActivity {
                 }
             });
         } else {
+            binding.edPackage.setText(getProjectPackage());
+            binding.edPackage.setSelection(binding.edPackage.length());
             featureToolbar = true;
             featureStatusBar = true;
             nameValidator = new YB(getApplicationContext(), binding.tiName, uq.b, screenNames);

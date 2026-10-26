@@ -15,6 +15,9 @@ import com.google.android.material.color.MaterialColors;
 
 import java.util.HashMap;
 
+import org.sketchware.daygreen.editor.view.palette.IconViewPager2;
+import org.sketchware.daygreen.editor.view.palette.IconMaterialSwitch;
+
 import a.a.a.wB;
 import dev.aldi.sayuti.editor.view.palette.IconBadgeView;
 import dev.aldi.sayuti.editor.view.palette.IconBottomNavigationView;
@@ -199,6 +202,8 @@ public class PaletteWidget extends LinearLayout {
             case "TimePicker" -> new IconTimePicker(context);
             case "AnalogClock" -> new IconAnalogClock(context);
             case "ViewPager" -> new IconViewPager(context);
+            case "ViewPager2" -> new IconViewPager2(context);
+            case "MaterialSwitch" -> new IconMaterialSwitch(context);
             case "BadgeView" -> new IconBadgeView(context);
             case "PatternLockView" -> new IconPatternLockView(context);
             case "WaveSideBar" -> new IconWaveSideBar(context);

@@ -7,6 +7,9 @@ import androidx.annotation.IntDef;
 
 import com.google.gson.annotations.Expose;
 
+import extensions.anbui.daydream.configs.Configs;
+import extensions.anbui.daydream.settings.DayDreamProjectSettings;
+
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -52,6 +55,7 @@ public class ProjectFileBean extends SelectableBean implements Parcelable {
     public static final int THEME_FULLSCREEN = 2;
     public static final int THEME_NOACTIONBAR = 1;
     public static final int THEME_NONE = -1;
+    public String presetName;
     @Expose
     public String fileName;
     @Expose
@@ -63,7 +67,6 @@ public class ProjectFileBean extends SelectableBean implements Parcelable {
     public int options = OPTION_ACTIVITY_SHIFT;
     @Expose
     public int orientation;
-    public String presetName;
     @Expose
     @Deprecated
     public int theme = THEME_NONE;
@@ -221,6 +224,20 @@ public class ProjectFileBean extends SelectableBean implements Parcelable {
     @Override
     public int describeContents() {
         return 0;
+    }
+
+    public String getCustomPackage() {
+        if (fileType != PROJECT_FILE_TYPE_ACTIVITY || fileName == null) return "";
+        return DayDreamProjectSettings.getActivityPackage(Configs.currentProjectID, fileName);
+    }
+
+    public boolean hasCustomPackage() {
+        return !getCustomPackage().isEmpty();
+    }
+
+    public String getPackageName(String projectPackage) {
+        String pkg = getCustomPackage();
+        return pkg.isEmpty() ? projectPackage : pkg;
     }
 
     public String getActivityName() {
