@@ -159,7 +159,7 @@ public final class DirectlyGitPublisher {
         }
         if (snapshot.initialized) {
             File gitDir = new File(current.projectRoot, ".git");
-            if (gitDir.isDirectory()) {
+            if (gitDir.exists()) {
                 try (Git git = Git.open(current.projectRoot)) {
                     String origin = git.getRepository().getConfig().getString("remote", "origin", "url");
                     if (origin != null && !origin.trim().isEmpty()) {
@@ -301,6 +301,7 @@ public final class DirectlyGitPublisher {
 
             phase(progress, context.getString(R.string.cooper_github_directly_phase_remote));
             backend.configureRemote(current.projectRoot, "https://github.com/" + plan.owner + "/" + plan.repositoryName + ".git", true);
+            if (cancelled != null && cancelled.get()) throw new PublishException("Publishing was stopped after repository creation. The repository was retained and no push was attempted.", true, repositoryUrl, null);
             phase(progress, context.getString(R.string.cooper_github_directly_phase_push));
             String pushedSha = backend.push(current.projectRoot, token, true);
             if (!expectedSha.equals(pushedSha)) throw new IllegalStateException("The push result did not match the reviewed local commit.");
