@@ -2513,4 +2513,8 @@ Do not create another repository with the same name. Inspect the remote state be
     <string name="cooper_github_directly_phase_push">Pushing the reviewed branch and commit</string>
     <string name="cooper_github_directly_phase_verify">Verifying the remote branch and commit</string>
     <string name="cooper_github_directly_phase_finalize">Saving the verified project association</string>
+    <string name="cooper_github_directly_publish_failed_title">Directly Git could not publish</string>
+    <string name="cooper_github_directly_publish_partial_title">Publishing stopped after repository creation</string>
+    <string name="cooper_github_directly_publish_success_title">Directly Git publication verified</string>
+    <string name="cooper_github_open_repository">Open repository</string>
 </resources>
