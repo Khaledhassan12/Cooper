@@ -823,8 +823,10 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         try {
             java.io.File iconFile = new java.io.File(
                     new java.io.File(a.a.a.wq.e(), scId), "icon.png");
-            boolean customIcon = metadata != null
-                    && a.a.a.yB.a(metadata, "custom_icon");
+            java.util.HashMap<String, Object> projectMetadata = metadata;
+            if (projectMetadata == null) projectMetadata = a.a.a.lC.b(scId);
+            boolean customIcon = projectMetadata != null
+                    && a.a.a.yB.a(projectMetadata, "custom_icon");
             if (customIcon && iconFile.isFile() && iconFile.length() > 0L) {
                 android.graphics.BitmapFactory.Options options = new android.graphics.BitmapFactory.Options();
                 options.inJustDecodeBounds = true;
