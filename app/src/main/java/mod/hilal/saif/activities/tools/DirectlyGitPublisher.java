@@ -1,5 +1,7 @@
 package mod.hilal.saif.activities.tools;
 
+import pro.sketchware.R;
+
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.net.Uri;
