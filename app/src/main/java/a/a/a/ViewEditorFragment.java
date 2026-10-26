@@ -263,6 +263,7 @@ public class ViewEditorFragment extends qA {
 		viewEditor.addWidget(PaletteWidget.b.g, "", "CheckBox", "CheckBox");
 		viewEditor.extraWidget("", "RadioButton", "RadioButton");
 		viewEditor.addWidget(PaletteWidget.b.i, "", "Switch", "Switch");
+        viewEditor.extraWidget("", "MaterialSwitch", "MaterialSwitch");
 		viewEditor.addWidget(PaletteWidget.b.j, "", "SeekBar", "SeekBar");
 		viewEditor.addWidget(PaletteWidget.b.m, "", "ProgressBar", "ProgressBar");
 		viewEditor.extraWidget("", "LoadingIndicator", "LoadingIndicator");
