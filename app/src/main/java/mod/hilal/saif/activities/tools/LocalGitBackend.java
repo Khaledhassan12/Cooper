@@ -262,10 +262,28 @@ public final class LocalGitBackend {
     }
 
     public String push(File projectRoot, String accessToken, boolean explicitlyApproved) throws GitFailure {
+        return push(projectRoot, accessToken, explicitlyApproved, null);
+    }
+
+    /**
+     * Pushes the reviewed local branch and exposes cooperative cancellation to JGit's
+     * transfer monitor. Cancellation during transport is treated as an uncertain remote
+     * outcome; callers must verify the remote ref before retrying.
+     */
+    public String push(File projectRoot, String accessToken, boolean explicitlyApproved,
+                      final java.util.concurrent.atomic.AtomicBoolean cancelled) throws GitFailure {
         requireApproval(explicitlyApproved, "Pushing commits to GitHub requires explicit confirmation.");
         if (blank(accessToken)) throw new GitFailure("NOT_AUTHENTICATED", "Connect a GitHub account before pushing.");
+        if (isPushCancelled(cancelled)) throw new GitFailure("PUSH_CANCELLED", "Push was cancelled before the network operation started.");
         File root = canonicalRoot(projectRoot);
         CredentialsProvider credentials = new UsernamePasswordCredentialsProvider("x-access-token", accessToken);
+        org.eclipse.jgit.lib.ProgressMonitor monitor = new org.eclipse.jgit.lib.ProgressMonitor() {
+            @Override public void start(int totalTasks) { }
+            @Override public void beginTask(String title, int totalWork) { }
+            @Override public void update(int completed) { }
+            @Override public void endTask() { }
+            @Override public boolean isCancelled() { return isPushCancelled(cancelled); }
+        };
         try (Git git = openRoot(root)) {
             Repository repository = git.getRepository();
             requireOrigin(repository);
@@ -277,9 +295,10 @@ public final class LocalGitBackend {
             ObjectId head = repository.resolve("HEAD");
             if (head == null) throw new GitFailure("NO_COMMIT", "Create and verify a local commit before pushing.");
             scanOutgoingCommits(repository, branch);
+            if (isPushCancelled(cancelled)) throw new GitFailure("PUSH_CANCELLED", "Push was cancelled before the network operation started.");
             Iterable<PushResult> results = git.push().setRemote("origin")
                     .setRefSpecs(new RefSpec("refs/heads/" + branch + ":refs/heads/" + branch))
-                    .setCredentialsProvider(credentials).call();
+                    .setCredentialsProvider(credentials).setProgressMonitor(monitor).call();
             boolean found = false;
             for (PushResult result : results) {
                 for (RemoteRefUpdate update : result.getRemoteUpdates()) {
@@ -297,8 +316,16 @@ public final class LocalGitBackend {
         } catch (GitFailure e) {
             throw e;
         } catch (GitAPIException | IOException e) {
+            if (isPushCancelled(cancelled)) {
+                throw new GitFailure("PUSH_CANCELLED_UNCERTAIN",
+                        "Stop was requested during Push. The remote result is uncertain; verify the GitHub branch before retrying.", e);
+            }
             throw new GitFailure("PUSH_UNCERTAIN", "Push outcome may be uncertain. Verify the remote branch before retrying.", e);
         }
+    }
+
+    private static boolean isPushCancelled(java.util.concurrent.atomic.AtomicBoolean cancelled) {
+        return (cancelled != null && cancelled.get()) || Thread.currentThread().isInterrupted();
     }
 
     public String pull(File projectRoot, String accessToken, boolean explicitlyApproved) throws GitFailure {
