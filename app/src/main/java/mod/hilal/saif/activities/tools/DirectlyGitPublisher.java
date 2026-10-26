@@ -71,6 +71,7 @@ public final class DirectlyGitPublisher {
             StringBuilder value = new StringBuilder();
             value.append(context.getString(R.string.cooper_github_directly_review_project, binding.workspaceName, binding.scId)).append("\n")
                     .append(context.getString(R.string.cooper_github_directly_review_repository, owner, repositoryName)).append("\n")
+                    .append(context.getString(R.string.cooper_github_directly_review_visibility)).append("\n")
                     .append(context.getString(R.string.cooper_github_directly_review_readme_mode, readmeMode)).append("\n")
                     .append(context.getString(R.string.cooper_github_directly_review_images, images.size())).append("\n")
                     .append(context.getString(R.string.cooper_github_directly_review_included_files, files.size())).append("\n")
@@ -171,8 +172,13 @@ public final class DirectlyGitPublisher {
         ArrayList<String> files = new ArrayList<>();
         int excluded = collectManifest(current.projectRoot, current.projectRoot, files, new long[]{0L});
         if (!"EMPTY".equals(readmeMode)) {
-            if (new File(current.projectRoot, "README.md").exists() || new File(current.projectRoot, "readme.md").exists()) {
-                throw new IllegalStateException("A README already exists in this project. Directly Git will not overwrite it.");
+            File[] rootEntries = current.projectRoot.listFiles();
+            if (rootEntries != null) {
+                for (File entry : rootEntries) {
+                    if (entry.isFile() && "README.md".equalsIgnoreCase(entry.getName())) {
+                        throw new IllegalStateException("A README already exists in this project. Directly Git will not overwrite it.");
+                    }
+                }
             }
             files.add("README.md");
         }
@@ -244,7 +250,7 @@ public final class DirectlyGitPublisher {
             ArrayList<String> manifest = new ArrayList<>();
             collectManifest(current.projectRoot, current.projectRoot, manifest, new long[]{0L});
             Collections.sort(manifest);
-            if (!manifest.containsAll(plan.files)) throw new IllegalStateException("The project file set changed after review. Review the project again.");
+            if (!manifest.equals(plan.files)) throw new IllegalStateException("The project file set changed after review. Review the project again.");
             for (String path : manifest) scanFile(current.projectRoot, path);
             checkCancelled(cancelled);
 
