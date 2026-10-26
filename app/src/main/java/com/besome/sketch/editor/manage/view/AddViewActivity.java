@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.Objects;
 
 import a.a.a.YB;
+import a.a.a.lC;
 import a.a.a.bB;
 import a.a.a.rq;
 import a.a.a.uq;
@@ -405,12 +406,22 @@ public class AddViewActivity extends BaseAppCompatActivity {
 
                 finish();
             } else if (isValid(nameValidator)) {
+                String pkg = Helper.getText(binding.edPackage).trim();
+                if (!pkg.isEmpty() && !pkg.matches("[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*")) {
+                    binding.tiPackage.setError("Invalid package name");
+                    return;
+                }
+                binding.tiPackage.setError(null);
+                String projectPkg = String.valueOf(lC.b(Configs.currentProjectID).get("my_sc_pkg_name"));
+                if (pkg.equals(projectPkg)) pkg = "";
+
                 String var4 = Helper.getText(binding.edName);
 
                 if (binding.cbAddSuffix.isChecked()) var4 += getSuffix(binding.viewTypeSelector);
                 DayDreamProjectSettings.setActivityType(Configs.currentProjectID, var4, getSuffix(binding.viewTypeSelector));
 
                 ProjectFileBean projectFileBean = new ProjectFileBean(ProjectFileBean.PROJECT_FILE_TYPE_ACTIVITY, var4, getSelectedButtonIndex(binding.screenOrientationSelector), getSelectedButtonIndex(binding.keyboardSettingsSelector), featureToolbar, !featureStatusBar, featureFab, featureDrawer);
+                projectFileBean.packageName = pkg;
                 Intent intent = new Intent();
                 intent.putExtra("project_file", projectFileBean);
                 if (P != null) {
@@ -434,6 +445,9 @@ public class AddViewActivity extends BaseAppCompatActivity {
         if (requestCode == 265) {
             //nameValidator = new YB(getApplicationContext(), binding.tiName, uq.b, new ArrayList<>(), projectFileBean.fileName);
             binding.edName.setText(projectFileBean.fileName);
+            binding.edPackage.setText(projectFileBean.packageName);
+            binding.edPackage.setEnabled(false);
+            binding.tiPackage.setVisibility(projectFileBean.hasCustomPackage() ? View.VISIBLE : View.GONE);
 
             if (projectFileBean.fileName.equals("main")) {
                 binding.edName.setEnabled(false);

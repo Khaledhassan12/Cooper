@@ -191,6 +191,7 @@ public class yq {
     public final HashMap<String, Object> metadata;
     private final Material3LibraryManager material3LibraryManager;
     private final oB fileUtil;
+    private final HashMap<String, String> customPackageFolders = new HashMap<>();
     private final Context context;
     public jq N;
     public boolean generateDataBindingClasses;
@@ -486,7 +487,8 @@ public class yq {
      */
     public void a(String fileName, String fileContent) {
         if (fileName.endsWith("java")) {
-            fileUtil.b(javaFilesPath + File.separator + packageNameAsFolders + File.separator + fileName, fileContent);
+            String folders = customPackageFolders.getOrDefault(fileName, packageNameAsFolders);
+            fileUtil.b(javaFilesPath + File.separator + folders + File.separator + fileName, fileContent);
         } else if (fileName.equals("AndroidManifest.xml")) {
             fileUtil.b(androidManifestPath, fileContent);
         } else if (fileName.equals("colors.xml") || fileName.equals("styles.xml") || fileName.equals("strings.xml") || fileName.equals("dimens.xml") || fileName.equals("arrays.xml")) {
@@ -512,6 +514,7 @@ public class yq {
         ProjectLibraryBean googleMaps = projectLibraryManager.e();
         this.exportingType = exportingType;
         N = new jq();
+        customPackageFolders.clear();
         N.packageName = packageName;
         N.projectName = applicationName;
         N.versionCode = versionCode;
@@ -562,6 +565,10 @@ public class yq {
             }
         }
         for (ProjectFileBean activity : projectFileManager.b()) {
+            if (activity.hasCustomPackage()) {
+                N.customActivityImports.add(activity.packageName + "." + activity.getActivityName());
+                customPackageFolders.put(activity.getJavaName(), activity.packageName.replace('.', File.separatorChar));
+            }
             if (activity.hasActivityOption(ProjectFileBean.OPTION_ACTIVITY_DRAWER)) {
                 N.a(activity.getActivityName()).hasDrawer = true;
             }
