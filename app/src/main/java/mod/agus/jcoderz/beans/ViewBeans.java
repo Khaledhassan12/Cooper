@@ -39,6 +39,7 @@ public class ViewBeans {
     public static final int VIEW_TYPE_WIDGET_OTPVIEW = 46;
     public static final int VIEW_TYPE_WIDGET_CODEVIEW = 47;
     public static final int VIEW_TYPE_WIDGET_RECYCLERVIEW = 48;
+    public static final int VIEW_TYPE_WIDGET_MATERIALSWITCH = 49;
 
     /**
      * Map that stores both a view's type and type name.
@@ -74,6 +75,7 @@ public class ViewBeans {
             .put(VIEW_TYPE_WIDGET_OTPVIEW, "OTPView")
             .put(VIEW_TYPE_WIDGET_CODEVIEW, "CodeView")
             .put(VIEW_TYPE_WIDGET_RECYCLERVIEW, "RecyclerView")
+            .put(VIEW_TYPE_WIDGET_MATERIALSWITCH, "MaterialSwitch")
             .build();
             //LoadingIndicator, MaterialDivider and BottomSheetDragHandleView are not added so as not to add onClick event.
 
@@ -113,6 +115,7 @@ public class ViewBeans {
             case VIEW_TYPE_LAYOUT_SWIPEREFRESHLAYOUT -> R.drawable.ic_mtrl_refresh;
             case VIEW_TYPE_LAYOUT_RADIOGROUP -> R.drawable.ic_mtrl_radio_partitial;
             case VIEW_TYPE_WIDGET_MATERIALBUTTON -> R.drawable.ic_mtrl_button_click;
+            case VIEW_TYPE_WIDGET_MATERIALSWITCH -> R.drawable.ic_mtrl_switch;
             case VIEW_TYPE_WIDGET_SIGNINBUTTON -> R.drawable.ic_mtrl_login;
             case VIEW_TYPE_WIDGET_CIRCLEIMAGEVIEW -> R.drawable.ic_mtrl_camera;
             case VIEW_TYPE_WIDGET_LOTTIEANIMATIONVIEW -> R.drawable.ic_mtrl_animation;
