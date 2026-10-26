@@ -317,6 +317,7 @@ public class Ox {
                     case ViewBean.VIEW_TYPE_WIDGET_PROGRESSBAR:
                     case ViewBean.VIEW_TYPE_WIDGET_CHECKBOX:
                     case ViewBean.VIEW_TYPE_WIDGET_SWITCH:
+                    case ViewBeans.VIEW_TYPE_WIDGET_MATERIALSWITCH:
                     case ViewBean.VIEW_TYPE_WIDGET_SEEKBAR:
                     case ViewBean.VIEW_TYPE_WIDGET_CALENDARVIEW:
                     case ViewBeans.VIEW_TYPE_WIDGET_RADIOBUTTON:
