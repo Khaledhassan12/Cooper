@@ -25,15 +25,22 @@ public final class GitProjectBindingStore {
         public final String scId;
         public final String workspaceName;
         public final String appName;
+        public final String packageName;
+        public final String versionName;
+        public final String versionCode;
         public final File projectRoot;
         public final String remoteOwner;
         public final String remoteRepository;
 
-        private Binding(String scId, String workspaceName, String appName, File projectRoot,
-                        String remoteOwner, String remoteRepository) {
+        private Binding(String scId, String workspaceName, String appName,
+                        String packageName, String versionName, String versionCode,
+                        File projectRoot, String remoteOwner, String remoteRepository) {
             this.scId = scId;
             this.workspaceName = workspaceName;
             this.appName = appName;
+            this.packageName = packageName;
+            this.versionName = versionName;
+            this.versionCode = versionCode;
             this.projectRoot = projectRoot;
             this.remoteOwner = remoteOwner;
             this.remoteRepository = remoteRepository;
@@ -74,7 +81,9 @@ public final class GitProjectBindingStore {
         }
         boolean saved = editor.commit();
         if (!saved) throw new IllegalStateException("Cooper could not save the project binding.");
-        return new Binding(scId, workspace, safeValue(metadata.get("my_app_name"), ""), root,
+        return new Binding(scId, workspace, safeValue(metadata.get("my_app_name"), ""),
+                safeValue(metadata.get("my_sc_pkg_name"), ""), safeValue(metadata.get("sc_ver_name"), ""),
+                safeValue(metadata.get("sc_ver_code"), ""), root,
                 preferences.getString(KEY_REMOTE_OWNER, ""), preferences.getString(KEY_REMOTE_REPOSITORY, ""));
     }
 
@@ -92,7 +101,9 @@ public final class GitProjectBindingStore {
         }
         return new Binding(scId,
                 safeValue(metadata.get("my_ws_name"), preferences.getString(KEY_WORKSPACE_NAME, "Cooper project")),
-                safeValue(metadata.get("my_app_name"), ""), root,
+                safeValue(metadata.get("my_app_name"), ""),
+                safeValue(metadata.get("my_sc_pkg_name"), ""), safeValue(metadata.get("sc_ver_name"), ""),
+                safeValue(metadata.get("sc_ver_code"), ""), root,
                 preferences.getString(KEY_REMOTE_OWNER, ""), preferences.getString(KEY_REMOTE_REPOSITORY, ""));
     }
 
