@@ -57,6 +57,12 @@ public class ManageEvent {
             events.add("onPageSelected");
             events.add("onPageChanged");
         }
+        if (gx.a("ViewPager2")) {
+            events.add("onBindCustomView");
+            events.add("onPageScrolled");
+            events.add("onPageSelected");
+            events.add("onPageChanged");
+        }
         if (gx.a("TabLayout")) {
             events.add("onTabSelected");
             events.add("onTabUnselected");
