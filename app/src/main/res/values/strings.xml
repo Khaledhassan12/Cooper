@@ -2408,5 +2408,11 @@ Do not create another repository with the same name. Inspect the remote state be
     <string name="cooper_github_directly_review_visibility">Visibility: private (safer default)</string>
     <string name="cooper_github_directly_reset_repository_name">Reset repository name to project default</string>
     <string name="cooper_github_directly_application_name">Application name: %1$s</string>
+    <string name="cooper_github_directly_recovery_title">Recover Directly Git publication</string>
+    <string name="cooper_github_directly_recovery_message">An earlier publication was interrupted. Cooper will verify the project, account, repository and remote commit before continuing.\n\nRepository: %1$s/%2$s\nSaved stage: %3$s\nBranch: %4$s\nExpected commit: %5$s\n\nA different remote commit will never be overwritten.</string>
+    <string name="cooper_github_directly_resume_publish">Verify and resume</string>
+    <string name="cooper_github_directly_recovery_later">Later</string>
+    <string name="cooper_github_directly_recovery_failed">Cooper could not safely resume this session. The saved recovery data remains available; inspect the local and remote state before trying again.\n\n%1$s</string>
+    <string name="cooper_github_directly_recovery_project_mismatch">The interrupted publication belongs to a different Cooper project. Select the original project before restoring this draft.</string>
     <string name="cooper_github_directly_close">Close</string>
 </resources>
