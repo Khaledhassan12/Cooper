@@ -12,7 +12,7 @@ import pro.sketchware.R;
 public class IconMaterialSwitch extends IconBase implements Material3View {
     public IconMaterialSwitch(Context context) {
         super(context);
-        setWidgetImage(R.drawable.ic_mtrl_switch);
+        setWidgetImage(R.drawable.ic_mtrl_toggle);
         setWidgetName("MaterialSwitch");
     }
 
