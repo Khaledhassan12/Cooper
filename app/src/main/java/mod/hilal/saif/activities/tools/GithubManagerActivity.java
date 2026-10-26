@@ -2449,6 +2449,109 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         content.addView(card);
     }
 
+    private void showCooperGitPublicationHistory() {
+        final org.json.JSONArray history = DirectlyGitPublisher.getPublicationHistory(this);
+        com.google.android.material.bottomsheet.BottomSheetDialog sheet =
+                new com.google.android.material.bottomsheet.BottomSheetDialog(this);
+        LinearLayout panel = directlyPanel();
+        TextView title = text("Cooper Git 🔥", 25, true);
+        title.setGravity(Gravity.CENTER_VERTICAL);
+        panel.addView(title);
+        TextView subtitle = text("Verified publication history · " + history.length() + " record(s)", 13, false);
+        subtitle.setPadding(0, dp(4), 0, dp(16));
+        panel.addView(subtitle);
+        if (history.length() == 0) {
+            TextView empty = text("No verified Directly Git publications have been recorded on this device yet.", 14, false);
+            empty.setPadding(0, dp(16), 0, dp(20));
+            panel.addView(empty);
+        } else {
+            for (int i = history.length() - 1; i >= 0; i--) {
+                org.json.JSONObject entry = history.optJSONObject(i);
+                if (entry == null) continue;
+                String appName = entry.optString("appName", "").trim();
+                String workspace = entry.optString("workspaceName", "").trim();
+                String displayName = appName.isEmpty() ? workspace : appName;
+                if (displayName.isEmpty()) displayName = entry.optString("repositoryName", "Git repository");
+                LinearLayout row = new LinearLayout(this);
+                row.setOrientation(LinearLayout.HORIZONTAL);
+                row.setGravity(Gravity.CENTER_VERTICAL);
+                row.setPadding(dp(12), dp(12), dp(12), dp(12));
+                MaterialCardView iconCard = card();
+                iconCard.setRadius(dp(18));
+                TextView projectIcon = text(displayName.substring(0, 1).toUpperCase(java.util.Locale.ROOT), 22, true);
+                projectIcon.setGravity(Gravity.CENTER);
+                iconCard.addView(projectIcon, new MaterialCardView.LayoutParams(dp(52), dp(52)));
+                LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(dp(52), dp(52));
+                iconParams.rightMargin = dp(12);
+                row.addView(iconCard, iconParams);
+                LinearLayout details = new LinearLayout(this);
+                details.setOrientation(LinearLayout.VERTICAL);
+                details.addView(text(displayName, 18, true));
+                details.addView(text(entry.optString("owner", "") + "/" + entry.optString("repositoryName", ""), 13, false));
+                details.addView(text("Package: " + entry.optString("packageName", "Not set in project metadata"), 12, false));
+                details.addView(text("Project ID: " + entry.optString("projectId", "Unknown"), 12, false));
+                long timestamp = entry.optLong("publishedAt", 0L);
+                String date = timestamp > 0L ? java.text.DateFormat.getDateTimeInstance(
+                        java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT).format(new java.util.Date(timestamp))
+                        : "Publication time unavailable";
+                details.addView(text(date, 12, false));
+                details.addView(text(entry.optString("method", "DIRECTLY_GIT").replace('_', ' ')
+                        + " · " + (entry.optBoolean("private", true) ? "Private" : "Public")
+                        + " · " + entry.optString("branch", ""), 12, true));
+                String sha = entry.optString("commitSha", "");
+                if (!sha.isEmpty()) details.addView(text("Commit: " + sha, 11, false));
+                row.addView(details, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+                row.setClickable(true);
+                row.setFocusable(true);
+                String url = entry.optString("repositoryUrl", "");
+                row.setOnClickListener(v -> {
+                    if (url.startsWith("https://github.com/")) {
+                        try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url))); }
+                        catch (Exception ignored) { }
+                    }
+                });
+                panel.addView(row);
+                View divider = new View(this);
+                divider.setBackgroundColor(com.google.android.material.color.MaterialColors.getColor(
+                        this, com.google.android.material.R.attr.colorOutlineVariant, 0x33808080));
+                panel.addView(divider, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(1)));
+            }
+        }
+        com.google.android.material.button.MaterialButton close = new com.google.android.material.button.MaterialButton(this);
+        close.setText(R.string.common_word_ok);
+        close.setOnClickListener(v -> sheet.dismiss());
+        panel.addView(close);
+        sheet.setContentView(panel);
+        sheet.show();
+    }
+
+    private void confirmClearDirectlyGitRecovery() {
+        org.json.JSONObject pending = DirectlyGitPublisher.getPendingSession(this);
+        if (pending == null) {
+            new MaterialAlertDialogBuilder(this)
+                    .setTitle("No recovery session")
+                    .setMessage("There is no saved Directly Git recovery blocker to clear.")
+                    .setPositiveButton(R.string.common_word_ok, null).show();
+            return;
+        }
+        String target = pending.optString("owner", "") + "/" + pending.optString("repositoryName", "");
+        String details = "Saved stage: " + pending.optString("state", "Unknown")
+                + "\nProject ID: " + pending.optString("projectId", "Unknown")
+                + "\nExpected commit: " + pending.optString("commitSha", "Unknown")
+                + "\n\nClearing removes only Cooper's saved recovery record. It does not delete project files or the GitHub repository, and it does not undo a push. Inspect local and remote state first.\n\nTarget: " + target;
+        new MaterialAlertDialogBuilder(this)
+                .setTitle("Clear recovery session?")
+                .setMessage(details)
+                .setNegativeButton(R.string.common_word_cancel, null)
+                .setPositiveButton("Clear saved session", (dialog, which) -> {
+                    if (DirectlyGitPublisher.clearPendingSession(this)) {
+                        Snackbar.make(content, "Saved recovery blocker cleared. Local and remote data were not changed.", Snackbar.LENGTH_LONG).show();
+                    } else {
+                        Snackbar.make(content, "Cooper could not clear the saved recovery record.", Snackbar.LENGTH_LONG).show();
+                    }
+                }).show();
+    }
+
     private void addActionCard(String title, String description, View.OnClickListener listener) {
         MaterialCardView card = card();
         card.setClickable(true);
