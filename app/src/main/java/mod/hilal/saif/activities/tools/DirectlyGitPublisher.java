@@ -40,6 +40,7 @@ public final class DirectlyGitPublisher {
         public final String description;
         public final String readmeMode;
         public final String readmeContent;
+        public final boolean isPrivate;
         public final List<Uri> images;
         public final List<String> imageExtensions;
         public final List<String> files;
@@ -51,7 +52,7 @@ public final class DirectlyGitPublisher {
         private final String existingHead;
 
         private Plan(GitProjectBindingStore.Binding binding, String repositoryName, String description,
-                     String readmeMode, String readmeContent, List<Uri> images, List<String> imageExtensions, List<String> files,
+                     String readmeMode, String readmeContent, boolean isPrivate, List<Uri> images, List<String> imageExtensions, List<String> files,
                      int excludedCount, String owner, String authorName, String authorEmail,
                      boolean initialized, String existingHead) {
             this.binding = binding;
@@ -59,6 +60,7 @@ public final class DirectlyGitPublisher {
             this.description = description;
             this.readmeMode = readmeMode;
             this.readmeContent = readmeContent;
+            this.isPrivate = isPrivate;
             this.images = Collections.unmodifiableList(new ArrayList<>(images));
             this.imageExtensions = Collections.unmodifiableList(new ArrayList<>(imageExtensions));
             this.files = Collections.unmodifiableList(new ArrayList<>(files));
@@ -75,7 +77,8 @@ public final class DirectlyGitPublisher {
             StringBuilder value = new StringBuilder();
             value.append(context.getString(R.string.cooper_github_directly_review_project, binding.workspaceName, binding.scId)).append("\n")
                     .append(context.getString(R.string.cooper_github_directly_review_repository, owner, repositoryName)).append("\n")
-                    .append(context.getString(R.string.cooper_github_directly_review_visibility)).append("\n")
+                    .append(context.getString(R.string.cooper_github_directly_review_visibility)).append(": ")
+                    .append(isPrivate ? "Private" : "Public").append("\n")
                     .append(context.getString(R.string.cooper_github_directly_review_readme_mode, readmeMode)).append("\n")
                     .append(context.getString(R.string.cooper_github_directly_review_images, images.size())).append("\n")
                     .append(context.getString(R.string.cooper_github_directly_review_included_files, files.size())).append("\n")
@@ -148,6 +151,13 @@ public final class DirectlyGitPublisher {
                                        String owner, String repositoryName, String description,
                                        String branch, String commitSha, String repositoryUrl,
                                        long startedAt, String diagnostic) throws IOException {
+        persistPendingSession(state, binding, owner, repositoryName, description, branch, commitSha, repositoryUrl, startedAt, diagnostic, true);
+    }
+
+    private void persistPendingSession(String state, GitProjectBindingStore.Binding binding,
+                                       String owner, String repositoryName, String description,
+                                       String branch, String commitSha, String repositoryUrl,
+                                       long startedAt, String diagnostic, boolean isPrivate) throws IOException {
         try {
             JSONObject session = new JSONObject();
             session.put("schema", 1);
@@ -157,6 +167,7 @@ public final class DirectlyGitPublisher {
             session.put("owner", owner);
             session.put("repositoryName", repositoryName);
             session.put("description", description == null ? "" : description);
+            session.put("private", isPrivate);
             session.put("branch", branch == null ? "" : branch);
             session.put("commitSha", commitSha == null ? "" : commitSha);
             session.put("repositoryUrl", repositoryUrl == null ? "" : repositoryUrl);
@@ -172,7 +183,7 @@ public final class DirectlyGitPublisher {
     }
 
     public Plan prepare(GitProjectBindingStore.Binding selected, String name, String description,
-                        String readmeMode, String readmeContent, List<Uri> images) throws Exception {
+                        String readmeMode, String readmeContent, boolean isPrivate, List<Uri> images) throws Exception {
         if (selected == null) throw new IllegalArgumentException("Select a Cooper project first.");
         JSONObject pendingSession = getPendingSession(context);
         if (pendingSession != null) {
@@ -256,7 +267,7 @@ public final class DirectlyGitPublisher {
         if (authorEmail.isEmpty() && userId > 0) authorEmail = userId + "+" + owner + "@users.noreply.github.com";
         if (authorEmail.isEmpty()) throw new IllegalStateException("GitHub did not provide an author identity. Add a verified email to your GitHub profile and retry.");
         return new Plan(current, name, safeDescription, readmeMode, readmeContent == null ? "" : readmeContent,
-                images, imageExtensions, files, excluded, owner, authorName, authorEmail, snapshot.initialized, snapshot.headCommit);
+                isPrivate, images, imageExtensions, files, excluded, owner, authorName, authorEmail, snapshot.initialized, snapshot.headCommit);
     }
 
     public Result publish(Plan plan, AtomicBoolean cancelled, ProgressListener progress) throws Exception {
@@ -347,16 +358,16 @@ public final class DirectlyGitPublisher {
             localCommitCreated = true;
             sessionState = "READY_TO_CREATE";
             persistPendingSession(sessionState, current, plan.owner, plan.repositoryName, plan.description,
-                    branchName, expectedSha, repositoryUrl, startedAt, "");
+                    branchName, expectedSha, repositoryUrl, startedAt, "", plan.isPrivate);
 
             phase(progress, context.getString(R.string.cooper_github_directly_phase_create));
             checkCancelled(cancelled);
             sessionState = "CREATING_REPOSITORY";
             persistPendingSession(sessionState, current, plan.owner, plan.repositoryName, plan.description,
-                    branchName, expectedSha, repositoryUrl, startedAt, "");
+                    branchName, expectedSha, repositoryUrl, startedAt, "", plan.isPrivate);
             JSONObject remote;
             try {
-                remote = api.createRepository(plan.repositoryName, plan.description, true, true);
+                remote = api.createRepository(plan.repositoryName, plan.description, plan.isPrivate, true);
             } catch (Exception createError) {
                 // A timeout is ambiguous. Look up the repository before any retry; never retry creation blindly.
                 try {
@@ -384,24 +395,24 @@ public final class DirectlyGitPublisher {
             }
             sessionState = "REMOTE_CREATED";
             persistPendingSession(sessionState, current, plan.owner, plan.repositoryName, plan.description,
-                    branchName, expectedSha, repositoryUrl, startedAt, "");
+                    branchName, expectedSha, repositoryUrl, startedAt, "", plan.isPrivate);
             if (cancelled != null && cancelled.get()) throw new PublishException("Publishing was stopped after the remote repository was created. The recovery session was saved; resume it from GitHub Manager.", true, repositoryUrl, null);
 
             phase(progress, context.getString(R.string.cooper_github_directly_phase_remote));
             backend.configureRemote(current.projectRoot, "https://github.com/" + plan.owner + "/" + plan.repositoryName + ".git", true);
             sessionState = "PUSH_PENDING";
             persistPendingSession(sessionState, current, plan.owner, plan.repositoryName, plan.description,
-                    branchName, expectedSha, repositoryUrl, startedAt, "");
+                    branchName, expectedSha, repositoryUrl, startedAt, "", plan.isPrivate);
             if (cancelled != null && cancelled.get()) throw new PublishException("Publishing was stopped after repository creation. The recovery session was saved; resume it from GitHub Manager.", true, repositoryUrl, null);
             phase(progress, context.getString(R.string.cooper_github_directly_phase_push));
             sessionState = "PUSH_IN_PROGRESS";
             persistPendingSession(sessionState, current, plan.owner, plan.repositoryName, plan.description,
-                    branchName, expectedSha, repositoryUrl, startedAt, "");
+                    branchName, expectedSha, repositoryUrl, startedAt, "", plan.isPrivate);
             String pushedSha = backend.push(current.projectRoot, token, true, cancelled);
             if (!expectedSha.equals(pushedSha)) throw new IllegalStateException("The push result did not match the reviewed local commit.");
             sessionState = "PUSH_VERIFY_PENDING";
             persistPendingSession(sessionState, current, plan.owner, plan.repositoryName, plan.description,
-                    branchName, expectedSha, repositoryUrl, startedAt, "");
+                    branchName, expectedSha, repositoryUrl, startedAt, "", plan.isPrivate);
 
             phase(progress, context.getString(R.string.cooper_github_directly_phase_verify));
             JSONObject branch = api.getBranch(plan.owner, plan.repositoryName, local.currentBranch);
@@ -412,7 +423,7 @@ public final class DirectlyGitPublisher {
             phase(progress, context.getString(R.string.cooper_github_directly_phase_finalize));
             sessionState = "REMOTE_VERIFIED";
             persistPendingSession(sessionState, current, plan.owner, plan.repositoryName, plan.description,
-                    branchName, expectedSha, repositoryUrl, startedAt, "");
+                    branchName, expectedSha, repositoryUrl, startedAt, "", plan.isPrivate);
             bindings.linkRemote(plan.owner, plan.repositoryName);
             if (!published.edit().putString("project_" + plan.binding.scId, plan.owner + "/" + plan.repositoryName)
                     .putString("commit_" + plan.binding.scId, expectedSha)
@@ -504,7 +515,7 @@ public final class DirectlyGitPublisher {
                     throw new IllegalStateException("The saved repository is not currently visible. Reconnect the original account and inspect it before retrying.");
                 }
                 phase(progress, context.getString(R.string.cooper_github_directly_phase_create));
-                remote = api.createRepository(name, description, true, true);
+                remote = api.createRepository(name, description, session.optBoolean("private", true), true);
                 repositoryUrl = remote.optString("html_url", "https://github.com/" + owner + "/" + name);
                 persistPendingSession("REMOTE_CREATED", current, owner, name, description,
                         branchName, expectedSha, repositoryUrl, startedAt, "Recovered by recreating a confirmed repository");
@@ -518,18 +529,18 @@ public final class DirectlyGitPublisher {
                 long createdAt = parseGitHubTimestamp(remote.optString("created_at", ""));
                 if (createdAt < startedAt - 5000L
                         || !description.equals(remote.optString("description", ""))
-                        || !remote.optBoolean("private", false)
+                        || remote.optBoolean("private", true) != session.optBoolean("private", true)
                         || remote.optLong("size", -1L) != 0L) {
                     throw new IllegalStateException("Repository creation outcome is ambiguous. Cooper will not push to a repository it cannot safely identify as this session's newly created, empty private repository.");
                 }
                 repositoryUrl = remote.optString("html_url", repositoryUrl);
                 persistPendingSession("REMOTE_CREATED", current, owner, name, description,
-                        branchName, expectedSha, repositoryUrl, startedAt, "");
+                        branchName, expectedSha, repositoryUrl, startedAt, "", session.optBoolean("private", true));
                 state = "REMOTE_CREATED";
             } else if ("READY_TO_CREATE".equals(state)) {
                 throw new IllegalStateException("A repository with this name exists before the saved creation step. Cooper refused to use or overwrite it.");
             }
-            if (!remote.optBoolean("private", false)
+            if (remote.optBoolean("private", true) != session.optBoolean("private", true)
                     || !description.equals(remote.optString("description", ""))) {
                 throw new IllegalStateException("Remote repository visibility or description no longer matches the approved publication plan.");
             }
@@ -561,7 +572,7 @@ public final class DirectlyGitPublisher {
             if (!branchExists) {
                 phase(progress, context.getString(R.string.cooper_github_directly_phase_push));
                 persistPendingSession("PUSH_IN_PROGRESS", current, owner, name, description,
-                        branchName, expectedSha, repositoryUrl, startedAt, "");
+                        branchName, expectedSha, repositoryUrl, startedAt, "", session.optBoolean("private", true));
                 String pushedSha = backend.push(current.projectRoot, token, true, cancelled);
                 if (!expectedSha.equals(pushedSha)) throw new IllegalStateException("Push result differs from the saved commit SHA.");
                 phase(progress, context.getString(R.string.cooper_github_directly_phase_verify));
@@ -576,7 +587,7 @@ public final class DirectlyGitPublisher {
             }
             phase(progress, context.getString(R.string.cooper_github_directly_phase_finalize));
             persistPendingSession("REMOTE_VERIFIED", current, owner, name, description,
-                    branchName, expectedSha, repositoryUrl, startedAt, "");
+                    branchName, expectedSha, repositoryUrl, startedAt, "", session.optBoolean("private", true));
             bindings.linkRemote(owner, name);
             if (!published.edit().putString("project_" + scId, owner + "/" + name)
                     .putString("commit_" + scId, expectedSha).remove(PENDING_SESSION_KEY).commit()) {
