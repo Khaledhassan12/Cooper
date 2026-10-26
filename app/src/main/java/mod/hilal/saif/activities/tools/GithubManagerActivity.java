@@ -384,7 +384,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         panel.addView(text(getString(R.string.cooper_github_directly_readme_choice_required), 14, true));
         panel.addView(choices);
         final String[] readmeContent = new String[]{""};
-        readme.setOnClickListener(v -> showDirectlyReadmeDialog(binding, readmeMode, readmeContent));
+        readme.setOnClickListener(v -> showDirectlyReadmeDialog(binding, readmeMode, readmeContent, choices, readme, empty));
         empty.setOnClickListener(v -> { readmeMode[0] = "EMPTY"; readmeContent[0] = ""; });
         com.google.android.material.button.MaterialButton push = new com.google.android.material.button.MaterialButton(this);
         push.setText(R.string.cooper_github_directly_git_push);
@@ -418,7 +418,10 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
     }
 
     private void showDirectlyReadmeDialog(GitProjectBindingStore.Binding binding,
-                                          String[] mode, String[] content) {
+                                          String[] mode, String[] content,
+                                          com.google.android.material.chip.ChipGroup choices,
+                                          com.google.android.material.chip.Chip readme,
+                                          com.google.android.material.chip.Chip empty) {
         EditText project = new EditText(this); project.setHint(R.string.cooper_github_directly_readme_project);
         project.setText(binding.workspaceName);
         EditText developers = new EditText(this); developers.setHint(R.string.cooper_github_directly_readme_developers);
@@ -430,14 +433,17 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         com.google.android.material.button.MaterialButtonToggleGroup format =
                 new com.google.android.material.button.MaterialButtonToggleGroup(this);
         com.google.android.material.button.MaterialButton markdown = new com.google.android.material.button.MaterialButton(this);
-        markdown.setText("Markdown"); markdown.setCheckable(true); markdown.setId(View.generateViewId());
+        markdown.setText(R.string.cooper_github_directly_readme_format_markdown); markdown.setCheckable(true); markdown.setId(View.generateViewId());
         com.google.android.material.button.MaterialButton plain = new com.google.android.material.button.MaterialButton(this);
-        plain.setText("Text"); plain.setCheckable(true); plain.setId(View.generateViewId());
+        plain.setText(R.string.cooper_github_directly_readme_format_text); plain.setCheckable(true); plain.setId(View.generateViewId());
         format.addView(markdown); format.addView(plain); format.check(markdown.getId());
         form.addView(format); form.addView(project); form.addView(developers);
         form.addView(contributors); form.addView(information);
-        new MaterialAlertDialogBuilder(this).setTitle(R.string.cooper_github_directly_readme_title)
-                .setView(form).setNegativeButton(R.string.common_word_cancel, null)
+        AlertDialog readmeDialog = new MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.cooper_github_directly_readme_title)
+                .setView(form)
+                .setNegativeButton(R.string.common_word_cancel,
+                        (d, w) -> restoreDirectlyReadmeChoice(mode, choices, readme, empty))
                 .setPositiveButton(R.string.common_word_save, (d, w) -> {
                     mode[0] = markdown.getId() == format.getCheckedButtonId() ? "MARKDOWN" : "TEXT";
                     String separator = mode[0].equals("MARKDOWN") ? "\n\n" : "\n";
@@ -448,7 +454,18 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                             + contributors.getText().toString().trim() + separator
                             + getString(R.string.cooper_github_directly_readme_information) + ": "
                             + information.getText().toString().trim();
-                }).show();
+                }).create();
+        readmeDialog.setOnCancelListener(d -> restoreDirectlyReadmeChoice(mode, choices, readme, empty));
+        readmeDialog.show();
+    }
+
+    private void restoreDirectlyReadmeChoice(String[] mode,
+            com.google.android.material.chip.ChipGroup choices,
+            com.google.android.material.chip.Chip readme,
+            com.google.android.material.chip.Chip empty) {
+        choices.clearCheck();
+        if ("EMPTY".equals(mode[0])) empty.setChecked(true);
+        else if ("MARKDOWN".equals(mode[0]) || "TEXT".equals(mode[0])) readme.setChecked(true);
     }
 
     private void confirmDirectlyDismiss(Runnable discard) {
