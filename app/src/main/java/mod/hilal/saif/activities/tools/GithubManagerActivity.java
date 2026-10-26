@@ -61,6 +61,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
     private boolean authInProgress = false;
     @Nullable private TextView directlyPendingImageState;
     @Nullable private java.util.ArrayList<Uri> directlyPendingImages;
+    @Nullable private LinearLayout directlyPendingImagePreview;
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
@@ -320,14 +321,20 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         panel.addView(gallery);
         TextView imageState = text(getString(R.string.cooper_github_directly_no_images), 13, false);
         panel.addView(imageState);
+        LinearLayout imagePreviewRow = new LinearLayout(this);
+        imagePreviewRow.setOrientation(LinearLayout.HORIZONTAL);
+        imagePreviewRow.setPadding(0, dp(8), 0, dp(8));
+        panel.addView(imagePreviewRow);
         final java.util.ArrayList<Uri> selectedImages = new java.util.ArrayList<>();
+        directlyPendingImageState = imageState;
+        directlyPendingImages = selectedImages;
+        directlyPendingImagePreview = imagePreviewRow;
         gallery.setOnClickListener(v -> {
             Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
             intent.addCategory(Intent.CATEGORY_OPENABLE);
             intent.setType("image/*");
             intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
-            directlyPendingImageState = imageState;
-            directlyPendingImages = selectedImages;
+            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
             startActivityForResult(intent, 7314);
         });
         final String[] readmeMode = new String[]{""};
@@ -1123,8 +1130,6 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         if (requestCode != 7314) return;
         TextView stateView = directlyPendingImageState;
         java.util.ArrayList<Uri> current = directlyPendingImages;
-        directlyPendingImageState = null;
-        directlyPendingImages = null;
         if (resultCode != RESULT_OK || data == null || current == null || stateView == null) return;
         java.util.ArrayList<Uri> picked = new java.util.ArrayList<>();
         android.content.ClipData clip = data.getClipData();
@@ -1166,7 +1171,91 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         }
         current.clear();
         current.addAll(combined);
-        stateView.setText(getString(R.string.cooper_github_directly_images_selected, current.size()));
+        stateView.setText(current.isEmpty()
+                ? getString(R.string.cooper_github_directly_no_images)
+                : getString(R.string.cooper_github_directly_images_selected, current.size()));
+        renderDirectlyGitImagePreviews(current, directlyPendingImagePreview);
+    }
+
+    private void renderDirectlyGitImagePreviews(java.util.ArrayList<Uri> images, @Nullable LinearLayout row) {
+        if (row == null) return;
+        row.removeAllViews();
+        for (int index = 0; index < images.size(); index++) {
+            final Uri uri = images.get(index);
+            final int selectedIndex = index;
+            com.google.android.material.card.MaterialCardView card =
+                    new com.google.android.material.card.MaterialCardView(this);
+            card.setRadius(dp(12));
+            card.setCardElevation(dp(2));
+            card.setStrokeWidth(dp(1));
+            LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(dp(78), dp(92));
+            cardParams.rightMargin = dp(8);
+            FrameLayout frame = new FrameLayout(this);
+            ImageView preview = new ImageView(this);
+            preview.setScaleType(ImageView.ScaleType.CENTER_CROP);
+            preview.setContentDescription(getString(R.string.cooper_github_directly_image_preview, index + 1));
+            preview.setTag(uri.toString());
+            frame.addView(preview, new FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, dp(78)));
+            TextView badge = text(String.valueOf(index + 1), 12, true);
+            badge.setGravity(Gravity.CENTER);
+            badge.setTextColor(android.graphics.Color.WHITE);
+            GradientDrawable badgeBackground = new GradientDrawable();
+            badgeBackground.setShape(GradientDrawable.OVAL);
+            badgeBackground.setColor(com.google.android.material.color.MaterialColors.getColor(
+                    this, com.google.android.material.R.attr.colorPrimary, 0xFF365D4A));
+            badge.setBackground(badgeBackground);
+            FrameLayout.LayoutParams badgeParams = new FrameLayout.LayoutParams(dp(24), dp(24), Gravity.TOP | Gravity.START);
+            frame.addView(badge, badgeParams);
+            card.addView(frame);
+            card.setContentDescription(getString(R.string.cooper_github_directly_remove_image, index + 1));
+            card.setClickable(true);
+            card.setFocusable(true);
+            card.setOnClickListener(v -> {
+                if (selectedIndex < images.size() && uri.equals(images.get(selectedIndex))) {
+                    images.remove(selectedIndex);
+                } else {
+                    images.remove(uri);
+                }
+                if (directlyPendingImageState != null) {
+                    directlyPendingImageState.setText(images.isEmpty()
+                            ? getString(R.string.cooper_github_directly_no_images)
+                            : getString(R.string.cooper_github_directly_images_selected, images.size()));
+                }
+                renderDirectlyGitImagePreviews(images, row);
+            });
+            row.addView(card, cardParams);
+            authExecutor.execute(() -> {
+                android.graphics.Bitmap bitmap = decodeDirectlyGitThumbnail(uri);
+                new Handler(Looper.getMainLooper()).post(() -> {
+                    if (bitmap != null && !isFinishing() && !isDestroyed()
+                            && uri.toString().equals(preview.getTag())) preview.setImageBitmap(bitmap);
+                });
+            });
+        }
+    }
+
+    @Nullable
+    private android.graphics.Bitmap decodeDirectlyGitThumbnail(Uri uri) {
+        try {
+            android.graphics.BitmapFactory.Options bounds = new android.graphics.BitmapFactory.Options();
+            bounds.inJustDecodeBounds = true;
+            try (java.io.InputStream input = getContentResolver().openInputStream(uri)) {
+                if (input == null) return null;
+                android.graphics.BitmapFactory.decodeStream(input, null, bounds);
+            }
+            int largest = Math.max(bounds.outWidth, bounds.outHeight);
+            int sample = 1;
+            while (largest / sample > 160) sample *= 2;
+            android.graphics.BitmapFactory.Options options = new android.graphics.BitmapFactory.Options();
+            options.inSampleSize = Math.max(1, sample);
+            options.inPreferredConfig = android.graphics.Bitmap.Config.RGB_565;
+            try (java.io.InputStream input = getContentResolver().openInputStream(uri)) {
+                return input == null ? null : android.graphics.BitmapFactory.decodeStream(input, null, options);
+            }
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 
     private void showProjectBindingError(Exception error) {
