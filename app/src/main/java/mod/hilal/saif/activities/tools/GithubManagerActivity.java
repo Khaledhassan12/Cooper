@@ -761,13 +761,16 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                 java.util.ArrayList<java.util.HashMap<String, Object>> projects = a.a.a.lC.a();
                 java.util.ArrayList<String> labels = new java.util.ArrayList<>();
                 java.util.ArrayList<String> ids = new java.util.ArrayList<>();
+                java.util.ArrayList<Bitmap> icons = new java.util.ArrayList<>();
                 for (java.util.HashMap<String, Object> project : projects) {
                     String id = String.valueOf(project.get("sc_id"));
                     if (!id.matches("[0-9]{1,12}")) continue;
                     String workspace = String.valueOf(project.get("my_ws_name"));
                     String appName = String.valueOf(project.get("my_app_name"));
-                    labels.add(workspace + " — " + appName + "  (ID " + id + ")");
+                    String packageName = String.valueOf(project.get("my_sc_pkg_name"));
+                    labels.add(workspace + " — " + appName + "\n" + packageName + "  ·  ID " + id);
                     ids.add(id);
+                    icons.add(loadDirectlyGitProjectIcon(id, project));
                 }
                 new Handler(Looper.getMainLooper()).post(() -> {
                     if (isFinishing() || isDestroyed()) return;
@@ -778,16 +781,80 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                                 .setPositiveButton(R.string.common_word_ok, null).show();
                         return;
                     }
+                    android.widget.BaseAdapter projectAdapter = new android.widget.BaseAdapter() {
+                        @Override public int getCount() { return labels.size(); }
+                        @Override public Object getItem(int position) { return labels.get(position); }
+                        @Override public long getItemId(int position) { return position; }
+                        @Override public View getView(int position, View convertView, ViewGroup parent) {
+                            LinearLayout row = new LinearLayout(GithubManagerActivity.this);
+                            row.setOrientation(LinearLayout.HORIZONTAL);
+                            row.setGravity(Gravity.CENTER_VERTICAL);
+                            row.setPadding(dp(16), dp(10), dp(16), dp(10));
+                            ImageView icon = new ImageView(GithubManagerActivity.this);
+                            icon.setScaleType(ImageView.ScaleType.CENTER_CROP);
+                            Bitmap bitmap = icons.get(position);
+                            if (bitmap != null) icon.setImageBitmap(bitmap);
+                            else icon.setImageResource(android.R.drawable.sym_def_app_icon);
+                            icon.setContentDescription("Project application icon");
+                            LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(dp(48), dp(48));
+                            iconParams.rightMargin = dp(14);
+                            row.addView(icon, iconParams);
+                            TextView label = text(labels.get(position), 14, true);
+                            label.setGravity(Gravity.CENTER_VERTICAL);
+                            row.addView(label, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+                            return row;
+                        }
+                    };
                     new MaterialAlertDialogBuilder(this)
                             .setTitle(R.string.cooper_github_directly_choose_project)
-                            .setItems(labels.toArray(new String[0]), (dialog, which) ->
-                                    bindProjectForDirectlyGit(ids.get(which)))
+                            .setAdapter(projectAdapter, (dialog, which) -> bindProjectForDirectlyGit(ids.get(which)))
                             .setNegativeButton(R.string.common_word_cancel, null).show();
                 });
             } catch (Exception e) {
                 showProjectBindingError(e);
             }
         });
+    }
+
+    @Nullable
+    private Bitmap loadDirectlyGitProjectIcon(String scId, java.util.HashMap<String, Object> metadata) {
+        java.util.ArrayList<java.io.File> candidates = new java.util.ArrayList<>();
+        String customIcon = metadata == null || metadata.get("custom_icon") == null
+                ? "" : String.valueOf(metadata.get("custom_icon")).trim();
+        java.io.File listRoot = new java.io.File(a.a.a.wq.c(scId));
+        java.io.File dataRoot = new java.io.File(a.a.a.wq.b(scId));
+        if (!customIcon.isEmpty()) {
+            java.io.File supplied = new java.io.File(customIcon);
+            if (supplied.isAbsolute()) candidates.add(supplied);
+            else {
+                candidates.add(new java.io.File(listRoot, customIcon));
+                candidates.add(new java.io.File(dataRoot, customIcon));
+            }
+        }
+        for (java.io.File root : new java.io.File[]{listRoot, dataRoot}) {
+            candidates.add(new java.io.File(root, "icon.png"));
+            candidates.add(new java.io.File(root, "icon.webp"));
+            candidates.add(new java.io.File(root, "app_icon.png"));
+            candidates.add(new java.io.File(root, "ic_launcher.png"));
+        }
+        for (java.io.File candidate : candidates) {
+            try {
+                java.io.File canonical = candidate.getCanonicalFile();
+                if (!canonical.isFile() || canonical.length() <= 0L || canonical.length() > 8L * 1024L * 1024L) continue;
+                BitmapFactory.Options bounds = new BitmapFactory.Options();
+                bounds.inJustDecodeBounds = true;
+                BitmapFactory.decodeFile(canonical.getAbsolutePath(), bounds);
+                if (bounds.outWidth <= 0 || bounds.outHeight <= 0) continue;
+                BitmapFactory.Options options = new BitmapFactory.Options();
+                int largest = Math.max(bounds.outWidth, bounds.outHeight);
+                options.inSampleSize = 1;
+                while (largest / options.inSampleSize > 128) options.inSampleSize *= 2;
+                options.inPreferredConfig = Bitmap.Config.ARGB_8888;
+                Bitmap bitmap = BitmapFactory.decodeFile(canonical.getAbsolutePath(), options);
+                if (bitmap != null) return bitmap;
+            } catch (Exception ignored) { }
+        }
+        return null;
     }
 
     private void bindProjectForDirectlyGit(String scId) {
