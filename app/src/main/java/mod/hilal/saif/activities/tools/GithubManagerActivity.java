@@ -70,6 +70,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
     private String directlyDraftReadmeMode = "";
     private String directlyDraftReadmeContent = "";
     private boolean directlyDraftIsPrivate = true;
+    private boolean directlyDraftVisibilityChosen = false;
     private boolean directlyRecoveryPromptShown = false;
 
     @Override
@@ -84,6 +85,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
             directlyDraftReadmeMode = savedInstanceState.getString("cooper_directly_draft_readme_mode", "");
             directlyDraftReadmeContent = savedInstanceState.getString("cooper_directly_draft_readme_content", "");
             directlyDraftIsPrivate = savedInstanceState.getBoolean("cooper_directly_draft_private", true);
+            directlyDraftVisibilityChosen = savedInstanceState.getBoolean("cooper_directly_draft_visibility_chosen", false);
             directlyPendingImages = new java.util.ArrayList<>();
             java.util.ArrayList<String> savedUris = savedInstanceState.getStringArrayList("cooper_directly_draft_image_uris");
             if (savedUris != null) {
@@ -477,7 +479,8 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
             intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
             startActivityForResult(intent, 7314);
         });
-        final boolean[] repositoryPrivate = new boolean[]{restoreDraft ? directlyDraftIsPrivate : true};
+        final boolean[] repositoryPrivate = new boolean[]{directlyDraftIsPrivate};
+        final boolean[] visibilityChosen = new boolean[]{restoreDraft && directlyDraftVisibilityChosen};
         com.google.android.material.chip.ChipGroup visibilityChoices = new com.google.android.material.chip.ChipGroup(this);
         visibilityChoices.setSingleSelection(true);
         visibilityChoices.setSelectionRequired(true);
@@ -489,10 +492,10 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         publicChip.setCheckable(true);
         visibilityChoices.addView(privateChip);
         visibilityChoices.addView(publicChip);
-        privateChip.setChecked(repositoryPrivate[0]);
-        publicChip.setChecked(!repositoryPrivate[0]);
-        privateChip.setOnClickListener(v -> { repositoryPrivate[0] = true; directlyDraftIsPrivate = true; });
-        publicChip.setOnClickListener(v -> { repositoryPrivate[0] = false; directlyDraftIsPrivate = false; });
+        privateChip.setChecked(visibilityChosen[0] && repositoryPrivate[0]);
+        publicChip.setChecked(visibilityChosen[0] && !repositoryPrivate[0]);
+        privateChip.setOnClickListener(v -> { repositoryPrivate[0] = true; visibilityChosen[0] = true; directlyDraftIsPrivate = true; directlyDraftVisibilityChosen = true; });
+        publicChip.setOnClickListener(v -> { repositoryPrivate[0] = false; visibilityChosen[0] = true; directlyDraftIsPrivate = false; directlyDraftVisibilityChosen = true; });
         panel.addView(text("Repository visibility — choose who can access this repository", 14, true));
         panel.addView(visibilityChoices);
         final String[] readmeMode = new String[]{restoreDraft ? directlyDraftReadmeMode : ""};
@@ -536,6 +539,10 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
             }
             if (readmeMode[0].isEmpty()) {
                 Snackbar.make(panel, R.string.cooper_github_directly_readme_choice_required, Snackbar.LENGTH_LONG).show();
+                return;
+            }
+            if (!visibilityChosen[0]) {
+                Snackbar.make(panel, "Choose Public or Private repository visibility before publishing.", Snackbar.LENGTH_LONG).show();
                 return;
             }
             new MaterialAlertDialogBuilder(this)
@@ -2301,6 +2308,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         outState.putString("cooper_directly_draft_readme_mode", directlyDraftReadmeMode);
         outState.putString("cooper_directly_draft_readme_content", directlyDraftReadmeContent);
         outState.putBoolean("cooper_directly_draft_private", directlyDraftIsPrivate);
+        outState.putBoolean("cooper_directly_draft_visibility_chosen", directlyDraftVisibilityChosen);
         java.util.ArrayList<String> imageUris = new java.util.ArrayList<>();
         if (directlyPendingImages != null) {
             for (Uri uri : directlyPendingImages) if (uri != null) imageUris.add(uri.toString());
