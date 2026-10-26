@@ -29,6 +29,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public final class DirectlyGitPublisher {
     private static final AtomicBoolean ACTIVE_PUBLISH = new AtomicBoolean(false);
+    private static final String PENDING_SESSION_KEY = "pending_session_v1";
     public interface ProgressListener {
         void onPhase(String phase);
     }
@@ -124,6 +125,50 @@ public final class DirectlyGitPublisher {
         this.api = new GitHubApiClient(auth, this.clientId);
         this.backend = new LocalGitBackend();
         this.published = this.context.getSharedPreferences("cooper_directly_git_publications", Context.MODE_PRIVATE);
+    }
+
+    public static boolean hasPendingSession(Context context) {
+        if (context == null) return false;
+        String value = context.getApplicationContext()
+                .getSharedPreferences("cooper_directly_git_publications", Context.MODE_PRIVATE)
+                .getString(PENDING_SESSION_KEY, null);
+        return value != null && !value.trim().isEmpty();
+    }
+
+    public static JSONObject getPendingSession(Context context) {
+        if (context == null) return null;
+        String value = context.getApplicationContext()
+                .getSharedPreferences("cooper_directly_git_publications", Context.MODE_PRIVATE)
+                .getString(PENDING_SESSION_KEY, null);
+        if (value == null || value.trim().isEmpty()) return null;
+        try { return new JSONObject(value); } catch (Exception ignored) { return null; }
+    }
+
+    private void persistPendingSession(String state, GitProjectBindingStore.Binding binding,
+                                       String owner, String repositoryName, String description,
+                                       String branch, String commitSha, String repositoryUrl,
+                                       long startedAt, String diagnostic) throws IOException {
+        try {
+            JSONObject session = new JSONObject();
+            session.put("schema", 1);
+            session.put("state", state);
+            session.put("projectId", binding.scId);
+            session.put("projectRoot", binding.projectRoot.getCanonicalPath());
+            session.put("owner", owner);
+            session.put("repositoryName", repositoryName);
+            session.put("description", description == null ? "" : description);
+            session.put("branch", branch == null ? "" : branch);
+            session.put("commitSha", commitSha == null ? "" : commitSha);
+            session.put("repositoryUrl", repositoryUrl == null ? "" : repositoryUrl);
+            session.put("startedAt", startedAt);
+            session.put("updatedAt", System.currentTimeMillis());
+            session.put("diagnostic", diagnostic == null ? "" : diagnostic);
+            if (!published.edit().putString(PENDING_SESSION_KEY, session.toString()).commit()) {
+                throw new IOException("Cooper could not persist the Directly Git recovery session.");
+            }
+        } catch (org.json.JSONException e) {
+            throw new IOException("Cooper could not serialize the Directly Git recovery session.", e);
+        }
     }
 
     public Plan prepare(GitProjectBindingStore.Binding selected, String name, String description,
@@ -224,6 +269,9 @@ public final class DirectlyGitPublisher {
         boolean remoteCreated = false;
         boolean localCommitCreated = false;
         String repositoryUrl = "https://github.com/" + plan.owner + "/" + plan.repositoryName;
+        String expectedSha = "";
+        String branchName = "";
+        String sessionState = "PREPARING";
         ArrayList<File> generated = new ArrayList<>();
         long startedAt = System.currentTimeMillis();
         try {
@@ -285,11 +333,21 @@ public final class DirectlyGitPublisher {
             }
             LocalGitBackend.Snapshot local = backend.inspect(current.projectRoot);
             if (local.headCommit == null || local.headCommit.trim().isEmpty()) throw new IllegalStateException("No local commit exists to publish.");
-            String expectedSha = local.headCommit;
+            expectedSha = local.headCommit;
+            branchName = local.currentBranch;
+            if (branchName == null || branchName.trim().isEmpty()) {
+                throw new IllegalStateException("Cooper could not verify the local branch name before publication.");
+            }
             localCommitCreated = true;
+            sessionState = "READY_TO_CREATE";
+            persistPendingSession(sessionState, current, plan.owner, plan.repositoryName, plan.description,
+                    branchName, expectedSha, repositoryUrl, startedAt, "");
 
             phase(progress, context.getString(R.string.cooper_github_directly_phase_create));
             checkCancelled(cancelled);
+            sessionState = "CREATING_REPOSITORY";
+            persistPendingSession(sessionState, current, plan.owner, plan.repositoryName, plan.description,
+                    branchName, expectedSha, repositoryUrl, startedAt, "");
             JSONObject remote;
             try {
                 remote = api.createRepository(plan.repositoryName, plan.description, true, true);
@@ -314,17 +372,30 @@ public final class DirectlyGitPublisher {
             }
             remoteCreated = true;
             repositoryUrl = remote.optString("html_url", repositoryUrl);
-            if (!repositoryUrl.startsWith("https://github.com/" + plan.owner + "/" + plan.repositoryName)) {
+            if (!repositoryUrl.equals("https://github.com/" + plan.owner + "/" + plan.repositoryName)
+                    && !repositoryUrl.equals("https://github.com/" + plan.owner + "/" + plan.repositoryName + "/")) {
                 throw new IllegalStateException("GitHub returned an untrusted repository URL.");
             }
-            if (cancelled != null && cancelled.get()) throw new PublishException("Publishing was stopped after the remote repository was created. The repository was retained; no push was attempted.", true, repositoryUrl, null);
+            sessionState = "REMOTE_CREATED";
+            persistPendingSession(sessionState, current, plan.owner, plan.repositoryName, plan.description,
+                    branchName, expectedSha, repositoryUrl, startedAt, "");
+            if (cancelled != null && cancelled.get()) throw new PublishException("Publishing was stopped after the remote repository was created. The recovery session was saved; resume it from GitHub Manager.", true, repositoryUrl, null);
 
             phase(progress, context.getString(R.string.cooper_github_directly_phase_remote));
             backend.configureRemote(current.projectRoot, "https://github.com/" + plan.owner + "/" + plan.repositoryName + ".git", true);
-            if (cancelled != null && cancelled.get()) throw new PublishException("Publishing was stopped after repository creation. The repository was retained and no push was attempted.", true, repositoryUrl, null);
+            sessionState = "PUSH_PENDING";
+            persistPendingSession(sessionState, current, plan.owner, plan.repositoryName, plan.description,
+                    branchName, expectedSha, repositoryUrl, startedAt, "");
+            if (cancelled != null && cancelled.get()) throw new PublishException("Publishing was stopped after repository creation. The recovery session was saved; resume it from GitHub Manager.", true, repositoryUrl, null);
             phase(progress, context.getString(R.string.cooper_github_directly_phase_push));
-            String pushedSha = backend.push(current.projectRoot, token, true);
+            sessionState = "PUSH_IN_PROGRESS";
+            persistPendingSession(sessionState, current, plan.owner, plan.repositoryName, plan.description,
+                    branchName, expectedSha, repositoryUrl, startedAt, "");
+            String pushedSha = backend.push(current.projectRoot, token, true, cancelled);
             if (!expectedSha.equals(pushedSha)) throw new IllegalStateException("The push result did not match the reviewed local commit.");
+            sessionState = "PUSH_VERIFY_PENDING";
+            persistPendingSession(sessionState, current, plan.owner, plan.repositoryName, plan.description,
+                    branchName, expectedSha, repositoryUrl, startedAt, "");
 
             phase(progress, context.getString(R.string.cooper_github_directly_phase_verify));
             JSONObject branch = api.getBranch(plan.owner, plan.repositoryName, local.currentBranch);
@@ -333,22 +404,188 @@ public final class DirectlyGitPublisher {
             if (!expectedSha.equals(remoteSha)) throw new IllegalStateException("GitHub's remote branch SHA does not match the local commit. Publication remains unverified.");
 
             phase(progress, context.getString(R.string.cooper_github_directly_phase_finalize));
-            if (!published.edit().putString("project_" + plan.binding.scId, plan.owner + "/" + plan.repositoryName)
-                    .putString("commit_" + plan.binding.scId, expectedSha).commit()) {
-                throw new IllegalStateException("Remote commit was verified, but Cooper could not persist the publication record.");
-            }
+            sessionState = "REMOTE_VERIFIED";
+            persistPendingSession(sessionState, current, plan.owner, plan.repositoryName, plan.description,
+                    branchName, expectedSha, repositoryUrl, startedAt, "");
             bindings.linkRemote(plan.owner, plan.repositoryName);
-            return new Result(repositoryUrl, expectedSha, local.currentBranch);
+            if (!published.edit().putString("project_" + plan.binding.scId, plan.owner + "/" + plan.repositoryName)
+                    .putString("commit_" + plan.binding.scId, expectedSha)
+                    .remove(PENDING_SESSION_KEY).commit()) {
+                throw new IllegalStateException("Remote commit was verified, but Cooper could not persist the publication record. Recovery data was retained.");
+            }
+            return new Result(repositoryUrl, expectedSha, branchName);
         } catch (Exception e) {
             if (!remoteCreated && !localCommitCreated) {
                 for (File file : generated) {
                     try { if (file.isFile()) file.delete(); } catch (Exception ignored) { }
                 }
             }
+            if (localCommitCreated) {
+                String stateToKeep = sessionState;
+                if (remoteCreated && ("CREATING_REPOSITORY".equals(stateToKeep)
+                        || "READY_TO_CREATE".equals(stateToKeep) || "PREPARING".equals(stateToKeep))) {
+                    stateToKeep = "REMOTE_CREATED";
+                }
+                try {
+                    persistPendingSession(stateToKeep, plan.binding, plan.owner, plan.repositoryName,
+                            plan.description, branchName, expectedSha, repositoryUrl, startedAt,
+                            e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage());
+                } catch (Exception persistenceError) {
+                    e.addSuppressed(persistenceError);
+                }
+            }
             if (e instanceof PublishException) throw e;
             throw new PublishException(e.getMessage() == null ? "Directly Git publishing failed; verify local and remote state before retrying." : e.getMessage(),
                     remoteCreated, repositoryUrl, e);
         }
+    }
+
+    /**
+     * Resumes only a previously confirmed Directly Git session. It never pushes to a
+     * repository with an unexpected owner, name, origin, branch, or commit.
+     */
+    public Result resumePending(AtomicBoolean cancelled, ProgressListener progress) throws Exception {
+        if (!ACTIVE_PUBLISH.compareAndSet(false, true)) {
+            throw new PublishException("Another Directly Git publishing operation is already running.", false, "", null);
+        }
+        try {
+            JSONObject session = getPendingSession(context);
+            if (session == null) throw new IllegalStateException("No saved Directly Git recovery session exists.");
+            String state = session.optString("state", "");
+            String scId = session.optString("projectId", "");
+            String rootPath = session.optString("projectRoot", "");
+            String owner = session.optString("owner", "");
+            String name = session.optString("repositoryName", "");
+            String description = session.optString("description", "");
+            String branchName = session.optString("branch", "");
+            String expectedSha = session.optString("commitSha", "");
+            String repositoryUrl = session.optString("repositoryUrl", "");
+            long startedAt = session.optLong("startedAt", 0L);
+            if (scId.isEmpty() || rootPath.isEmpty() || owner.isEmpty() || name.isEmpty()
+                    || branchName.isEmpty() || expectedSha.isEmpty() || startedAt <= 0L) {
+                throw new IllegalStateException("The saved recovery record is incomplete. No remote write was attempted.");
+            }
+            GitProjectBindingStore.Binding current = bindings.getBoundProject();
+            if (current == null || !scId.equals(current.scId)
+                    || !rootPath.equals(current.projectRoot.getCanonicalPath())) {
+                throw new IllegalStateException("The selected Cooper project no longer matches the saved recovery session. Re-select the original project in GitHub Manager.");
+            }
+            String token = auth.getUsableAccessToken(clientId);
+            if (token == null || token.trim().isEmpty()) throw new IllegalStateException("Reconnect the original GitHub account before resuming publication.");
+            JSONObject account = api.getAuthenticatedAccount();
+            if (!owner.equals(account.optString("login", ""))) {
+                throw new IllegalStateException("The connected GitHub account differs from the account that created this publishing session.");
+            }
+            LocalGitBackend.Snapshot local = backend.inspect(current.projectRoot);
+            if (!local.initialized || !expectedSha.equals(local.headCommit) || !branchName.equals(local.currentBranch)) {
+                throw new IllegalStateException("The local HEAD or branch changed since the interrupted publication. Cooper will not push a different commit.");
+            }
+            String expectedRemoteUrl = "https://github.com/" + owner + "/" + name + ".git";
+            try (Git git = Git.open(current.projectRoot)) {
+                String configured = git.getRepository().getConfig().getString("remote", "origin", "url");
+                if (configured != null && !configured.trim().isEmpty() && !expectedRemoteUrl.equals(configured)) {
+                    throw new IllegalStateException("The local origin points to a different repository. Recovery stopped without changing it.");
+                }
+            }
+            phase(progress, "Checking the saved GitHub publication session");
+            checkCancelled(cancelled);
+            JSONObject remote;
+            try {
+                remote = api.getRepository(owner, name);
+            } catch (GitHubApiClient.ApiException missing) {
+                if (!"NOT_FOUND".equals(missing.safeCode)) throw missing;
+                if (!"READY_TO_CREATE".equals(state) && !"CREATING_REPOSITORY".equals(state)) {
+                    throw new IllegalStateException("The saved repository is not currently visible. Reconnect the original account and inspect it before retrying.");
+                }
+                phase(progress, "Recreating the repository for the previously approved session");
+                remote = api.createRepository(name, description, true, true);
+                repositoryUrl = remote.optString("html_url", "https://github.com/" + owner + "/" + name);
+                persistPendingSession("REMOTE_CREATED", current, owner, name, description,
+                        branchName, expectedSha, repositoryUrl, startedAt, "Recovered by recreating a confirmed repository");
+                state = "REMOTE_CREATED";
+            }
+            String actualOwner = remote.optJSONObject("owner") == null ? "" : remote.optJSONObject("owner").optString("login", "");
+            if (!owner.equals(actualOwner) || !name.equals(remote.optString("name", ""))) {
+                throw new IllegalStateException("The saved recovery session points to a different GitHub repository. No push was attempted.");
+            }
+            if ("CREATING_REPOSITORY".equals(state)) {
+                long createdAt = parseGitHubTimestamp(remote.optString("created_at", ""));
+                if (createdAt < startedAt - 5000L
+                        || !description.equals(remote.optString("description", ""))
+                        || !remote.optBoolean("private", false)
+                        || remote.optLong("size", -1L) != 0L) {
+                    throw new IllegalStateException("Repository creation outcome is ambiguous. Cooper will not push to a repository it cannot safely identify as this session's newly created, empty private repository.");
+                }
+                repositoryUrl = remote.optString("html_url", repositoryUrl);
+                persistPendingSession("REMOTE_CREATED", current, owner, name, description,
+                        branchName, expectedSha, repositoryUrl, startedAt, "");
+                state = "REMOTE_CREATED";
+            } else if ("READY_TO_CREATE".equals(state)) {
+                throw new IllegalStateException("A repository with this name exists before the saved creation step. Cooper refused to use or overwrite it.");
+            }
+            if (!remote.optBoolean("private", false)
+                    || !description.equals(remote.optString("description", ""))) {
+                throw new IllegalStateException("Remote repository visibility or description no longer matches the approved publication plan.");
+            }
+            if (cancelled != null && cancelled.get()) {
+                throw new PublishException("Recovery was stopped before the remote write. The saved session was retained.", true, repositoryUrl, null);
+            }
+            String configured = "";
+            try (Git git = Git.open(current.projectRoot)) {
+                configured = git.getRepository().getConfig().getString("remote", "origin", "url");
+            }
+            if (configured == null || configured.trim().isEmpty()) {
+                backend.configureRemote(current.projectRoot, expectedRemoteUrl, true);
+            } else if (!expectedRemoteUrl.equals(configured)) {
+                throw new IllegalStateException("The saved session remote does not match the local origin.");
+            }
+            boolean branchExists = false;
+            String actualSha = "";
+            try {
+                JSONObject branch = api.getBranch(owner, name, branchName);
+                JSONObject commit = branch.optJSONObject("commit");
+                actualSha = commit == null ? "" : commit.optString("sha", "");
+                branchExists = true;
+            } catch (GitHubApiClient.ApiException missingBranch) {
+                if (!"NOT_FOUND".equals(missingBranch.safeCode)) throw missingBranch;
+            }
+            if (branchExists && !expectedSha.equals(actualSha)) {
+                throw new IllegalStateException("The remote branch exists but points to a different commit. Cooper will not overwrite it.");
+            }
+            if (!branchExists) {
+                phase(progress, context.getString(R.string.cooper_github_directly_phase_push));
+                persistPendingSession("PUSH_IN_PROGRESS", current, owner, name, description,
+                        branchName, expectedSha, repositoryUrl, startedAt, "");
+                String pushedSha = backend.push(current.projectRoot, token, true, cancelled);
+                if (!expectedSha.equals(pushedSha)) throw new IllegalStateException("Push result differs from the saved commit SHA.");
+                phase(progress, context.getString(R.string.cooper_github_directly_phase_verify));
+                JSONObject branch = api.getBranch(owner, name, branchName);
+                JSONObject commit = branch.optJSONObject("commit");
+                actualSha = commit == null ? "" : commit.optString("sha", "");
+                if (!expectedSha.equals(actualSha)) {
+                    persistPendingSession("PUSH_VERIFY_PENDING", current, owner, name, description,
+                            branchName, expectedSha, repositoryUrl, startedAt, "Remote SHA did not match the saved commit");
+                    throw new IllegalStateException("Remote branch SHA could not be verified after recovery push.");
+                }
+            }
+            phase(progress, context.getString(R.string.cooper_github_directly_phase_finalize));
+            persistPendingSession("REMOTE_VERIFIED", current, owner, name, description,
+                    branchName, expectedSha, repositoryUrl, startedAt, "");
+            bindings.linkRemote(owner, name);
+            if (!published.edit().putString("project_" + scId, owner + "/" + name)
+                    .putString("commit_" + scId, expectedSha).remove(PENDING_SESSION_KEY).commit()) {
+                throw new IllegalStateException("The remote commit was verified, but the final project association could not be saved. Recovery data remains available.");
+            }
+            return new Result(repositoryUrl, expectedSha, branchName);
+        } finally {
+            ACTIVE_PUBLISH.set(false);
+        }
+    }
+
+    private static long parseGitHubTimestamp(String value) {
+        if (value == null || value.trim().isEmpty()) return -1L;
+        try { return java.time.Instant.parse(value).toEpochMilli(); }
+        catch (Exception ignored) { return -1L; }
     }
 
     private void ensureRepositoryDoesNotExist(String owner, String name) throws Exception {
