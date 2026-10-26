@@ -2256,7 +2256,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
     }
 
     @Override
-    protected void onResume() {
+    public void onResume() {
         super.onResume();
         if (!directlyDraftFormVisible && DirectlyGitPublisher.hasPendingSession(this) && !directlyRecoveryPromptShown) {
             new Handler(Looper.getMainLooper()).post(this::showDirectlyGitRecoveryPrompt);
