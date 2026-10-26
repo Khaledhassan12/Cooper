@@ -2404,6 +2404,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         org.json.JSONObject session = DirectlyGitPublisher.getPendingSession(this);
         if (session == null) return;
         directlyRecoveryPromptShown = true;
+        String scId = session.optString("projectId", "");
         String owner = session.optString("owner", "");
         String repository = session.optString("repositoryName", "");
         String state = session.optString("state", "UNKNOWN");
