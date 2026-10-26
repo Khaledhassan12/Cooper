@@ -32,6 +32,7 @@ public class ViewBeanFactory {
         return switch (name) {
             //Add more here
             case "MaterialSwitch" -> ViewBeans.VIEW_TYPE_WIDGET_MATERIALSWITCH;
+            case "ViewPager2" -> ViewBeans.VIEW_TYPE_LAYOUT_VIEWPAGER2;
             case "MaterialCardView", "CardView" -> ViewBeans.VIEW_TYPE_LAYOUT_CARDVIEW;
             case "TextInputEditText" -> ViewBean.VIEW_TYPE_WIDGET_EDITTEXT;
             case "ImageButton" -> ViewBean.VIEW_TYPE_WIDGET_IMAGEVIEW;
