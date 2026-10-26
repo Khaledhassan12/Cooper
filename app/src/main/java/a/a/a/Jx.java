@@ -267,13 +267,8 @@ public class Jx {
 		}
 		
 		if (projectFileBean.hasCustomPackage()) {
-			addImport(projectPackage + ".*");
 			addImport(projectPackage + ".R");
 			if (isViewBindingEnabled) addImport(projectPackage + ".databinding.*");
-		}
-		String self = packageName + "." + projectFileBean.getActivityName();
-		for (String imp : buildConfig.customActivityImports) {
-			if (!imp.equals(self)) addImport(imp);
 		}
 		removeExtraImports();
 		Collections.sort(imports);
