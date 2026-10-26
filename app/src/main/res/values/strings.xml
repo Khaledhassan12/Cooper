@@ -2337,44 +2337,6 @@ Please try again later"</string>
     <string name="cooper_github_directly_project_picker_hint">Choose a project in the picker. Return to Directly Git to continue the guided flow.</string>
 
     <!-- Missing GitHub Manager resources repaired for Cooper-integrated-github -->
-    <string name="cooper_github_manager_title">GitHub Manager</string>
-    <string name="cooper_github_smart_safe">Smart — safe and reviewed</string>
-    <string name="cooper_github_account">GitHub account</string>
-    <string name="cooper_github_not_connected">Not connected</string>
-    <string name="cooper_github_auth_not_configured">Connect your GitHub account to continue.</string>
-    <string name="cooper_github_connect">Connect GitHub</string>
-    <string name="cooper_github_connect_description">Authorize Cooper to access your GitHub account.</string>
-    <string name="cooper_github_repositories">Repositories</string>
-    <string name="cooper_github_browse_repositories">Browse repositories</string>
-    <string name="cooper_github_browse_repositories_description">View repositories available to your account.</string>
-    <string name="cooper_github_link_project">Link Cooper project</string>
-    <string name="cooper_github_link_project_description">Select a project and link it to a remote repository.</string>
-    <string name="cooper_github_create_repository">Create repository</string>
-    <string name="cooper_github_create_repository_description">Create a new repository on GitHub.</string>
-    <string name="cooper_github_pull_requests">Pull requests</string>
-    <string name="cooper_github_create_pull_request">Create pull request</string>
-    <string name="cooper_github_local_git">Local Git</string>
-    <string name="cooper_github_local_status">Local status</string>
-    <string name="cooper_github_not_initialized">Not initialized</string>
-    <string name="cooper_github_local_status_description">Inspect the selected project\'s Git state.</string>
-    <string name="cooper_github_inspect_changes">Inspect changes</string>
-    <string name="cooper_github_inspect_changes_description">Review staged, modified, and untracked files.</string>
-    <string name="cooper_github_review_diff">Review diff</string>
-    <string name="cooper_github_commit_local">Commit locally</string>
-    <string name="cooper_github_commit_local_description">Review and commit selected project files.</string>
-    <string name="cooper_github_fetch_remote">Fetch</string>
-    <string name="cooper_github_push_remote">Push</string>
-    <string name="cooper_github_pull_remote">Pull</string>
-    <string name="cooper_github_sync_state">Sync state</string>
-    <string name="cooper_github_local_branches">Local branches</string>
-    <string name="cooper_github_safety">Safety</string>
-    <string name="cooper_github_operation_policy">Operation policy</string>
-    <string name="cooper_github_smart_review">Smart — review before changing files</string>
-    <string name="cooper_github_safety_description">Review project paths and sensitive files before publishing.</string>
-    <string name="cooper_github_implementation_status">Implementation status</string>
-    <string name="cooper_github_implementation_status_description">Review current GitHub integration safeguards.</string>
-    <string name="cooper_github_status_dialog_title">GitHub integration status</string>
-    <string name="cooper_github_status_dialog_body">Git operations require authentication, explicit approval, and remote verification.</string>
     <string name="cooper_github_directly_change_project">Change project</string>
     <string name="cooper_github_directly_approve">I\'M Approve</string>
     <string name="cooper_github_directly_repository_name">Repository name</string>
@@ -2401,90 +2363,6 @@ Please try again later"</string>
     <string name="cooper_github_directly_discard">Discard</string>
     <string name="cooper_github_directly_publish_unavailable_title">Publishing unavailable</string>
     <string name="cooper_github_directly_publish_unavailable_message">Directly Git publishing is not yet available. No repository was created and no project files were uploaded.</string>
-    <string name="cooper_github_project_picker_title">Choose a Cooper project</string>
-    <string name="cooper_github_project_picker_empty">No available Cooper projects were found.</string>
-    <string name="cooper_github_project_bound">Bound project %1$s (ID %2$s).</string>
-    <string name="cooper_github_connection_title">Connect to GitHub</string>
-    <string name="cooper_github_oauth_not_configured">OAuth is not configured in this build.</string>
-    <string name="cooper_github_open_settings">Open GitHub settings</string>
-    <string name="cooper_github_account_verified">Connected to GitHub as %1$s.</string>
-    <string name="cooper_github_device_code_title">Authorize Cooper on GitHub</string>
-    <string name="cooper_github_local_status_title">Local Git status</string>
-    <string name="cooper_github_project_not_bound">Select a Cooper project first.</string>
-    <string name="cooper_github_select_project">Select project</string>
-    <string name="cooper_github_local_status_detail">Project: %1$s
-Path: %2$s
-Branch: %3$s
-HEAD: %4$s
-Staged: %5$d
-Modified: %6$d
-Added: %7$d
-Removed: %8$d
-Untracked: %9$d
-Conflicts: %10$d</string>
-    <string name="cooper_github_initialize_git">Initialize Git</string>
-    <string name="cooper_github_initialize_git_confirm">Initialize local Git for %1$s?</string>
-    <string name="cooper_github_conflicts_block_commit">Resolve conflicts before creating a commit.</string>
-    <string name="cooper_github_commit_review_title">Review commit</string>
-    <string name="cooper_github_no_changes">No local changes to commit.</string>
-    <string name="cooper_github_commit_message_hint">Commit message</string>
-    <string name="cooper_github_author_name_hint">Author name</string>
-    <string name="cooper_github_author_email_hint">Author email</string>
-    <string name="cooper_github_commit_review_body">Review %1$d selected file(s) before committing.</string>
-    <string name="cooper_github_commit_success">Local commit verified: %1$s</string>
-    <string name="cooper_github_commit_failed">Commit failed: %1$s</string>
-    <string name="cooper_github_initialize_git_success">Local Git initialized and verified.</string>
-    <string name="cooper_github_project_binding_failed">Could not bind the selected project.</string>
-    <string name="cooper_github_reconnect">Reconnect GitHub</string>
-    <string name="cooper_github_local_git_failed">Local Git operation failed.</string>
-    <string name="cooper_github_account_verify_failed">Could not verify GitHub account.</string>
-    <string name="cooper_github_repository_list_title">Your repositories</string>
-    <string name="cooper_github_repository_list_empty">No repositories found.</string>
-    <string name="cooper_github_repository_list_failed">Could not load repositories: %1$s</string>
-    <string name="cooper_github_disconnect">Disconnect GitHub</string>
-    <string name="cooper_github_disconnect_confirm">Disconnect this GitHub account from Cooper?</string>
-    <string name="cooper_github_disconnected">GitHub disconnected.</string>
-    <string name="cooper_github_pr_owner_hint">Repository owner</string>
-    <string name="cooper_github_pr_repository_hint">Repository name</string>
-    <string name="cooper_github_pr_head_hint">Source branch</string>
-    <string name="cooper_github_pr_base_hint">Target branch</string>
-    <string name="cooper_github_pr_title_hint">Pull request title</string>
-    <string name="cooper_github_pr_body_hint">Description</string>
-    <string name="cooper_github_pr_review">Review pull request</string>
-    <string name="cooper_github_pr_created">Pull request created: %1$s</string>
-    <string name="cooper_github_pr_failed">Could not create pull request: %1$s</string>
-    <string name="cooper_github_diff_empty">No diff available.</string>
-    <string name="cooper_github_diff_title">Review changes</string>
-    <string name="cooper_github_diff_failed">Could not load diff: %1$s</string>
-    <string name="cooper_github_sync_state_detail">Branch: %1$s
-Local HEAD: %2$s
-Remote HEAD: %3$s
-Ahead: %4$d
-Behind: %5$d</string>
-    <string name="cooper_github_create_branch">Create branch</string>
-    <string name="cooper_github_checkout_branch">Switch branch</string>
-    <string name="cooper_github_checkout_confirm">Switch to branch %1$s?</string>
-    <string name="cooper_github_branch_name_hint">Branch name</string>
-    <string name="cooper_github_branch_created">Branch created: %1$s</string>
-    <string name="cooper_github_branch_switched">Switched to %1$s</string>
-    <string name="cooper_github_branch_failed">Branch operation failed: %1$s</string>
-    <string name="cooper_github_link_remote">Link remote</string>
-    <string name="cooper_github_link_remote_confirm">Link this project to %1$s?</string>
-    <string name="cooper_github_remote_linked">Remote linked: %1$s</string>
-    <string name="cooper_github_remote_not_linked">No remote repository is linked.</string>
-    <string name="cooper_github_fetch_success">Fetch completed.</string>
-    <string name="cooper_github_push_confirm">Push committed changes to GitHub?</string>
-    <string name="cooper_github_pull_confirm">Pull remote changes into this project?</string>
-    <string name="cooper_github_push_success">Push completed and verified.</string>
-    <string name="cooper_github_pull_success">Pull completed.</string>
-    <string name="cooper_github_repository_name_hint">Repository name</string>
-    <string name="cooper_github_repository_description_hint">Repository description</string>
-    <string name="cooper_github_repository_private">Private repository</string>
-    <string name="cooper_github_repository_create_title">Create GitHub repository</string>
-    <string name="cooper_github_repository_create_review">Create repository “%1$s” with %2$s visibility?</string>
-    <string name="cooper_github_repository_create_success">Repository created: %1$s</string>
-    <string name="cooper_github_signin_failed">GitHub sign-in failed: %1$s</string>
-    <string name="cooper_github_not_ready_message">This operation is not available yet.</string>
     <string name="cooper_github_directly_image_limit">You can select up to six images. The previous selection was kept.</string>
     <string name="cooper_github_directly_invalid_image">Choose valid JPEG, PNG, WebP, or GIF images.</string>
     <string name="cooper_github_directly_unreadable_image">Cooper could not read one of the selected images. Choose it again.</string>
