@@ -147,6 +147,35 @@ public final class DirectlyGitPublisher {
         catch (Exception ignored) { return new org.json.JSONArray(); }
     }
 
+    public static boolean recordVerifiedPublication(Context context, GitProjectBindingStore.Binding binding,
+                                                    String owner, String name, String url, String sha,
+                                                    String branch, boolean isPrivate, String method) {
+        if (context == null || binding == null || owner == null || name == null || sha == null
+                || owner.trim().isEmpty() || name.trim().isEmpty() || sha.trim().isEmpty()) return false;
+        SharedPreferences preferences = context.getApplicationContext().getSharedPreferences(
+                "cooper_directly_git_publications", Context.MODE_PRIVATE);
+        try {
+            org.json.JSONArray history = getPublicationHistory(context);
+            org.json.JSONObject entry = new org.json.JSONObject();
+            entry.put("projectId", binding.scId);
+            entry.put("workspaceName", binding.workspaceName);
+            entry.put("appName", binding.appName);
+            entry.put("packageName", binding.packageName);
+            entry.put("owner", owner);
+            entry.put("repositoryName", name);
+            entry.put("repositoryUrl", url == null ? "" : url);
+            entry.put("commitSha", sha);
+            entry.put("branch", branch == null ? "" : branch);
+            entry.put("private", isPrivate);
+            entry.put("method", method == null ? "ADVANCED_GIT" : method);
+            entry.put("publishedAt", System.currentTimeMillis());
+            history.put(entry);
+            return preferences.edit().putString("publication_history_v1", history.toString()).commit();
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
     public static boolean clearPendingSession(Context context) {
         if (context == null) return false;
         return context.getApplicationContext().getSharedPreferences(
