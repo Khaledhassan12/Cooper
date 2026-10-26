@@ -202,6 +202,7 @@ public final class DirectlyGitPublisher {
     public Result publish(Plan plan, AtomicBoolean cancelled, ProgressListener progress) throws Exception {
         if (plan == null) throw new IllegalArgumentException("A reviewed publishing plan is required.");
         boolean remoteCreated = false;
+        boolean localCommitCreated = false;
         String repositoryUrl = "https://github.com/" + plan.owner + "/" + plan.repositoryName;
         ArrayList<File> generated = new ArrayList<>();
         long startedAt = System.currentTimeMillis();
@@ -265,6 +266,7 @@ public final class DirectlyGitPublisher {
             LocalGitBackend.Snapshot local = backend.inspect(current.projectRoot);
             if (local.headCommit == null || local.headCommit.trim().isEmpty()) throw new IllegalStateException("No local commit exists to publish.");
             String expectedSha = local.headCommit;
+            localCommitCreated = true;
 
             phase(progress, context.getString(R.string.cooper_github_directly_phase_create));
             checkCancelled(cancelled);
@@ -317,7 +319,7 @@ public final class DirectlyGitPublisher {
             bindings.linkRemote(plan.owner, plan.repositoryName);
             return new Result(repositoryUrl, expectedSha, local.currentBranch);
         } catch (Exception e) {
-            if (!remoteCreated) {
+            if (!remoteCreated && !localCommitCreated) {
                 for (File file : generated) {
                     try { if (file.isFile()) file.delete(); } catch (Exception ignored) { }
                 }
@@ -443,11 +445,13 @@ public final class DirectlyGitPublisher {
         if (content.isEmpty()) content = plan.binding.workspaceName;
         StringBuilder result = new StringBuilder(content).append("\n");
         if (!plan.images.isEmpty()) {
-            result.append("\n").append("## Project images").append("\n\n");
+            boolean markdown = "MARKDOWN".equals(plan.readmeMode);
+            result.append("\n").append(markdown ? "## Project images" : "Project images:").append("\n\n");
             for (int i = 0; i < plan.images.size(); i++) {
                 String ext = plan.imageExtensions.get(i);
-                result.append("![Project image ").append(i + 1).append("](directly-git-assets/image-")
-                        .append(String.format(Locale.ROOT, "%02d", i + 1)).append(".").append(ext).append(")\n");
+                String path = "directly-git-assets/image-" + String.format(Locale.ROOT, "%02d", i + 1) + "." + ext;
+                if (markdown) result.append("![Project image ").append(i + 1).append("](").append(path).append(")\n");
+                else result.append(path).append("\n");
             }
         }
         return result.toString();
