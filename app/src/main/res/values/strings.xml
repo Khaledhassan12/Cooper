@@ -2421,4 +2421,35 @@ Do not create another repository with the same name. Inspect the remote state be
     <string name="cooper_github_directly_version_unavailable">App version metadata: not available</string>
     <string name="cooper_github_directly_metadata_unavailable">not available</string>
     <string name="cooper_github_directly_close">Close</string>
+
+    <string name="cooper_github_directly_visibility_private">Private repository</string>
+    <string name="cooper_github_directly_visibility_public">Public repository</string>
+    <string name="cooper_github_directly_visibility_hint">Repository visibility — choose who can access this repository</string>
+    <string name="cooper_github_directly_visibility_required">Choose Public or Private repository visibility before publishing.</string>
+    <string name="cooper_github_history_action_title">Cooper Git · Publication history</string>
+    <string name="cooper_github_history_action_description">View verified Directly Git and Advanced Git publication records saved on this device.</string>
+    <string name="cooper_github_history_title">Cooper Git 🔥</string>
+    <string name="cooper_github_history_subtitle">Verified publication history · %1$d record(s)</string>
+    <string name="cooper_github_history_empty">No verified publications have been recorded on this device yet.</string>
+    <string name="cooper_github_history_package">Package: %1$s</string>
+    <string name="cooper_github_history_project_id">Project ID: %1$s</string>
+    <string name="cooper_github_history_date">%1$s</string>
+    <string name="cooper_github_history_method">%1$s · %2$s · %3$s</string>
+    <string name="cooper_github_history_commit">Commit: %1$s</string>
+    <string name="cooper_github_history_saved">Push was verified and saved to Cooper Git publication history.</string>
+    <string name="cooper_github_history_save_failed">Push was verified, but Cooper could not save its publication-history entry.</string>
+    <string name="cooper_github_recovery_clean_action_title">Clean Directly Git recovery</string>
+    <string name="cooper_github_recovery_clean_action_description">Review and clear a stale recovery blocker without deleting project files or changing GitHub repositories.</string>
+    <string name="cooper_github_recovery_no_session_title">No recovery session</string>
+    <string name="cooper_github_recovery_no_session_message">There is no saved Directly Git recovery blocker to clear.</string>
+    <string name="cooper_github_recovery_clear_title">Clear recovery session?</string>
+    <string name="cooper_github_recovery_clear_details">Saved stage: %1$s\nProject ID: %2$s\nExpected commit: %3$s\n\nClearing removes only Cooper&#39;s saved recovery record. It does not delete project files or the GitHub repository, and it does not undo a push. Inspect local and remote state first.\n\nTarget: %4$s</string>
+    <string name="cooper_github_recovery_clear_button">Clear saved session</string>
+    <string name="cooper_github_recovery_clear_success">Saved recovery blocker cleared. Local and remote data were not changed.</string>
+    <string name="cooper_github_recovery_clear_failed">Cooper could not clear the saved recovery record.</string>
+    <string name="cooper_github_recovery_select_saved_project">Select saved project</string>
+    <string name="cooper_github_recovery_original_project_selected">Original recovery project selected: %1$s</string>
+    <string name="cooper_github_recovery_original_project_mismatch">The original project path no longer matches the saved recovery record. Clear recovery only after inspecting local and remote state.</string>
+    <string name="cooper_github_recovery_original_project_failed">Cooper could not safely select the saved project.</string>
+    <string name="cooper_github_project_icon_content_description">Project application icon</string>
 </resources>
