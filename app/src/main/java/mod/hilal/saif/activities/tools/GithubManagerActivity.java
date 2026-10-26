@@ -197,6 +197,29 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                         .setMessage(R.string.cooper_github_status_dialog_body)
                         .setPositiveButton(R.string.common_word_ok, null)
                         .show());
+        if (directlyDraftFormVisible && directlyDraftProjectId != null) {
+            content.post(this::restoreDirectlyGitDraft);
+        }
+    }
+
+    private void restoreDirectlyGitDraft() {
+        if (!directlyDraftFormVisible || directlyDraftProjectId == null || isFinishing() || isDestroyed()) return;
+        try {
+            GitProjectBindingStore.Binding binding = new GitProjectBindingStore(getApplicationContext()).getBoundProject();
+            if (binding == null || !directlyDraftProjectId.equals(binding.scId)) {
+                directlyDraftFormVisible = false;
+                new MaterialAlertDialogBuilder(this)
+                        .setTitle(R.string.cooper_github_directly_title)
+                        .setMessage(R.string.cooper_github_directly_recovery_project_mismatch)
+                        .setPositiveButton(R.string.common_word_ok, null)
+                        .show();
+                return;
+            }
+            showDirectlyGitRepositoryForm(binding);
+        } catch (Exception e) {
+            directlyDraftFormVisible = false;
+            showProjectBindingError(e);
+        }
     }
 
 
@@ -385,6 +408,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
             }
             @Override public void afterTextChanged(android.text.Editable e) {}
         });
+        directlyDraftRepositoryName = repoName.getText().toString();
         EditText description = new EditText(this);
         description.setHint(R.string.cooper_github_directly_description_hint);
         description.setMinLines(2);
@@ -586,6 +610,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
 
     private void runDirectlyGitPublish(DirectlyGitPublisher publisher, DirectlyGitPublisher.Plan plan) {
         if (isFinishing() || isDestroyed()) return;
+        directlyDraftFormVisible = false;
         final AtomicBoolean cancelled = new AtomicBoolean(false);
         final LinearLayout panel = new LinearLayout(this);
         panel.setOrientation(LinearLayout.VERTICAL);
