@@ -484,7 +484,8 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         push.setOnClickListener(v -> {
             String name = repoName.getText().toString().trim();
             if (!name.matches("[A-Za-z0-9_.-]{1,100}") || name.equals(".") || name.equals("..")
-                    || name.startsWith(".") || name.endsWith(".") || name.endsWith(".git")) {
+                    || name.contains("..") || name.startsWith(".") || name.endsWith(".")
+                    || name.toLowerCase(java.util.Locale.ROOT).endsWith(".git")) {
                 repoName.setError(getString(R.string.cooper_github_directly_invalid_repository_name));
                 return;
             }
@@ -2292,6 +2293,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
 
     private void runDirectlyGitRecovery() {
         if (isFinishing() || isDestroyed()) return;
+        directlyRecoveryPromptShown = true;
         final AtomicBoolean cancelled = new AtomicBoolean(false);
         LinearLayout panel = new LinearLayout(this);
         panel.setOrientation(LinearLayout.VERTICAL);
