@@ -566,8 +566,7 @@ public class yq {
         }
         for (ProjectFileBean activity : projectFileManager.b()) {
             if (activity.hasCustomPackage()) {
-                N.customActivityImports.add(activity.packageName + "." + activity.getActivityName());
-                customPackageFolders.put(activity.getJavaName(), activity.packageName.replace('.', File.separatorChar));
+                customPackageFolders.put(activity.getJavaName(), activity.getCustomPackage().replace('.', File.separatorChar));
             }
             if (activity.hasActivityOption(ProjectFileBean.OPTION_ACTIVITY_DRAWER)) {
                 N.a(activity.getActivityName()).hasDrawer = true;
