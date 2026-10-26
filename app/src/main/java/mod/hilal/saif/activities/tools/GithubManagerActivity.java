@@ -428,12 +428,123 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
     private void beginDirectlyGitPublish(GitProjectBindingStore.Binding binding, String name,
                                          String description, String readmeMode, String readmeContent,
                                          java.util.ArrayList<Uri> images) {
-        // Fail closed until the local project can be staged as a reviewed, secret-scanned commit.
-        // Creating a remote first would risk leaving an empty repository if local preparation fails.
-        new MaterialAlertDialogBuilder(this)
-                .setTitle(R.string.cooper_github_directly_publish_unavailable_title)
-                .setMessage(R.string.cooper_github_directly_publish_unavailable_message)
-                .setPositiveButton(R.string.common_word_ok, null).show();
+        if (isFinishing() || isDestroyed()) return;
+        authExecutor.execute(() -> {
+            final DirectlyGitPublisher publisher = new DirectlyGitPublisher(
+                    getApplicationContext(), BuildConfig.COOPER_GITHUB_CLIENT_ID);
+            final DirectlyGitPublisher.Plan plan;
+            try {
+                plan = publisher.prepare(binding, name, description, readmeMode, readmeContent, images);
+            } catch (Exception error) {
+                String message = error.getMessage() == null
+                        ? "Cooper could not prepare the publishing plan." : error.getMessage();
+                new Handler(Looper.getMainLooper()).post(() -> {
+                    if (isFinishing() || isDestroyed()) return;
+                    new MaterialAlertDialogBuilder(this)
+                            .setTitle(R.string.cooper_github_directly_publish_failed_title)
+                            .setMessage(getString(R.string.cooper_github_directly_publish_failed, message))
+                            .setPositiveButton(R.string.common_word_ok, null)
+                            .show();
+                });
+                return;
+            }
+            new Handler(Looper.getMainLooper()).post(() -> {
+                if (isFinishing() || isDestroyed()) return;
+                new MaterialAlertDialogBuilder(this)
+                        .setTitle(R.string.cooper_github_directly_publish_confirm)
+                        .setMessage(plan.getSummary())
+                        .setNegativeButton(R.string.common_word_cancel, null)
+                        .setPositiveButton(R.string.cooper_github_directly_git_push,
+                                (dialog, which) -> runDirectlyGitPublish(publisher, plan))
+                        .show();
+            });
+        });
+    }
+
+    private void runDirectlyGitPublish(DirectlyGitPublisher publisher, DirectlyGitPublisher.Plan plan) {
+        if (isFinishing() || isDestroyed()) return;
+        final AtomicBoolean cancelled = new AtomicBoolean(false);
+        final LinearLayout panel = new LinearLayout(this);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setPadding(dp(24), dp(12), dp(24), dp(12));
+        TextView summary = text(plan.binding.workspaceName + "  →  " + plan.getOwner()
+                + "/" + plan.repositoryName, 14, true);
+        panel.addView(summary);
+        ProgressBar progress = new ProgressBar(this);
+        progress.setIndeterminate(true);
+        LinearLayout.LayoutParams progressParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(36));
+        progressParams.topMargin = dp(12);
+        panel.addView(progress, progressParams);
+        TextView phase = text(getString(R.string.cooper_github_directly_phase_validate), 14, false);
+        phase.setPadding(0, dp(8), 0, dp(8));
+        panel.addView(phase);
+        AlertDialog dialog = new MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.cooper_github_directly_publish_progress_title)
+                .setView(panel)
+                .setNegativeButton(R.string.cooper_github_directly_stop_push, null)
+                .create();
+        dialog.setCancelable(false);
+        dialog.setCanceledOnTouchOutside(false);
+        dialog.setOnShowListener(ignored -> {
+            android.widget.Button stop = dialog.getButton(AlertDialog.BUTTON_NEGATIVE);
+            if (stop != null) stop.setOnClickListener(v -> {
+                cancelled.set(true);
+                stop.setEnabled(false);
+                phase.setText(R.string.cooper_github_directly_stop_requested);
+            });
+        });
+        dialog.show();
+
+        authExecutor.execute(() -> {
+            try {
+                DirectlyGitPublisher.Result result = publisher.publish(plan, cancelled, value ->
+                        new Handler(Looper.getMainLooper()).post(() -> {
+                            if (!isFinishing() && !isDestroyed() && dialog.isShowing()) phase.setText(value);
+                        }));
+                new Handler(Looper.getMainLooper()).post(() -> {
+                    if (isFinishing() || isDestroyed()) return;
+                    if (dialog.isShowing()) dialog.dismiss();
+                    new MaterialAlertDialogBuilder(this)
+                            .setTitle(R.string.cooper_github_directly_publish_success_title)
+                            .setMessage(getString(R.string.cooper_github_directly_publish_success,
+                                    result.repositoryUrl, result.branch, result.commitSha))
+                            .setPositiveButton(R.string.cooper_github_open_repository, (d, which) -> {
+                                try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(result.repositoryUrl))); }
+                                catch (Exception ignored) { }
+                            })
+                            .setNegativeButton(R.string.common_word_ok, null)
+                            .show();
+                });
+            } catch (Exception error) {
+                boolean remoteCreated = error instanceof DirectlyGitPublisher.PublishException
+                        && ((DirectlyGitPublisher.PublishException) error).remoteCreated;
+                String remoteUrl = error instanceof DirectlyGitPublisher.PublishException
+                        ? ((DirectlyGitPublisher.PublishException) error).repositoryUrl : "";
+                String detail = error.getMessage() == null
+                        ? "Publishing failed. Inspect the local and remote state before retrying." : error.getMessage();
+                final String message = remoteCreated
+                        ? getString(R.string.cooper_github_directly_publish_partial,
+                                remoteUrl.isEmpty() ? plan.getOwner() + "/" + plan.repositoryName : remoteUrl, detail)
+                        : getString(R.string.cooper_github_directly_publish_failed, detail);
+                new Handler(Looper.getMainLooper()).post(() -> {
+                    if (isFinishing() || isDestroyed()) return;
+                    if (dialog.isShowing()) dialog.dismiss();
+                    MaterialAlertDialogBuilder errorDialog = new MaterialAlertDialogBuilder(this)
+                            .setTitle(remoteCreated ? R.string.cooper_github_directly_publish_partial_title
+                                    : R.string.cooper_github_directly_publish_failed_title)
+                            .setMessage(message)
+                            .setPositiveButton(R.string.common_word_ok, null);
+                    if (remoteCreated && !remoteUrl.isEmpty()) {
+                        errorDialog.setNeutralButton(R.string.cooper_github_open_repository, (d, which) -> {
+                            try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(remoteUrl))); }
+                            catch (Exception ignored) { }
+                        });
+                    }
+                    errorDialog.show();
+                });
+            }
+        });
     }
 
 
