@@ -37,6 +37,7 @@ public final class DirectlyGitPublisher {
         public final String readmeMode;
         public final String readmeContent;
         public final List<Uri> images;
+        public final List<String> imageExtensions;
         public final List<String> files;
         public final int excludedCount;
         private final String owner;
@@ -46,7 +47,7 @@ public final class DirectlyGitPublisher {
         private final String existingHead;
 
         private Plan(GitProjectBindingStore.Binding binding, String repositoryName, String description,
-                     String readmeMode, String readmeContent, List<Uri> images, List<String> files,
+                     String readmeMode, String readmeContent, List<Uri> images, List<String> imageExtensions, List<String> files,
                      int excludedCount, String owner, String authorName, String authorEmail,
                      boolean initialized, String existingHead) {
             this.binding = binding;
@@ -55,6 +56,7 @@ public final class DirectlyGitPublisher {
             this.readmeMode = readmeMode;
             this.readmeContent = readmeContent;
             this.images = Collections.unmodifiableList(new ArrayList<>(images));
+            this.imageExtensions = Collections.unmodifiableList(new ArrayList<>(imageExtensions));
             this.files = Collections.unmodifiableList(new ArrayList<>(files));
             this.excludedCount = excludedCount;
             this.owner = owner;
@@ -175,9 +177,11 @@ public final class DirectlyGitPublisher {
             files.add("README.md");
         }
         int imageIndex = 0;
+        ArrayList<String> imageExtensions = new ArrayList<>();
         for (Uri uri : images) {
             imageIndex++;
             String ext = validateImageUri(uri);
+            imageExtensions.add(ext);
             String path = String.format(Locale.ROOT, "directly-git-assets/image-%02d.%s", imageIndex, ext);
             if (new File(current.projectRoot, path).exists()) throw new IllegalStateException("Image destination already exists: " + path);
             files.add(path);
@@ -192,7 +196,7 @@ public final class DirectlyGitPublisher {
         if (authorEmail.isEmpty() && userId > 0) authorEmail = userId + "+" + owner + "@users.noreply.github.com";
         if (authorEmail.isEmpty()) throw new IllegalStateException("GitHub did not provide an author identity. Add a verified email to your GitHub profile and retry.");
         return new Plan(current, name, safeDescription, readmeMode, readmeContent == null ? "" : readmeContent,
-                images, files, excluded, owner, authorName, authorEmail, snapshot.initialized, snapshot.headCommit);
+                images, imageExtensions, files, excluded, owner, authorName, authorEmail, snapshot.initialized, snapshot.headCommit);
     }
 
     public Result publish(Plan plan, AtomicBoolean cancelled, ProgressListener progress) throws Exception {
@@ -238,7 +242,6 @@ public final class DirectlyGitPublisher {
             phase(progress, "Building and validating the reviewed file manifest");
             ArrayList<String> manifest = new ArrayList<>();
             collectManifest(current.projectRoot, current.projectRoot, manifest, new long[]{0L});
-            for (File file : generated) manifest.add(relative(current.projectRoot, file));
             Collections.sort(manifest);
             if (!manifest.containsAll(plan.files)) throw new IllegalStateException("The project file set changed after review. Review the project again.");
             for (String path : manifest) scanFile(current.projectRoot, path);
@@ -292,7 +295,7 @@ public final class DirectlyGitPublisher {
             if (!repositoryUrl.startsWith("https://github.com/" + plan.owner + "/" + plan.repositoryName)) {
                 throw new IllegalStateException("GitHub returned an untrusted repository URL.");
             }
-            checkCancelled(cancelled);
+            if (cancelled != null && cancelled.get()) throw new PublishException("Publishing was stopped after the remote repository was created. The repository was retained; no push was attempted.", true, repositoryUrl, null);
 
             phase(progress, "Configuring the new remote");
             backend.configureRemote(current.projectRoot, "https://github.com/" + plan.owner + "/" + plan.repositoryName + ".git", true);
@@ -442,10 +445,7 @@ public final class DirectlyGitPublisher {
         if (!plan.images.isEmpty()) {
             result.append("\n").append("## Project images").append("\n\n");
             for (int i = 0; i < plan.images.size(); i++) {
-                Uri uri = plan.images.get(i);
-                String mime = uri == null ? "" : "";
-                String ext = "png";
-                // Path extension is normalized by validateImageUri before the file is copied.
+                String ext = plan.imageExtensions.get(i);
                 result.append("![Project image ").append(i + 1).append("](directly-git-assets/image-")
                         .append(String.format(Locale.ROOT, "%02d", i + 1)).append(".").append(ext).append(")\n");
             }
