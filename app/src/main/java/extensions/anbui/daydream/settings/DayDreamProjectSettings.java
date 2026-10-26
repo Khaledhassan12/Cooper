@@ -33,6 +33,17 @@ public class DayDreamProjectSettings {
         setDataString(projectID, activityName, "activityType", value);
     }
 
+    // Activity package
+
+    public static String getActivityPackage(String projectID, String activityName) {
+        String result = getDataString(projectID, activityName, "activityPackage");
+        return result == null ? "" : result;
+    }
+
+    public static void setActivityPackage(String projectID, String activityName, String value) {
+        setDataString(projectID, activityName, "activityPackage", value == null ? "" : value);
+    }
+
     //Activity settings
 
     public static boolean isEnableEdgeToEdge(String projectID, String activityName) {
