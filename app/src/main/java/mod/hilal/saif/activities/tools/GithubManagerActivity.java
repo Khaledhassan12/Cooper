@@ -819,23 +819,48 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
     @Nullable
     private Bitmap loadDirectlyGitProjectIcon(String scId, java.util.HashMap<String, Object> metadata) {
         java.util.ArrayList<java.io.File> candidates = new java.util.ArrayList<>();
-        String customIcon = metadata == null || metadata.get("custom_icon") == null
-                ? "" : String.valueOf(metadata.get("custom_icon")).trim();
         java.io.File listRoot = new java.io.File(a.a.a.wq.c(scId));
         java.io.File dataRoot = new java.io.File(a.a.a.wq.b(scId));
-        if (!customIcon.isEmpty()) {
-            java.io.File supplied = new java.io.File(customIcon);
+        // Read the saved project record as well as the project-list metadata. Icon key names
+        // differ between Cooper/Sketchware versions, so support the common real metadata keys.
+        java.util.HashMap<String, Object> fields = new java.util.HashMap<>();
+        if (metadata != null) fields.putAll(metadata);
+        java.io.File projectRecord = new java.io.File(listRoot, "project");
+        if (projectRecord.isFile() && projectRecord.length() > 0L && projectRecord.length() < 2L * 1024L * 1024L) {
+            try {
+                String json = new String(java.nio.file.Files.readAllBytes(projectRecord.toPath()), java.nio.charset.StandardCharsets.UTF_8);
+                org.json.JSONObject record = new org.json.JSONObject(json);
+                java.util.Iterator<String> keys = record.keys();
+                while (keys.hasNext()) {
+                    String key = keys.next();
+                    if (!fields.containsKey(key)) fields.put(key, record.opt(key));
+                }
+            } catch (Exception ignored) { }
+        }
+        String[] iconKeys = {"custom_icon", "project_icon", "projectIcon", "icon_path", "iconPath",
+                "app_icon", "appIcon", "icon", "launcher_icon", "launcherIcon"};
+        for (String key : iconKeys) {
+            Object value = fields.get(key);
+            if (value == null) continue;
+            String path = String.valueOf(value).trim();
+            if (path.isEmpty() || "null".equalsIgnoreCase(path)) continue;
+            java.io.File supplied = new java.io.File(path);
             if (supplied.isAbsolute()) candidates.add(supplied);
             else {
-                candidates.add(new java.io.File(listRoot, customIcon));
-                candidates.add(new java.io.File(dataRoot, customIcon));
+                candidates.add(new java.io.File(listRoot, path));
+                candidates.add(new java.io.File(dataRoot, path));
+                candidates.add(new java.io.File(new java.io.File(dataRoot, "files"), path));
             }
         }
-        for (java.io.File root : new java.io.File[]{listRoot, dataRoot}) {
-            candidates.add(new java.io.File(root, "icon.png"));
-            candidates.add(new java.io.File(root, "icon.webp"));
-            candidates.add(new java.io.File(root, "app_icon.png"));
-            candidates.add(new java.io.File(root, "ic_launcher.png"));
+        for (java.io.File root : new java.io.File[]{listRoot, dataRoot,
+                new java.io.File(dataRoot, "files"), new java.io.File(dataRoot, "res"),
+                new java.io.File(dataRoot, "resources"), new java.io.File(dataRoot, "app"),
+                new java.io.File(listRoot, "res")}) {
+            for (String name : new String[]{"icon.png", "icon.webp", "icon.jpg", "icon.jpeg",
+                    "app_icon.png", "app_icon.webp", "project_icon.png", "project_icon.webp",
+                    "ic_launcher.png", "ic_launcher.webp", "launcher.png", "launcher.webp"}) {
+                candidates.add(new java.io.File(root, name));
+            }
         }
         for (java.io.File candidate : candidates) {
             try {
@@ -2602,9 +2627,19 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                 row.setPadding(dp(12), dp(12), dp(12), dp(12));
                 MaterialCardView iconCard = card();
                 iconCard.setRadius(dp(18));
-                TextView projectIcon = text(displayName.substring(0, 1).toUpperCase(java.util.Locale.ROOT), 22, true);
-                projectIcon.setGravity(Gravity.CENTER);
-                iconCard.addView(projectIcon, new MaterialCardView.LayoutParams(dp(52), dp(52)));
+                ImageView projectIcon = new ImageView(this);
+                projectIcon.setScaleType(ImageView.ScaleType.CENTER_CROP);
+                String projectIdForIcon = entry.optString("projectId", "").trim();
+                Bitmap projectBitmap = projectIdForIcon.isEmpty() ? null
+                        : loadDirectlyGitProjectIcon(projectIdForIcon, null);
+                if (projectBitmap != null) {
+                    projectIcon.setImageBitmap(projectBitmap);
+                    iconCard.addView(projectIcon, new MaterialCardView.LayoutParams(dp(52), dp(52)));
+                } else {
+                    TextView fallback = text(displayName.substring(0, 1).toUpperCase(java.util.Locale.ROOT), 22, true);
+                    fallback.setGravity(Gravity.CENTER);
+                    iconCard.addView(fallback, new MaterialCardView.LayoutParams(dp(52), dp(52)));
+                }
                 LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(dp(52), dp(52));
                 iconParams.rightMargin = dp(12);
                 row.addView(iconCard, iconParams);
