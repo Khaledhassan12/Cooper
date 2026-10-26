@@ -103,6 +103,21 @@ public class AddViewActivity extends BaseAppCompatActivity {
         }
     }
 
+    private String getProjectPackage() {
+        return String.valueOf(lC.b(Configs.currentProjectID).get("my_sc_pkg_name"));
+    }
+
+    // Return "" kalau sama dengan package project, null kalau tidak valid
+    private String resolvePackageInput() {
+        String pkg = Helper.getText(binding.edPackage).trim();
+        if (!pkg.isEmpty() && !pkg.matches("[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*")) {
+            binding.tiPackage.setError("Invalid package name");
+            return null;
+        }
+        binding.tiPackage.setError(null);
+        return pkg.equals(getProjectPackage()) ? "" : pkg;
+    }
+
     private boolean isValid(YB validator) {
         return validator.b();
     }
@@ -382,6 +397,10 @@ public class AddViewActivity extends BaseAppCompatActivity {
                         return;
                 }
 
+                String newPkg = resolvePackageInput();
+                if (newPkg == null) return;
+                projectFileBean.packageName = newPkg;
+
                 projectFileBean.orientation = getSelectedButtonIndex(binding.screenOrientationSelector);
                 projectFileBean.keyboardSetting = getSelectedButtonIndex(binding.keyboardSettingsSelector);
                 if (!featureToolbar) {
@@ -406,14 +425,8 @@ public class AddViewActivity extends BaseAppCompatActivity {
 
                 finish();
             } else if (isValid(nameValidator)) {
-                String pkg = Helper.getText(binding.edPackage).trim();
-                if (!pkg.isEmpty() && !pkg.matches("[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*")) {
-                    binding.tiPackage.setError("Invalid package name");
-                    return;
-                }
-                binding.tiPackage.setError(null);
-                String projectPkg = String.valueOf(lC.b(Configs.currentProjectID).get("my_sc_pkg_name"));
-                if (pkg.equals(projectPkg)) pkg = "";
+                String pkg = resolvePackageInput();
+                if (pkg == null) return;
 
                 String var4 = Helper.getText(binding.edName);
 
@@ -445,9 +458,8 @@ public class AddViewActivity extends BaseAppCompatActivity {
         if (requestCode == 265) {
             //nameValidator = new YB(getApplicationContext(), binding.tiName, uq.b, new ArrayList<>(), projectFileBean.fileName);
             binding.edName.setText(projectFileBean.fileName);
-            binding.edPackage.setText(projectFileBean.packageName);
-            binding.edPackage.setEnabled(false);
-            binding.tiPackage.setVisibility(projectFileBean.hasCustomPackage() ? View.VISIBLE : View.GONE);
+            binding.edPackage.setText(projectFileBean.getPackageName(getProjectPackage()));
+            binding.edPackage.setSelection(binding.edPackage.length());
 
             if (projectFileBean.fileName.equals("main")) {
                 binding.edName.setEnabled(false);
@@ -493,6 +505,8 @@ public class AddViewActivity extends BaseAppCompatActivity {
                 }
             });
         } else {
+            binding.edPackage.setText(getProjectPackage());
+            binding.edPackage.setSelection(binding.edPackage.length());
             featureToolbar = true;
             featureStatusBar = true;
             nameValidator = new YB(getApplicationContext(), binding.tiName, uq.b, screenNames);
