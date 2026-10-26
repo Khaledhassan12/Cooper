@@ -2485,8 +2485,32 @@ Behind: %5$d</string>
     <string name="cooper_github_repository_create_success">Repository created: %1$s</string>
     <string name="cooper_github_signin_failed">GitHub sign-in failed: %1$s</string>
     <string name="cooper_github_not_ready_message">This operation is not available yet.</string>
-    <string name="cooper_github_directly_image_limit">Directly Image Limit.</string>
-    <string name="cooper_github_directly_invalid_image">Directly Invalid Image.</string>
-    <string name="cooper_github_directly_unreadable_image">Directly Unreadable Image.</string>
-    <string name="cooper_github_directly_images_selected">Directly Images Selected.</string>
+    <string name="cooper_github_directly_image_limit">You can select up to six images. The previous selection was kept.</string>
+    <string name="cooper_github_directly_invalid_image">Choose valid JPEG, PNG, WebP, or GIF images.</string>
+    <string name="cooper_github_directly_unreadable_image">Cooper could not read one of the selected images. Choose it again.</string>
+    <string name="cooper_github_directly_images_selected">%1$d image(s) selected.</string>
+    <string name="cooper_github_directly_publish_progress_title">Publishing with Directly Git</string>
+    <string name="cooper_github_directly_stop_push">Stop Push</string>
+    <string name="cooper_github_directly_stop_requested">Stop requested. Cooper will stop at the next safe checkpoint.</string>
+    <string name="cooper_github_directly_publish_success">Publishing verified.
+Repository: %1$s
+Branch: %2$s
+Commit: %3$s</string>
+    <string name="cooper_github_directly_publish_partial">Publishing did not finish. The remote repository may already exist: %1$s
+
+%2$s
+
+Do not create another repository with the same name. Inspect the remote state before retrying.</string>
+    <string name="cooper_github_directly_publish_failed">Publishing failed before a remote repository was created.
+
+%1$s</string>
+    <string name="cooper_github_directly_phase_validate">Validating project and GitHub credentials</string>
+    <string name="cooper_github_directly_phase_assets">Preparing README and selected images</string>
+    <string name="cooper_github_directly_phase_manifest">Building and validating the reviewed file manifest</string>
+    <string name="cooper_github_directly_phase_commit">Preparing the local commit</string>
+    <string name="cooper_github_directly_phase_create">Creating a new GitHub repository</string>
+    <string name="cooper_github_directly_phase_remote">Configuring the new remote</string>
+    <string name="cooper_github_directly_phase_push">Pushing the reviewed branch and commit</string>
+    <string name="cooper_github_directly_phase_verify">Verifying the remote branch and commit</string>
+    <string name="cooper_github_directly_phase_finalize">Saving the verified project association</string>
 </resources>
