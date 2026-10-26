@@ -109,7 +109,7 @@ public class AddViewActivity extends BaseAppCompatActivity {
 
     private String resolvePackageInput() {
         String pkg = Helper.getText(binding.edPackage).trim();
-        if (!pkg.isEmpty() && !pkg.matches("[a-z][a-z0-9_]*(\\\\.[a-z][a-z0-9_]*)*")) {
+        if (!pkg.isEmpty() && !pkg.matches("[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*")) {
             binding.tiPackage.setError("Invalid package name");
             return null;
         }
