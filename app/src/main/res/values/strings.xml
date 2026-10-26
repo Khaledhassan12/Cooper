@@ -2443,7 +2443,7 @@ Do not create another repository with the same name. Inspect the remote state be
     <string name="cooper_github_recovery_no_session_title">No recovery session</string>
     <string name="cooper_github_recovery_no_session_message">There is no saved Directly Git recovery blocker to clear.</string>
     <string name="cooper_github_recovery_clear_title">Clear recovery session?</string>
-    <string name="cooper_github_recovery_clear_details">Saved stage: %1$s\nProject ID: %2$s\nExpected commit: %3$s\n\nClearing removes only Cooper&#39;s saved recovery record. It does not delete project files or the GitHub repository, and it does not undo a push. Inspect local and remote state first.\n\nTarget: %4$s</string>
+    <string name="cooper_github_recovery_clear_details">Saved stage: %1$s · Project ID: %2$s · Expected commit: %3$s. Clearing removes only Cooper&#39;s saved recovery record. It does not delete project files or the GitHub repository, and it does not undo a push. Inspect local and remote state first. Target: %4$s</string>
     <string name="cooper_github_recovery_clear_button">Clear saved session</string>
     <string name="cooper_github_recovery_clear_success">Saved recovery blocker cleared. Local and remote data were not changed.</string>
     <string name="cooper_github_recovery_clear_failed">Cooper could not clear the saved recovery record.</string>
