@@ -293,14 +293,32 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         panel.addView(title);
         title.animate().alpha(1f).setDuration(450).start();
         panel.addView(text(binding.workspaceName + "  •  ID " + binding.scId, 16, true));
+        if (binding.appName != null && !binding.appName.trim().isEmpty()) {
+            panel.addView(text(getString(R.string.cooper_github_directly_application_name, binding.appName), 14, false));
+        }
         panel.addView(text(binding.projectRoot.getAbsolutePath(), 12, false));
         EditText repoName = new EditText(this);
         repoName.setSingleLine(true);
         repoName.setHint(R.string.cooper_github_directly_repository_name);
-        repoName.setText(binding.workspaceName.replaceAll("[^A-Za-z0-9._-]", "-")
-                .replaceAll("^[.-]+|[.-]+$", ""));
+        final String defaultRepositoryName = binding.workspaceName.replaceAll("[^A-Za-z0-9._-]", "-")
+                .replaceAll("^[.-]+|[.-]+$", "");
+        repoName.setText(defaultRepositoryName);
         repoName.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(100)});
-        panel.addView(repoName);
+        LinearLayout repositoryNameRow = new LinearLayout(this);
+        repositoryNameRow.setOrientation(LinearLayout.HORIZONTAL);
+        repositoryNameRow.setGravity(Gravity.CENTER_VERTICAL);
+        repositoryNameRow.addView(repoName, new LinearLayout.LayoutParams(0,
+                ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        com.google.android.material.button.MaterialButton resetName = new com.google.android.material.button.MaterialButton(this);
+        resetName.setIconResource(android.R.drawable.ic_menu_revert);
+        resetName.setContentDescription(getString(R.string.cooper_github_directly_reset_repository_name));
+        resetName.setMinWidth(dp(48));
+        resetName.setOnClickListener(v -> {
+            repoName.setText(defaultRepositoryName);
+            repoName.setError(null);
+        });
+        repositoryNameRow.addView(resetName, new LinearLayout.LayoutParams(dp(52), dp(52)));
+        panel.addView(repositoryNameRow);
         TextView nameRules = text(getString(R.string.cooper_github_directly_repository_rules), 12, false);
         panel.addView(nameRules);
         repoName.addTextChangedListener(new android.text.TextWatcher() {
@@ -315,6 +333,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         description.setHint(R.string.cooper_github_directly_description_hint);
         description.setMinLines(2);
         description.setMaxLines(4);
+        description.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(350)});
         panel.addView(description);
         com.google.android.material.button.MaterialButton gallery = new com.google.android.material.button.MaterialButton(this);
         gallery.setText(R.string.cooper_github_directly_choose_images);
