@@ -63,11 +63,34 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
     @Nullable private TextView directlyPendingImageState;
     @Nullable private java.util.ArrayList<Uri> directlyPendingImages;
     @Nullable private LinearLayout directlyPendingImagePreview;
+    private boolean directlyDraftFormVisible = false;
+    @Nullable private String directlyDraftProjectId;
+    private String directlyDraftRepositoryName = "";
+    private String directlyDraftDescription = "";
+    private String directlyDraftReadmeMode = "";
+    private String directlyDraftReadmeContent = "";
+    private boolean directlyRecoveryPromptShown = false;
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         enableEdgeToEdgeNoContrast();
         super.onCreate(savedInstanceState);
+        if (savedInstanceState != null && savedInstanceState.getBoolean("cooper_directly_draft_visible", false)) {
+            directlyDraftFormVisible = true;
+            directlyDraftProjectId = savedInstanceState.getString("cooper_directly_draft_project_id");
+            directlyDraftRepositoryName = savedInstanceState.getString("cooper_directly_draft_repository_name", "");
+            directlyDraftDescription = savedInstanceState.getString("cooper_directly_draft_description", "");
+            directlyDraftReadmeMode = savedInstanceState.getString("cooper_directly_draft_readme_mode", "");
+            directlyDraftReadmeContent = savedInstanceState.getString("cooper_directly_draft_readme_content", "");
+            directlyPendingImages = new java.util.ArrayList<>();
+            java.util.ArrayList<String> savedUris = savedInstanceState.getStringArrayList("cooper_directly_draft_image_uris");
+            if (savedUris != null) {
+                for (String value : savedUris) {
+                    try { if (value != null) directlyPendingImages.add(Uri.parse(value)); }
+                    catch (Exception ignored) { }
+                }
+            }
+        }
 
         androidx.coordinatorlayout.widget.CoordinatorLayout root = new androidx.coordinatorlayout.widget.CoordinatorLayout(this);
         root.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
@@ -285,6 +308,17 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
 
     private void showDirectlyGitRepositoryForm(GitProjectBindingStore.Binding binding) {
         if (isFinishing() || isDestroyed()) return;
+        final boolean restoreDraft = directlyDraftFormVisible
+                && binding.scId.equals(directlyDraftProjectId);
+        directlyDraftFormVisible = true;
+        directlyDraftProjectId = binding.scId;
+        if (!restoreDraft) {
+            directlyDraftRepositoryName = "";
+            directlyDraftDescription = "";
+            directlyDraftReadmeMode = "";
+            directlyDraftReadmeContent = "";
+            directlyPendingImages = new java.util.ArrayList<>();
+        }
         final com.google.android.material.bottomsheet.BottomSheetDialog sheet =
                 new com.google.android.material.bottomsheet.BottomSheetDialog(this);
         sheet.setCancelable(false);
@@ -294,7 +328,16 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                 new com.google.android.material.button.MaterialButton(this);
         closeForm.setText(R.string.cooper_github_directly_close);
         closeForm.setIconResource(android.R.drawable.ic_menu_close_clear_cancel);
-        closeForm.setOnClickListener(v -> confirmDirectlyDismiss(sheet::dismiss));
+        closeForm.setOnClickListener(v -> confirmDirectlyDismiss(() -> {
+            directlyDraftFormVisible = false;
+            directlyDraftProjectId = null;
+            directlyDraftRepositoryName = "";
+            directlyDraftDescription = "";
+            directlyDraftReadmeMode = "";
+            directlyDraftReadmeContent = "";
+            directlyPendingImages = new java.util.ArrayList<>();
+            sheet.dismiss();
+        }));
         LinearLayout.LayoutParams closeParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, dp(48));
         closeParams.gravity = Gravity.END;
@@ -314,7 +357,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         repoName.setHint(R.string.cooper_github_directly_repository_name);
         final String defaultRepositoryName = binding.workspaceName.replaceAll("[^A-Za-z0-9._-]", "-")
                 .replaceAll("^[.-]+|[.-]+$", "");
-        repoName.setText(defaultRepositoryName);
+        repoName.setText(restoreDraft ? directlyDraftRepositoryName : defaultRepositoryName);
         repoName.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(100)});
         LinearLayout repositoryNameRow = new LinearLayout(this);
         repositoryNameRow.setOrientation(LinearLayout.HORIZONTAL);
@@ -338,6 +381,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
             @Override public void onTextChanged(CharSequence s, int st, int before, int count) {
                 int remaining = Math.max(0, 100 - s.length());
                 nameRules.setText(getString(R.string.cooper_github_directly_name_counter, s.length(), remaining));
+                directlyDraftRepositoryName = s.toString();
             }
             @Override public void afterTextChanged(android.text.Editable e) {}
         });
@@ -346,6 +390,14 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         description.setMinLines(2);
         description.setMaxLines(4);
         description.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(350)});
+        if (restoreDraft) description.setText(directlyDraftDescription);
+        description.addTextChangedListener(new android.text.TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int st, int count, int after) { }
+            @Override public void onTextChanged(CharSequence s, int st, int before, int count) {
+                directlyDraftDescription = s.toString();
+            }
+            @Override public void afterTextChanged(android.text.Editable e) { }
+        });
         panel.addView(description);
         com.google.android.material.button.MaterialButton gallery = new com.google.android.material.button.MaterialButton(this);
         gallery.setText(R.string.cooper_github_directly_choose_images);
@@ -358,9 +410,14 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         imagePreviewRow.setPadding(0, dp(8), 0, dp(8));
         panel.addView(imagePreviewRow);
         final java.util.ArrayList<Uri> selectedImages = new java.util.ArrayList<>();
+        if (restoreDraft && directlyPendingImages != null) selectedImages.addAll(directlyPendingImages);
         directlyPendingImageState = imageState;
         directlyPendingImages = selectedImages;
         directlyPendingImagePreview = imagePreviewRow;
+        imageState.setText(selectedImages.isEmpty()
+                ? getString(R.string.cooper_github_directly_no_images)
+                : getString(R.string.cooper_github_directly_images_selected, selectedImages.size()));
+        renderDirectlyGitImagePreviews(selectedImages, imagePreviewRow);
         gallery.setOnClickListener(v -> {
             Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
             intent.addCategory(Intent.CATEGORY_OPENABLE);
@@ -369,7 +426,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
             intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
             startActivityForResult(intent, 7314);
         });
-        final String[] readmeMode = new String[]{""};
+        final String[] readmeMode = new String[]{restoreDraft ? directlyDraftReadmeMode : ""};
         com.google.android.material.chip.ChipGroup choices = new com.google.android.material.chip.ChipGroup(this);
         choices.setSingleSelection(true);
         choices.setSelectionRequired(false);
@@ -383,9 +440,16 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         choices.addView(empty);
         panel.addView(text(getString(R.string.cooper_github_directly_readme_choice_required), 14, true));
         panel.addView(choices);
-        final String[] readmeContent = new String[]{""};
+        final String[] readmeContent = new String[]{restoreDraft ? directlyDraftReadmeContent : ""};
         readme.setOnClickListener(v -> showDirectlyReadmeDialog(binding, readmeMode, readmeContent, choices, readme, empty));
-        empty.setOnClickListener(v -> { readmeMode[0] = "EMPTY"; readmeContent[0] = ""; });
+        empty.setOnClickListener(v -> {
+            readmeMode[0] = "EMPTY";
+            readmeContent[0] = "";
+            directlyDraftReadmeMode = "EMPTY";
+            directlyDraftReadmeContent = "";
+        });
+        if ("EMPTY".equals(readmeMode[0])) empty.setChecked(true);
+        else if ("MARKDOWN".equals(readmeMode[0]) || "TEXT".equals(readmeMode[0])) readme.setChecked(true);
         com.google.android.material.button.MaterialButton push = new com.google.android.material.button.MaterialButton(this);
         push.setText(R.string.cooper_github_directly_git_push);
         push.setIconResource(android.R.drawable.ic_menu_upload);
@@ -454,6 +518,8 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                             + contributors.getText().toString().trim() + separator
                             + getString(R.string.cooper_github_directly_readme_information) + ": "
                             + information.getText().toString().trim();
+                    directlyDraftReadmeMode = mode[0];
+                    directlyDraftReadmeContent = content[0];
                 }).create();
         readmeDialog.setOnCancelListener(d -> restoreDirectlyReadmeChoice(mode, choices, readme, empty));
         readmeDialog.show();
@@ -1180,7 +1246,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         if (requestCode != 7314) return;
         TextView stateView = directlyPendingImageState;
         java.util.ArrayList<Uri> current = directlyPendingImages;
-        if (resultCode != RESULT_OK || data == null || current == null || stateView == null) return;
+        if (resultCode != RESULT_OK || data == null || current == null) return;
         java.util.ArrayList<Uri> picked = new java.util.ArrayList<>();
         android.content.ClipData clip = data.getClipData();
         if (clip != null) {
@@ -1221,10 +1287,14 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         }
         current.clear();
         current.addAll(combined);
-        stateView.setText(current.isEmpty()
-                ? getString(R.string.cooper_github_directly_no_images)
-                : getString(R.string.cooper_github_directly_images_selected, current.size()));
-        renderDirectlyGitImagePreviews(current, directlyPendingImagePreview);
+        if (stateView != null) {
+            stateView.setText(current.isEmpty()
+                    ? getString(R.string.cooper_github_directly_no_images)
+                    : getString(R.string.cooper_github_directly_images_selected, current.size()));
+        }
+        if (directlyPendingImagePreview != null) {
+            renderDirectlyGitImagePreviews(current, directlyPendingImagePreview);
+        }
     }
 
     private void renderDirectlyGitImagePreviews(java.util.ArrayList<Uri> images, @Nullable LinearLayout row) {
@@ -2141,6 +2211,122 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                 .setMessage(getString(R.string.cooper_github_signin_failed, message))
                 .setPositiveButton(R.string.common_word_ok, null)
                 .show();
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putBoolean("cooper_directly_draft_visible", directlyDraftFormVisible);
+        if (!directlyDraftFormVisible) return;
+        outState.putString("cooper_directly_draft_project_id", directlyDraftProjectId);
+        outState.putString("cooper_directly_draft_repository_name", directlyDraftRepositoryName);
+        outState.putString("cooper_directly_draft_description", directlyDraftDescription);
+        outState.putString("cooper_directly_draft_readme_mode", directlyDraftReadmeMode);
+        outState.putString("cooper_directly_draft_readme_content", directlyDraftReadmeContent);
+        java.util.ArrayList<String> imageUris = new java.util.ArrayList<>();
+        if (directlyPendingImages != null) {
+            for (Uri uri : directlyPendingImages) if (uri != null) imageUris.add(uri.toString());
+        }
+        outState.putStringArrayList("cooper_directly_draft_image_uris", imageUris);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (!directlyDraftFormVisible && DirectlyGitPublisher.hasPendingSession(this) && !directlyRecoveryPromptShown) {
+            new Handler(Looper.getMainLooper()).post(this::showDirectlyGitRecoveryPrompt);
+        }
+    }
+
+    private void showDirectlyGitRecoveryPrompt() {
+        if (isFinishing() || isDestroyed() || directlyRecoveryPromptShown || !DirectlyGitPublisher.hasPendingSession(this)) return;
+        org.json.JSONObject session = DirectlyGitPublisher.getPendingSession(this);
+        if (session == null) return;
+        directlyRecoveryPromptShown = true;
+        String owner = session.optString("owner", "");
+        String repository = session.optString("repositoryName", "");
+        String state = session.optString("state", "UNKNOWN");
+        String branch = session.optString("branch", "");
+        String sha = session.optString("commitSha", "");
+        String summary = getString(R.string.cooper_github_directly_recovery_message,
+                owner, repository, state, branch, sha.isEmpty() ? getString(R.string.unknown_attr) : sha);
+        boolean connected = new GitCredentialStore(this).hasCredential();
+        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.cooper_github_directly_recovery_title)
+                .setMessage(summary)
+                .setNegativeButton(R.string.cooper_github_directly_recovery_later, (dialog, which) -> directlyRecoveryPromptShown = false)
+                .setPositiveButton(connected ? R.string.cooper_github_directly_resume_publish : R.string.cooper_github_connect,
+                        (dialog, which) -> {
+                            directlyRecoveryPromptShown = false;
+                            if (connected) runDirectlyGitRecovery();
+                            else startGitHubAuthorization();
+                        });
+        builder.setOnCancelListener(dialog -> directlyRecoveryPromptShown = false);
+        builder.show();
+    }
+
+    private void runDirectlyGitRecovery() {
+        if (isFinishing() || isDestroyed()) return;
+        final AtomicBoolean cancelled = new AtomicBoolean(false);
+        LinearLayout panel = new LinearLayout(this);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setPadding(dp(24), dp(12), dp(24), dp(12));
+        TextView phase = text(getString(R.string.cooper_github_directly_phase_validate), 14, false);
+        panel.addView(phase);
+        ProgressBar progress = new ProgressBar(this);
+        progress.setIndeterminate(true);
+        panel.addView(progress, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(36)));
+        AlertDialog dialog = new MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.cooper_github_directly_recovery_title)
+                .setView(panel)
+                .setNegativeButton(R.string.cooper_github_directly_stop_push, null)
+                .create();
+        dialog.setCancelable(false);
+        dialog.setCanceledOnTouchOutside(false);
+        dialog.setOnShowListener(ignored -> {
+            android.widget.Button stop = dialog.getButton(AlertDialog.BUTTON_NEGATIVE);
+            if (stop != null) stop.setOnClickListener(v -> {
+                cancelled.set(true);
+                stop.setEnabled(false);
+                phase.setText(R.string.cooper_github_directly_stop_requested);
+            });
+        });
+        dialog.show();
+        authExecutor.execute(() -> {
+            try {
+                DirectlyGitPublisher publisher = new DirectlyGitPublisher(getApplicationContext(), BuildConfig.COOPER_GITHUB_CLIENT_ID);
+                DirectlyGitPublisher.Result result = publisher.resumePending(cancelled, value ->
+                        new Handler(Looper.getMainLooper()).post(() -> {
+                            if (!isFinishing() && !isDestroyed() && dialog.isShowing()) phase.setText(value);
+                        }));
+                new Handler(Looper.getMainLooper()).post(() -> {
+                    if (isFinishing() || isDestroyed()) return;
+                    if (dialog.isShowing()) dialog.dismiss();
+                    new MaterialAlertDialogBuilder(this)
+                            .setTitle(R.string.cooper_github_directly_publish_success_title)
+                            .setMessage(getString(R.string.cooper_github_directly_publish_success,
+                                    result.repositoryUrl, result.branch, result.commitSha))
+                            .setPositiveButton(R.string.cooper_github_open_repository, (d, which) -> {
+                                try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(result.repositoryUrl))); }
+                                catch (Exception ignored) { }
+                            })
+                            .setNegativeButton(R.string.common_word_ok, null)
+                            .show();
+                });
+            } catch (Exception error) {
+                String detail = error.getMessage() == null ? "Recovery did not complete. The saved session was retained." : error.getMessage();
+                new Handler(Looper.getMainLooper()).post(() -> {
+                    if (isFinishing() || isDestroyed()) return;
+                    if (dialog.isShowing()) dialog.dismiss();
+                    directlyRecoveryPromptShown = false;
+                    new MaterialAlertDialogBuilder(this)
+                            .setTitle(R.string.cooper_github_directly_recovery_title)
+                            .setMessage(getString(R.string.cooper_github_directly_recovery_failed, detail))
+                            .setPositiveButton(R.string.common_word_ok, null)
+                            .show();
+                });
+            }
+        });
     }
 
     @Override
