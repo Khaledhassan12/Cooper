@@ -409,7 +409,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                     .setMessage(getString(R.string.cooper_github_directly_publish_review, name, binding.workspaceName))
                     .setNegativeButton(R.string.common_word_cancel, null)
                     .setPositiveButton(R.string.cooper_github_directly_git_push, (d, w) ->
-                            beginDirectlyGitPublish(binding, name, description.getText().toString().trim(),
+                            beginDirectlyGitPublish(sheet, binding, name, description.getText().toString().trim(),
                                     readmeMode[0], readmeContent[0], new java.util.ArrayList<>(selectedImages)))
                     .show();
         });
