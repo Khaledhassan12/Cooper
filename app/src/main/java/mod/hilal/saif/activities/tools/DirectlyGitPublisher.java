@@ -174,8 +174,14 @@ public final class DirectlyGitPublisher {
     public Plan prepare(GitProjectBindingStore.Binding selected, String name, String description,
                         String readmeMode, String readmeContent, List<Uri> images) throws Exception {
         if (selected == null) throw new IllegalArgumentException("Select a Cooper project first.");
+        JSONObject pendingSession = getPendingSession(context);
+        if (pendingSession != null) {
+            throw new IllegalStateException(context.getString(R.string.cooper_github_directly_pending_session_exists,
+                    pendingSession.optString("owner", ""), pendingSession.optString("repositoryName", "")));
+        }
         if (name == null || !name.matches("[A-Za-z0-9_.-]{1,100}") || name.equals(".") || name.equals("..")
-                || name.startsWith(".") || name.endsWith(".") || name.toLowerCase(Locale.ROOT).endsWith(".git")) {
+                || name.contains("..") || name.startsWith(".") || name.endsWith(".")
+                || name.toLowerCase(Locale.ROOT).endsWith(".git")) {
             throw new IllegalArgumentException("Enter a valid GitHub repository name (1–100 characters).");
         }
         String safeDescription = description == null ? "" : description.trim();
@@ -487,7 +493,7 @@ public final class DirectlyGitPublisher {
                     throw new IllegalStateException("The local origin points to a different repository. Recovery stopped without changing it.");
                 }
             }
-            phase(progress, "Checking the saved GitHub publication session");
+            phase(progress, context.getString(R.string.cooper_github_directly_phase_validate));
             checkCancelled(cancelled);
             JSONObject remote;
             try {
@@ -497,7 +503,7 @@ public final class DirectlyGitPublisher {
                 if (!"READY_TO_CREATE".equals(state) && !"CREATING_REPOSITORY".equals(state)) {
                     throw new IllegalStateException("The saved repository is not currently visible. Reconnect the original account and inspect it before retrying.");
                 }
-                phase(progress, "Recreating the repository for the previously approved session");
+                phase(progress, context.getString(R.string.cooper_github_directly_phase_create));
                 remote = api.createRepository(name, description, true, true);
                 repositoryUrl = remote.optString("html_url", "https://github.com/" + owner + "/" + name);
                 persistPendingSession("REMOTE_CREATED", current, owner, name, description,
