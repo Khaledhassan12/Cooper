@@ -2611,13 +2611,17 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                 details.setOrientation(LinearLayout.VERTICAL);
                 details.addView(text(displayName, 18, true));
                 details.addView(text(entry.optString("owner", "") + "/" + entry.optString("repositoryName", ""), 13, false));
-                details.addView(text("Package: " + entry.optString("packageName", "Not set in project metadata"), 12, false));
-                details.addView(text("Project ID: " + entry.optString("projectId", "Unknown"), 12, false));
+                String packageName = entry.optString("packageName", "").trim();
+                if (!packageName.isEmpty()) details.addView(text("Package: " + packageName, 12, false));
+                String projectId = entry.optString("projectId", "").trim();
+                if (!projectId.isEmpty()) details.addView(text("Project ID: " + projectId, 12, false));
                 long timestamp = entry.optLong("publishedAt", 0L);
-                String date = timestamp > 0L ? java.text.DateFormat.getDateTimeInstance(
-                        java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT).format(new java.util.Date(timestamp))
-                        : "Publication time unavailable";
-                details.addView(text(date, 12, false));
+                if (timestamp > 0L) {
+                    String date = java.text.DateFormat.getDateTimeInstance(
+                            java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT)
+                            .format(new java.util.Date(timestamp));
+                    details.addView(text(date, 12, false));
+                }
                 details.addView(text(entry.optString("method", "DIRECTLY_GIT").replace('_', ' ')
                         + " · " + (entry.optBoolean("private", true) ? "Private" : "Public")
                         + " · " + entry.optString("branch", ""), 12, true));
