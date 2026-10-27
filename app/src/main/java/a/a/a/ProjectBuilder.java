@@ -223,6 +223,66 @@ public class ProjectBuilder {
         progressReceiver = buildAsyncTask;
     }
 
+    private static boolean filesHaveSameContent(File left, File right) throws IOException {
+        if (!left.isFile() || !right.isFile() || left.length() != right.length()) return false;
+        try (InputStream a = new FileInputStream(left);
+             InputStream b = new FileInputStream(right)) {
+            byte[] ab = new byte[8192];
+            byte[] bb = new byte[8192];
+            while (true) {
+                int ac = a.read(ab);
+                int bc = b.read(bb);
+                if (ac != bc) return false;
+                if (ac == -1) return true;
+                for (int i = 0; i < ac; i++) if (ab[i] != bb[i]) return false;
+            }
+        }
+    }
+
+    private static void collectRelativeFiles(File root, File current, HashMap<String, File> out) {
+        File[] children = current.listFiles();
+        if (children == null) return;
+        for (File child : children) {
+            if (child.isDirectory()) {
+                collectRelativeFiles(root, child, out);
+            } else if (child.isFile()) {
+                String relative = child.getAbsolutePath().substring(root.getAbsolutePath().length());
+                while (relative.startsWith(File.separator)) relative = relative.substring(1);
+                out.put(relative, child);
+            }
+        }
+    }
+
+    private boolean directoriesHaveSameContent(File left, File right) throws IOException {
+        if (!left.isDirectory() || !right.isDirectory()) return false;
+        HashMap<String, File> leftFiles = new HashMap<>();
+        HashMap<String, File> rightFiles = new HashMap<>();
+        collectRelativeFiles(left, left, leftFiles);
+        collectRelativeFiles(right, right, rightFiles);
+        if (!leftFiles.keySet().equals(rightFiles.keySet())) return false;
+        for (String relative : leftFiles.keySet()) {
+            if (!filesHaveSameContent(leftFiles.get(relative), rightFiles.get(relative))) return false;
+        }
+        return true;
+    }
+
+    private void smartSyncDirectory(File src, File dest) throws IOException {
+        if (!src.isDirectory()) return;
+        if (directoriesHaveSameContent(src, dest)) return;
+        FileUtil.deleteFile(dest.getAbsolutePath());
+        FileUtil.copyDirectory(src, dest);
+    }
+
+    private void smartCopyFile(File src, File dest) throws IOException {
+        if (!src.isFile()) return;
+        if (filesHaveSameContent(src, dest)) return;
+        File parent = dest.getParentFile();
+        if (parent != null && !parent.exists() && !parent.mkdirs() && !parent.isDirectory()) {
+            throw new IOException("Unable to create output directory: " + parent);
+        }
+        FileUtil.copyFile(src.getAbsolutePath(), dest.getAbsolutePath());
+    }
+
     public static boolean hasFileChanged(String fileInAssets, String targetFile) {
         long length;
         File compareToFile = new File(targetFile);
@@ -269,8 +329,8 @@ public class ProjectBuilder {
             File cachedGen = new File(cached, "gen");
             if (cachedApk.exists() && cachedGen.exists()) {
                 if (progressReceiver != null) progressReceiver.onProgress("Resources UP-TO-DATE", 10);
-                FileUtil.copyFile(cachedApk.getAbsolutePath(), yq.resourcesApkPath);
-                FileUtil.copyDirectory(cachedGen, new File(yq.rJavaDirectoryPath));
+                smartCopyFile(cachedApk, new File(yq.resourcesApkPath));
+                smartSyncDirectory(cachedGen, new File(yq.rJavaDirectoryPath));
                 LogUtil.d(TAG, "Resources UP-TO-DATE");
                 return true;
             }
@@ -328,8 +388,7 @@ public class ProjectBuilder {
             File cachedDex = buildCache.stageOutputDir("dex");
             File[] cachedFiles = cachedDex.listFiles();
             if (cachedFiles != null && cachedFiles.length > 0) {
-                FileUtil.deleteFile(dexOutputDir.getAbsolutePath());
-                FileUtil.copyDirectory(cachedDex, dexOutputDir);
+                smartSyncDirectory(cachedDex, dexOutputDir);
                 if (progressReceiver != null) progressReceiver.onProgress("Dex UP-TO-DATE", 17);
                 LogUtil.d(TAG, "Dex UP-TO-DATE");
                 return true;
@@ -680,8 +739,7 @@ public class ProjectBuilder {
             File cachedClasses = new File(buildCache.stageOutputDir("java"), "classes");
             if (cachedClasses.exists()) {
                 if (progressReceiver != null) progressReceiver.onProgress("Java compile UP-TO-DATE", 13);
-                FileUtil.deleteFile(yq.compiledClassesPath);
-                FileUtil.copyDirectory(cachedClasses, new File(yq.compiledClassesPath));
+                smartSyncDirectory(cachedClasses, new File(yq.compiledClassesPath));
                 LogUtil.d(TAG, "Java compile UP-TO-DATE");
                 return true;
             }
@@ -1000,7 +1058,7 @@ public class ProjectBuilder {
             File[] cachedDexes = cachedMerge.listFiles((dir, name) -> name.startsWith("classes") && name.endsWith(".dex"));
             if (cachedDexes != null && cachedDexes.length > 0) {
                 for (File f : cachedDexes) {
-                    FileUtil.copyFile(f.getAbsolutePath(), new File(yq.binDirectoryPath, f.getName()).getAbsolutePath());
+                    smartCopyFile(f, new File(yq.binDirectoryPath, f.getName()));
                 }
                 if (progressReceiver != null) progressReceiver.onProgress("Dex merge UP-TO-DATE", 18);
                 LogUtil.d(TAG, "Dex merge UP-TO-DATE");
