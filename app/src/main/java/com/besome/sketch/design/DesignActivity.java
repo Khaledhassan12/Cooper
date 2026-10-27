@@ -1275,6 +1275,9 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
         public volatile boolean isCanceling;
         private volatile boolean isBuilding;
         private boolean isShowingNotification = false;
+        private final java.util.Queue<android.util.Pair<String, Integer>> progressQueue = new java.util.LinkedList<>();
+        private boolean isProcessingProgress = false;
+        private boolean isBuildFinished = false;
 
         public BuildTask(DesignActivity activity) {
             super(activity);
@@ -1401,52 +1404,81 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
 
         @Override
         public void onProgress(String progress, int step) {
-            int totalSteps = 20;
-
             DesignActivity activity = getActivity();
             if (activity == null) return;
-
             activity.runOnUiThread(() -> {
-                progressBar.setIndeterminate(step == -1);
-                if (!isCanceling) {
-                    updateNotification(progress + " (" + step + " / " + totalSteps + ")");
-                }
-                progressText.setText(progress);
-                var progressInt = (step * 100) / totalSteps;
-                progressBar.setProgress(progressInt, true);
-                Log.d("DesignActivity$BuildTask", step + " / " + totalSteps);
+                if (isCanceling && !"Canceling build...".equals(progress)) return;
+                progressQueue.add(new android.util.Pair<>(progress, step));
+                processNextProgress();
             });
+        }
+
+        private void processNextProgress() {
+            if (isProcessingProgress || progressQueue.isEmpty()) return;
+            DesignActivity activity = getActivity();
+            if (activity == null || activity.isDestroyed()) {
+                progressQueue.clear();
+                isProcessingProgress = false;
+                return;
+            }
+
+            isProcessingProgress = true;
+            android.util.Pair<String, Integer> next = progressQueue.poll();
+            String progress = next.first;
+            int step = next.second;
+            int totalSteps = 20;
+
+            progressBar.setIndeterminate(step == -1);
+            if (!isCanceling) updateNotification(progress + " (" + step + " / " + totalSteps + ")");
+            progressText.setText(progress);
+            int progressInt = step < 0 ? progressBar.getProgress() : Math.max(0, Math.min(100, (step * 100) / totalSteps));
+            if (step >= 0) progressBar.setProgress(progressInt, true);
+            Log.d("DesignActivity$BuildTask", step + " / " + totalSteps);
+
+            activity.handler.postDelayed(() -> {
+                isProcessingProgress = false;
+                if (!progressQueue.isEmpty()) {
+                    processNextProgress();
+                } else if (isBuildFinished) {
+                    finishUI();
+                }
+            }, 120);
         }
 
         private void onPostExecute() {
             DesignActivity activity = getActivity();
             if (activity == null) return;
-
             activity.runOnUiThread(() -> {
-                if (!activity.isDestroyed()) {
-                    if (isShowingNotification) {
-                        notificationManager.cancel(notificationId);
-                        isShowingNotification = false;
-                    }
-                    updateRunButton(false);
-                    activity.updateBottomMenu();
-                    activity.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-                }
+                isBuildFinished = true;
+                if (progressQueue.isEmpty() && !isProcessingProgress) finishUI();
             });
         }
 
-        public void cancelBuild() {
-            isCanceling = true;
-            onProgress("Canceling build...", -1);
+        private void finishUI() {
+            DesignActivity activity = getActivity();
+            if (activity == null || activity.isDestroyed()) return;
             if (isShowingNotification) {
                 notificationManager.cancel(notificationId);
                 isShowingNotification = false;
             }
+            updateRunButton(false);
+            activity.updateBottomMenu();
+            activity.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        }
+
+        public void cancelBuild() {
+            isCanceling = true;
             DesignActivity activity = getActivity();
             if (activity != null) {
                 activity.runOnUiThread(() -> {
+                    progressQueue.clear();
+                    onProgress("Canceling build...", -1);
                     activity.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
                 });
+            }
+            if (isShowingNotification) {
+                notificationManager.cancel(notificationId);
+                isShowingNotification = false;
             }
         }
 
