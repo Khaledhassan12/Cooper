@@ -591,13 +591,15 @@ public final class DirectlyGitPublisher {
             // Sessions created before the Android Studio workspace migration point at the
             // original Sketchware repository; keep recovering that exact commit without export.
             final File operationRoot;
-            if (savedGitProjectRoot == null || savedGitProjectRoot.trim().isEmpty()) {
+            if (savedGitProjectRoot == null || savedGitProjectRoot.trim().isEmpty()
+                    || savedGitProjectRoot.equals(current.sourceProjectRoot.getCanonicalPath())) {
+                // Empty means a session created before workspace migration; a source-root path
+                // means that this legacy session has already been safely rewritten once.
                 operationRoot = current.sourceProjectRoot;
-            } else {
-                if (!savedGitProjectRoot.equals(current.projectRoot.getCanonicalPath())) {
-                    throw new IllegalStateException("The saved Git workspace differs from the current Android Studio project. Recovery stopped without a remote write.");
-                }
+            } else if (savedGitProjectRoot.equals(current.projectRoot.getCanonicalPath())) {
                 operationRoot = current.projectRoot;
+            } else {
+                throw new IllegalStateException("The saved Git workspace differs from the current Android Studio project. Recovery stopped without a remote write.");
             }
             String token = auth.getUsableAccessToken(clientId);
             if (token == null || token.trim().isEmpty()) throw new IllegalStateException("Reconnect the original GitHub account before resuming publication.");
