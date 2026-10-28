@@ -221,7 +221,16 @@ public final class GitAndroidStudioExportManager {
                 continue;
             }
             if (!entry.isFile()) continue;
-            String relativePath = root.toPath().relativize(entry.toPath()).toString().replace(File.separatorChar, '/');
+            File absoluteEntry = entry.getAbsoluteFile();
+            File canonicalEntry = entry.getCanonicalFile();
+            if (!canonicalEntry.equals(absoluteEntry)) {
+                throw new IOException("The exported project contains a symbolic link or path that cannot be copied safely: " + name);
+            }
+            String absolutePath = canonicalEntry.getPath();
+            if (!absolutePath.startsWith(rootPath + File.separator)) {
+                throw new IOException("An exported source file resolves outside its project root.");
+            }
+            String relativePath = absolutePath.substring(rootPath.length() + 1).replace(File.separatorChar, '/');
             if (shouldIncludeFile(relativePath, hasCustomSketchApplication)) result.add(relativePath);
         }
     }
