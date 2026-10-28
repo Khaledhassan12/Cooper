@@ -84,7 +84,11 @@ public final class GitAndroidStudioExportManager {
         synchronized (EXPORT_LOCK) {
             File destinationGit = new File(workspaceRoot, ".git");
             File legacyGit = new File(sourceRoot, ".git");
-            boolean migrateLegacyRepository = !destinationGit.exists() && legacyGit.exists();
+            // Only transfer an old local repository when it was already configured for GitHub.
+            // Local-only repositories may contain the internal Sketchware tree; keep them out of
+            // the new workspace so the first Android Studio export starts with a clean history.
+            boolean migrateLegacyRepository = !destinationGit.exists() && legacyGit.isDirectory()
+                    && hasUsableGitHubOrigin(sourceRoot);
 
             LocalGitBackend backend = new LocalGitBackend();
             if (destinationGit.exists()) {
@@ -139,6 +143,15 @@ public final class GitAndroidStudioExportManager {
         }
     }
 
+    private static boolean hasUsableGitHubOrigin(File projectRoot) {
+        try (Git git = Git.open(projectRoot)) {
+            String origin = git.getRepository().getConfig().getString("remote", "origin", "url");
+            return origin != null && origin.matches(
+                    "https://github\\.com/[A-Za-z0-9_.-]{1,100}/[A-Za-z0-9_.-]{1,100}\\.git");
+        } catch (IOException | RuntimeException ignored) {
+            return false;
+        }
+    }
     private static boolean hasPendingChanges(LocalGitBackend.Snapshot snapshot) {
         return !snapshot.conflicting.isEmpty() || !snapshot.staged.isEmpty()
                 || !snapshot.modified.isEmpty() || !snapshot.added.isEmpty()
