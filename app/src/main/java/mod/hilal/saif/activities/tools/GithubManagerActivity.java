@@ -1321,7 +1321,10 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
             CheckBox checkBox = new CheckBox(this);
             checkBox.setText(path);
             boolean staged = alreadyStaged.contains(path);
-            checkBox.setChecked(staged);
+            // Default deleted paths to selected: this is especially important when an older
+            // Sketchware-root repository is migrated to the new Android Studio export tree.
+            // The user may still uncheck any deletion before confirming the commit.
+            checkBox.setChecked(staged || snapshot.missing.contains(path));
             checkBox.setEnabled(!staged);
             checkBoxes.add(checkBox);
             pathList.addView(checkBox);
