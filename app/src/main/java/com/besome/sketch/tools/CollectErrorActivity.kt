@@ -39,7 +39,9 @@ class CollectErrorActivity : BaseAppCompatActivity() {
             .setCancelable(false)
             .show()
 
-        val messageView: TextView = dialog.findViewById(android.R.id.message)
+        val messageView = requireNotNull(dialog.findViewById<TextView>(android.R.id.message)) {
+            "The error-report dialog must contain its message view."
+        }
         dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener {
             messageView.setTextIsSelectable(true)
             messageView.text = error
@@ -55,7 +57,10 @@ class CollectErrorActivity : BaseAppCompatActivity() {
                 return@setOnClickListener
             }
 
-            val fileSizeInBytes = File(info.applicationInfo.sourceDir).length()
+            val applicationInfo = requireNotNull(info.applicationInfo) {
+                "Package information did not include ApplicationInfo."
+            }
+            val fileSizeInBytes = File(applicationInfo.sourceDir).length()
             val deviceInfo = "Sketchware Pro " + info.versionName + " (" + info.versionCode + ")\n" +
                 "base.apk size: " + Formatter.formatFileSize(this, fileSizeInBytes) +
                 " (" + fileSizeInBytes + " B)\n" +
