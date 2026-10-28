@@ -918,7 +918,13 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
             dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(false);
             authExecutor.execute(() -> {
                 GitCredentialStore store = new GitCredentialStore(getApplicationContext());
+                GitCredentialStore.TokenSet previous = null;
+                boolean previousRead = false;
                 try {
+                    // Keep a recoverable snapshot so a failed verification never destroys
+                    // an already-working account credential.
+                    previous = store.readTokenSet();
+                    previousRead = true;
                     store.saveTokenSet(new GitCredentialStore.TokenSet(token, null, 0L, 0L, "", "bearer"));
                     org.json.JSONObject account = apiClient().getAuthenticatedAccount();
                     String login = account.optString("login", "").trim();
@@ -930,14 +936,23 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                         recreate();
                     });
                 } catch (Exception e) {
-                    store.clear();
-                    String message = e.getMessage() == null ? "GitHub could not verify this token." : e.getMessage();
+                    // Restore the prior credential set, or clear only if there was no
+                    // credential before this attempt. Never leave an unverified token active.
+                    try {
+                        if (previousRead && previous != null) store.saveTokenSet(previous);
+                        else if (previousRead) store.clear();
+                    } catch (Exception restoreError) {
+                        android.util.Log.e("CooperGitHub", "Could not restore prior GitHub credentials after token verification failed.", restoreError);
+                    }
+                    String message = e instanceof GitHubApiClient.ApiException
+                            ? e.getMessage()
+                            : "Cooper could not verify this token. Check the connection and try again.";
                     new Handler(Looper.getMainLooper()).post(() -> {
                         if (isFinishing() || isDestroyed()) return;
                         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(true);
                         new MaterialAlertDialogBuilder(this)
                                 .setTitle("Access token verification failed")
-                                .setMessage(message + "\n\nCheck that the token is active and has the permissions needed for your intended Cooper operations.")
+                                .setMessage(message + "\n\nYour previous GitHub connection was preserved when possible. Check that the token is active and has the permissions needed for your intended Cooper operations.")
                                 .setPositiveButton(R.string.common_word_ok, null).show();
                     });
                 }
@@ -2281,12 +2296,34 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                     throw new IllegalStateException("The project changed after Push approval. Inspect and approve a new plan.");
                 }
                 String expected = backend.push(binding.projectRoot, token, true);
-                org.json.JSONObject remoteBranch = apiClient().getBranch(
-                        binding.remoteOwner, binding.remoteRepository, planned.currentBranch);
-                org.json.JSONObject commit = remoteBranch.optJSONObject("commit");
-                String remoteSha = commit == null ? "" : commit.optString("sha", "");
+                String remoteSha = "";
+                Exception lastVerificationError = null;
+                // GitHub may briefly lag after a successful push. Retry read-back only;
+                // never repeat the push automatically because its outcome may be ambiguous.
+                for (int attempt = 0; attempt < 3; attempt++) {
+                    try {
+                        org.json.JSONObject remoteBranch = apiClient().getBranch(
+                                binding.remoteOwner, binding.remoteRepository, planned.currentBranch);
+                        org.json.JSONObject commit = remoteBranch.optJSONObject("commit");
+                        remoteSha = commit == null ? "" : commit.optString("sha", "");
+                        if (expected.equals(remoteSha)) break;
+                        lastVerificationError = null;
+                    } catch (Exception verificationError) {
+                        lastVerificationError = verificationError;
+                    }
+                    if (attempt < 2) {
+                        try { Thread.sleep(500L * (attempt + 1)); }
+                        catch (InterruptedException interrupted) {
+                            Thread.currentThread().interrupt();
+                            throw new IllegalStateException("Push verification was interrupted. Check the remote branch before retrying.", interrupted);
+                        }
+                    }
+                }
                 if (!expected.equals(remoteSha)) {
-                    throw new IllegalStateException("Push result is not yet verified on GitHub. Check the remote branch before retrying.");
+                    if (lastVerificationError != null) {
+                        throw new IllegalStateException("Push may have completed, but GitHub verification could not be completed. Check the remote branch before retrying.", lastVerificationError);
+                    }
+                    throw new IllegalStateException("GitHub did not confirm the pushed commit after several checks. Check the remote branch before retrying.");
                 }
                 org.json.JSONObject remoteRepository = apiClient().getRepository(
                         binding.remoteOwner, binding.remoteRepository);
