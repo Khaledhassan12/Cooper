@@ -1,22 +1,22 @@
 <p align="center">
-  <img src="assets/Sketchware-DayGreen.png" width="128" alt="App Icon">
+  <img src="assets/Sketchware-DayGreen.png" width="128" alt="Cooper's App Icon">
 </p>
 
-<h1 align="center">:leaves: Sketchware DayGreen</h1>
+<h1 align="center">Cooper's</h1>
 
 <p align="center">
-  <b>A modified version of Sketchware Pro for Android</b>
+  <b>A customizable Android IDE and visual app builder</b>
 </p>
 
 <p align="center">
-<a href="https://github.com/fora2323/Sketchware-DayGreen/blob/main/LICENSE">
+<a href="https://github.com/Khaledhassan12/Cooper/blob/Cooper-integrated-github/LICENSE">
   <img src="https://img.shields.io/badge/license-Apache--2.0-007ec6" alt="License">
 </a>
   <img src="https://img.shields.io/badge/platform-Android-4c1" alt="Platform">
-  <a href="https://github.com/fora2323/Sketchware-DayGreen/releases">
-    <img src="https://img.shields.io/github/downloads/fora2323/Sketchware-DayGreen/total?color=dfb317" alt="Downloads">
+  <a href="https://github.com/Khaledhassan12/Cooper/releases">
+    <img src="https://img.shields.io/github/downloads/Khaledhassan12/Cooper/total?color=dfb317" alt="Downloads">
   </a>
-  <img src="https://img.shields.io/github/repo-size/fora2323/Sketchware-DayGreen" alt="Repo Size">
+  <img src="https://img.shields.io/github/repo-size/Khaledhassan12/Cooper" alt="Repo Size">
 </p>
 
 <p align="center">
@@ -29,11 +29,11 @@
 </p>
 
 # Important!
-Based on and always including updates from [Sketchware Pro](https://github.com/Sketchware-Pro/Sketchware-Pro). Please backup all your projects if using this version. We will not be responsible if any unexpected problems occur.
+Cooper builds on an established open-source Android visual app builder and incorporates selected upstream improvements. See the [upstream source repository](https://github.com/Sketchware-Pro/Sketchware-Pro). Please back up your projects before using this version.
 
-# Sketchware Pro
+# Cooper's
 
-Welcome to Sketchware Pro! Here you'll find the source code of many classes in Sketchware Pro and, most importantly, the place to contribute to Sketchware Pro.
+Welcome to Cooper's! This repository contains the source code for Cooper's Android IDE and is the place to contribute improvements, fixes, and new capabilities.
 
 ## Building the App
 To build the app, you must use Gradle. It's highly recommended to use Android Studio for the best experience.
@@ -56,7 +56,7 @@ To build the app, you must use Gradle. It's highly recommended to use Android St
 
 ## Contributing
 
-If you'd like to contribute to Sketchware Pro, follow these steps:
+If you'd like to contribute to Cooper's, follow these steps:
 
 1. Fork this repository.
 2. Make changes in your forked repository.
@@ -77,12 +77,12 @@ When you make changes to one or more files, you need to commit those changes wit
 
 ## Thanks for Contributing
 
-Thank you for contributing to Sketchware Pro! Your contributions help keep Sketchware Pro alive. Each accepted contribution will be noted down in the "About Team" activity. We'll use your GitHub name and profile picture initially, but they can be changed, of course.
+Thank you for contributing to Cooper's! Your contributions help improve the IDE and benefit its users. Each accepted contribution will be noted down in the "About Team" activity. We'll use your GitHub name and profile picture initially, but they can be changed, of course.
 
 ## Disclaimer
 
 This mod was not created for any harmful purposes, such as harming Sketchware; quite the opposite, actually. It was made to keep Sketchware alive by the community for the community. Please use it at your own discretion.
 
-We do NOT permit publishing Sketchware Pro as it is, or with modifications, on Play Store or on any other app store. Keep in mind that this project is still a mod. Unauthorized modding of apps is considered illegal and we discourage such behavior.
+Before redistributing Cooper's, review this repository's license and all applicable upstream licenses. Do not represent Cooper's as the original upstream project.
 
-We love Sketchware very much and are grateful to Sketchware's developers for creating such an amazing app. However, we haven't received updates for a long time. That's why we decided to keep Sketchware alive by creating this mod, and it's completely free. We don't demand any money :)
+Cooper's is intended to keep an approachable visual Android development experience useful and extensible for the community. It is free to use; contributions and bug reports are welcome.

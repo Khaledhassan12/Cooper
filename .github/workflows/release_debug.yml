@@ -1,4 +1,4 @@
-name: Android Debug Build
+name: Cooper's Debug Build
 
 on:
   push:
@@ -86,7 +86,7 @@ jobs:
         if: steps.check_version.outputs.changed == 'false'
         uses: actions/upload-artifact@v5
         with:
-          name: app-android26-debug
+          name: Cooper's-android26-debug
           path: app/build/outputs/apk/android26/debug/*.apk
           if-no-files-found: error
           retention-days: 30
@@ -95,7 +95,7 @@ jobs:
         if: steps.check_version.outputs.changed == 'false'
         uses: actions/upload-artifact@v5
         with:
-          name: app-android33-debug
+          name: Cooper's-android33-debug
           path: app/build/outputs/apk/android33/debug/*.apk
           if-no-files-found: error
           retention-days: 30

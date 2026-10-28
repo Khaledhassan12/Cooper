@@ -10,5 +10,5 @@ dependencyResolutionManagement {
         maven { url = uri("https://s01.oss.sonatype.org/content/repositories/snapshots") }
     }
 }
-rootProject.name = "Sketchware DayGreen"
+rootProject.name = "Cooper's"
 include(":app")

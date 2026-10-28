@@ -1,4 +1,4 @@
-name: Android Debug APK
+name: Cooper's Debug APK
 
 on:
   push:
@@ -50,7 +50,7 @@ jobs:
       - name: Upload Debug APK for download
         uses: actions/upload-artifact@v6
         with:
-          name: Cooper-debug-apk-${{ github.run_number }}
+          name: Cooper's-debug-apk-${{ github.run_number }}
           path: app/build/outputs/apk/**/debug/*.apk
           if-no-files-found: error
           retention-days: 14
