@@ -605,12 +605,12 @@ public final class DirectlyGitPublisher {
             if (!owner.equals(account.optString("login", ""))) {
                 throw new IllegalStateException("The connected GitHub account differs from the account that created this publishing session.");
             }
-            LocalGitBackend.Snapshot local = backend.inspect(current.projectRoot);
+            LocalGitBackend.Snapshot local = backend.inspect(operationRoot);
             if (!local.initialized || !expectedSha.equals(local.headCommit) || !branchName.equals(local.currentBranch)) {
                 throw new IllegalStateException("The local HEAD or branch changed since the interrupted publication. Cooper will not push a different commit.");
             }
             String expectedRemoteUrl = "https://github.com/" + owner + "/" + name + ".git";
-            try (Git git = Git.open(current.projectRoot)) {
+            try (Git git = Git.open(operationRoot)) {
                 String configured = git.getRepository().getConfig().getString("remote", "origin", "url");
                 if (configured != null && !configured.trim().isEmpty() && !expectedRemoteUrl.equals(configured)) {
                     throw new IllegalStateException("The local origin points to a different repository. Recovery stopped without changing it.");
@@ -661,7 +661,7 @@ public final class DirectlyGitPublisher {
                 throw new PublishException("Recovery was stopped before the remote write. The saved session was retained.", true, repositoryUrl, null);
             }
             String configured = "";
-            try (Git git = Git.open(current.projectRoot)) {
+            try (Git git = Git.open(operationRoot)) {
                 configured = git.getRepository().getConfig().getString("remote", "origin", "url");
             }
             if (configured == null || configured.trim().isEmpty()) {
@@ -685,8 +685,8 @@ public final class DirectlyGitPublisher {
             if (!branchExists) {
                 phase(progress, context.getString(R.string.cooper_github_directly_phase_push));
                 persistPendingSession("PUSH_IN_PROGRESS", current, owner, name, description,
-                        branchName, expectedSha, repositoryUrl, startedAt, "", session.optBoolean("private", true));
-                String pushedSha = backend.push(current.projectRoot, token, true, cancelled);
+                        branchName, expectedSha, repositoryUrl, startedAt, "", session.optBoolean("private", true), operationRoot);
+                String pushedSha = backend.push(operationRoot, token, true, cancelled);
                 if (!expectedSha.equals(pushedSha)) throw new IllegalStateException("Push result differs from the saved commit SHA.");
                 phase(progress, context.getString(R.string.cooper_github_directly_phase_verify));
                 JSONObject branch = api.getBranch(owner, name, branchName);
@@ -694,7 +694,7 @@ public final class DirectlyGitPublisher {
                 actualSha = commit == null ? "" : commit.optString("sha", "");
                 if (!expectedSha.equals(actualSha)) {
                     persistPendingSession("PUSH_VERIFY_PENDING", current, owner, name, description,
-                            branchName, expectedSha, repositoryUrl, startedAt, "Remote SHA did not match the saved commit", session.optBoolean("private", true));
+                            branchName, expectedSha, repositoryUrl, startedAt, "Remote SHA did not match the saved commit", session.optBoolean("private", true), operationRoot);
                     throw new IllegalStateException("Remote branch SHA could not be verified after recovery push.");
                 }
             }
