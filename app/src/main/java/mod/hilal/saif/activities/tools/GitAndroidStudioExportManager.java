@@ -115,7 +115,8 @@ public final class GitAndroidStudioExportManager {
             if (activity.isFinishing() || activity.isDestroyed()) {
                 throw new IllegalStateException("Cooper cancelled the export because the Git Manager screen is no longer active.");
             }
-            boolean exported = ExportSource.startExport(activity, binding.scId, null);
+            // Copy the generated tree before auto-cleanup is allowed to touch temporary files.
+            boolean exported = ExportSource.startExport(activity, binding.scId, null, false);
             if (!exported) {
                 throw new IllegalStateException("Android Studio source export failed. Cooper did not upload the original Sketchware data files.");
             }
@@ -153,6 +154,7 @@ public final class GitAndroidStudioExportManager {
                     throw new IOException("The Android Studio Git workspace is ready, but the old Git metadata could not be removed from the Sketchware data folder.");
                 }
             }
+            ExportSource.cleanupAfterExport(activity, binding.scId);
             return true;
         }
     }
