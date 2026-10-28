@@ -96,22 +96,22 @@ public class ExportProjectActivity extends BaseAppCompatActivity {
 
     //File paths
     /**
-     * /sketchware/signed_apk
+     * /Cooper/signed_apk
      */
     private String signed_apk_postfix;
 
     /**
-     * /sketchware/signed_apk
+     * /Cooper/signed_apk
      */
     private String export_aab_postfix;
 
     /**
-     * /sketchware/export_src
+     * /Cooper/export_src
      */
     private String export_src_postfix;
 
     /**
-     * /sdcard/sketchware/export_src
+     * /sdcard/Cooper/export_src
      */
     private String signed_apk_full_path;
     private String export_aab_full_path;
@@ -238,7 +238,7 @@ public class ExportProjectActivity extends BaseAppCompatActivity {
             confirmationDialog.setTitle("Important note");
             confirmationDialog.setMessage("""
                     To sign an APK, you need a keystore. Use your already created one, and copy it to \
-                    /Internal storage/sketchware/keystore/release_key.jks and enter the alias's password.
+                    /Internal storage/Cooper/keystore/release_key.jks and enter the alias's password.
                     
                     Note that this only signs your APK using signing scheme V1, to target Android 11+ for example, \
                     use a 3rd-party tool (for now).""");
@@ -295,7 +295,7 @@ public class ExportProjectActivity extends BaseAppCompatActivity {
 
             MaterialAlertDialogBuilder confirmationDialog = new MaterialAlertDialogBuilder(this);
             confirmationDialog.setTitle("Important note");
-            confirmationDialog.setMessage("The generated .aab file must be signed.\nCopy your keystore to /Internal storage/sketchware/keystore/release_key.jks and enter the alias' password.");
+            confirmationDialog.setMessage("The generated .aab file must be signed.\nCopy your keystore to /Internal storage/Cooper/keystore/release_key.jks and enter the alias' password.");
             confirmationDialog.setIcon(R.drawable.ic_mtrl_info);
 
             confirmationDialog.setPositiveButton("Understood", (v, which) -> {
@@ -342,10 +342,10 @@ public class ExportProjectActivity extends BaseAppCompatActivity {
 
     //===================Setup paths===================
     private void initializeOutputDirectories() {
-        signed_apk_postfix = File.separator + "sketchware" + File.separator + "signed_apk";
-        export_aab_postfix = File.separator + "sketchware" + File.separator + "signed_aab";
-        export_src_postfix = File.separator + "sketchware" + File.separator + "export_src";
-        /* /sdcard/sketchware/signed_apk */
+        signed_apk_postfix = File.separator + "Cooper" + File.separator + "signed_apk";
+        export_aab_postfix = File.separator + "Cooper" + File.separator + "signed_aab";
+        export_src_postfix = File.separator + "Cooper" + File.separator + "export_src";
+        /* /sdcard/Cooper/signed_apk */
         signed_apk_full_path = wq.s() + File.separator + "signed_apk";
         export_src_full_path = wq.s() + File.separator + "export_src";
         export_aab_full_path = wq.s() + File.separator + "signed_aab";
@@ -804,7 +804,7 @@ public class ExportProjectActivity extends BaseAppCompatActivity {
 
                 onProgress(Helper.getResString(R.string.design_run_title_ready_to_build), 2);
                 oB oBVar = new oB();
-                /* Check if /Internal storage/sketchware/signed_apk/ exists */
+                /* Check if /Internal storage/Cooper/signed_apk/ exists */
                 if (!oBVar.e(wq.o())) {
                     /* Doesn't exist yet, let's create it */
                     oBVar.f(wq.o());
@@ -963,7 +963,7 @@ public class ExportProjectActivity extends BaseAppCompatActivity {
 
                     String createdBundlePath = AppBundleCompiler.getDefaultAppBundleOutputFile(project_metadata).getAbsolutePath();
                     String signedAppBundleDirectoryPath = FileUtil.getExternalStorageDir()
-                            + File.separator + "sketchware"
+                            + File.separator + "Cooper"
                             + File.separator + "signed_aab";
                     FileUtil.makeDir(signedAppBundleDirectoryPath);
                     String outputPath = signedAppBundleDirectoryPath + File.separator +
@@ -1096,7 +1096,7 @@ public class ExportProjectActivity extends BaseAppCompatActivity {
 
             //AAB
             String aabFilename = getCorrectResultFilename(project_metadata.projectName + ".aab");
-            if (buildingAppBundle && new File(Environment.getExternalStorageDirectory(), "sketchware" + File.separator + "signed_aab" + File.separator + aabFilename).exists()) {
+            if (buildingAppBundle && new File(Environment.getExternalStorageDirectory(), "Cooper" + File.separator + "signed_aab" + File.separator + aabFilename).exists()) {
                 activity.get().afterExportedAAB(aabFilename);
             }
         }

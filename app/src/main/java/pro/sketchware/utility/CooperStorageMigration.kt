@@ -38,17 +38,13 @@ object CooperStorageMigration {
                 File(cooperRoot, "$CONFLICT_BACKUP_DIRECTORY/from_hidden_workspace")
             )
 
-            // Legacy location used by the APK-signing utility.
+            // The legacy public root contains signed APK/AAB files, exported source, keystores,
+            // localization files, and other user-managed content. Merge everything into Cooper.
             migrateRoot(
-                File(storage, "sketchware/signed_apk"),
-                File(cooperRoot, "signed_apk"),
-                File(cooperRoot, "$CONFLICT_BACKUP_DIRECTORY/from_signed_apk")
+                File(storage, "sketchware"),
+                cooperRoot,
+                File(cooperRoot, "$CONFLICT_BACKUP_DIRECTORY/from_public_workspace")
             )
-
-            val oldPublicRoot = File(storage, "sketchware")
-            if (oldPublicRoot.isDirectory && oldPublicRoot.listFiles()?.isEmpty() == true) {
-                oldPublicRoot.delete()
-            }
 
             // Ensure fresh installs can create settings and project data under Cooper even if
             // there is no legacy directory to rename.
