@@ -126,9 +126,23 @@ public final class LocalGitBackend {
         validatePaths(root, relativePaths);
         if (relativePaths.isEmpty()) throw new GitFailure("EMPTY_PLAN", "Select at least one file to stage.");
         try (Git git = openRoot(root)) {
+            Status before = git.status().call();
+            Set<String> stagedRemoved = new TreeSet<>(before.getRemoved());
+            Set<String> missing = new TreeSet<>(before.getMissing());
             for (String path : relativePaths) {
                 File file = new File(root, path);
-                if (file.exists() && file.isFile() && !isBinaryPath(path)) {
+                if (!file.exists()) {
+                    if (stagedRemoved.contains(path)) continue; // Already staged as a deletion.
+                    if (!missing.contains(path)) {
+                        throw new GitFailure("MISSING_FILE_NOT_TRACKED",
+                                "The selected file disappeared or is no longer tracked; review the project again: " + path);
+                    }
+                    // JGit add does not consistently stage missing tracked paths as deletions.
+                    // Remove only a path confirmed missing by the repository status.
+                    git.rm().addFilepattern(path).call();
+                    continue;
+                }
+                if (file.isFile() && !isBinaryPath(path)) {
                     String source = readTextBounded(file, 2 * 1024 * 1024);
                     if (source == null) {
                         throw new GitFailure("UNSCANNABLE_FILE", "Cooper cannot safely scan this large text file; it was not staged: " + path);
