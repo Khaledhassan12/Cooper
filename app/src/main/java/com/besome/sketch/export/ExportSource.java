@@ -7,7 +7,7 @@ import android.widget.TextView;
 import java.io.File;
 import java.util.HashMap;
 
-import a.a.a.Configs;
+import extensions.anbui.daydream.configs.Configs;
 import a.a.a.ProjectBuilder;
 import a.a.a.eC;
 import a.a.a.hC;
