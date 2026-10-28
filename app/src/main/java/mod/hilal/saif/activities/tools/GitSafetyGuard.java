@@ -97,7 +97,7 @@ public final class GitSafetyGuard {
                 || name.endsWith(".jks") || name.endsWith(".keystore")
                 || name.endsWith(".p12") || name.endsWith(".pfx")
                 || name.equals("credentials") || name.equals("credentials.json")
-                || name.equals("secrets.properties") || name.equals("local.properties") || name.equals("local.properties")
+                || name.equals("secrets.properties") || name.equals("local.properties")
                 || name.contains("service-account") || name.contains("private_key");
     }
 }
