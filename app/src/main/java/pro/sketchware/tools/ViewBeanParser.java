@@ -167,7 +167,7 @@ public class ViewBeanParser {
         ArrayList<ViewBean> beans = new ArrayList<>();
         Map<String, Map<String, String>> beansAttributes = new HashMap<>();
         Stack<ViewBean> viewStack = new Stack<>();
-        int index = 0;
+        ViewBeanParseState parseState = new ViewBeanParseState();
         boolean isRootSkipped = !skipRoot;
 
         while (parser.getEventType() != XmlPullParser.END_DOCUMENT) {
@@ -193,20 +193,27 @@ public class ViewBeanParser {
                     var className = getNameFromTag(name);
                     int type = getViewTypeByClassName(name);
 
-                    // Get view ID, either from attributes or generate a unique ID
+                    // Preserve explicit IDs and fail clearly on duplicates instead of silently
+                    // generating a replacement that would desynchronize the designer model from XML.
                     String attrId = parser.getAttributeValue(null, "android:id");
-                    String id =
-                            attrId != null && !ids.contains(parseReferName(attrId, "/"))
-                                    ? parseReferName(attrId, "/")
-                                    : generateUniqueId(ids, type, className);
+                    String id = null;
 
-                    // Special case for 'include' tag with layout reference, treated as ID in
-                    // ViewBean
+                    // Special case for 'include' tag with layout reference, treated as ID in ViewBean.
                     if (className.equals("include")) {
                         String layout = parser.getAttributeValue(null, "layout");
                         if (layout != null) {
                             id = parseReferName(layout, "/");
                         }
+                    }
+
+                    if (id == null && attrId != null) {
+                        id = parseReferName(attrId, "/");
+                    }
+
+                    if (id != null) {
+                        id = parseState.validateExplicitId(id, name, ids);
+                    } else {
+                        id = parseState.generateUniqueId(ids, type, className);
                     }
 
                     ViewBean bean = new ViewBean(id, type);
@@ -221,7 +228,7 @@ public class ViewBeanParser {
                             bean.parent.equals("root")
                                     ? parentType
                                     : parent.type;
-                    bean.index = index;
+                    bean.index = parseState.nextChildIndex(bean.parent);
                     Map<String, String> attributes = new LinkedHashMap<>();
                     for (int i = 0; i < parser.getAttributeCount(); i++) {
                         if (!parser.getAttributeName(i).startsWith("xmlns")) {
@@ -232,7 +239,6 @@ public class ViewBeanParser {
                     beans.add(bean);
                     ids.add(id);
                     viewStack.push(bean);
-                    index++;
                     break;
                 }
 
