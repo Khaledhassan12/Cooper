@@ -357,10 +357,15 @@ class AppSettings : BaseAppCompatActivity() {
                     return@setOnClickListener
                 }
 
-                val outputApkPath = File(
+                val signedApkDirectory = File(
                     Environment.getExternalStorageDirectory(),
-                    "sketchware/signed_apk/" + outputApkFileName
-                ).absolutePath
+                    "Cooper/signed_apk"
+                )
+                if (!signedApkDirectory.exists() && !signedApkDirectory.mkdirs()) {
+                    SketchwareUtil.toast("Could not create Cooper/signed_apk directory", Toast.LENGTH_LONG)
+                    return@setOnClickListener
+                }
+                val outputApkPath = File(signedApkDirectory, outputApkFileName).absolutePath
 
                 if (File(outputApkPath).exists()) {
                     MaterialAlertDialogBuilder(this@AppSettings)
@@ -368,7 +373,7 @@ class AppSettings : BaseAppCompatActivity() {
                         .setTitle("File exists")
                         .setMessage(
                             "An APK named " + outputApkFileName +
-                                " already exists at /sketchware/signed_apk/. Overwrite it?"
+                                " already exists at /Cooper/signed_apk/. Overwrite it?"
                         )
                         .setNegativeButton(Helper.getResString(R.string.common_word_cancel), null)
                         .setPositiveButton("Overwrite") { _, _ ->
@@ -449,7 +454,7 @@ class AppSettings : BaseAppCompatActivity() {
                 if (ApkSigner.LogCallback.errorCount.get() == 0) {
                     buildingDialog.dismiss()
                     SketchwareUtil.toast(
-                        "Successfully saved signed APK to: /Internal storage/sketchware/signed_apk/" +
+                        "Successfully saved signed APK to: /Internal storage/Cooper/signed_apk/" +
                             Uri.fromFile(File(outputApkPath)).lastPathSegment,
                         Toast.LENGTH_LONG
                     )

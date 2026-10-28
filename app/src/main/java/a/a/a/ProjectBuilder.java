@@ -470,7 +470,7 @@ public class ProjectBuilder {
             classpath.append(":").append(build_settings.getValue(BuildSettings.SETTING_CLASSPATH, ""));
         }
 
-        String path = FileUtil.getExternalStorageDir() + "/.sketchware/data/" + yq.sc_id + "/files/classpath/";
+        String path = fpu.getPathClasspath(yq.sc_id);
         ArrayList<String> jars = FileUtil.listFiles(path, "jar");
         Collections.sort(jars);
         classpath.append(":").append(TextUtils.join(":", jars));

@@ -7,12 +7,12 @@ import pro.sketchware.SketchApplication;
 public class Configs {
     public static boolean isBuilding = false;
     public static final String universalTAG = "DayGreen";
-    public static final String mainDataDir = "/.sketchware/";
+    public static final String mainDataDir = "/Cooper/";
     public static final String gitFolderDir = mainDataDir + "git/";
     public static final String gitProjectFolderName = "/project/";
     public static final String gitSourceFolderName = "/source/";
     public static final String gitLocalLibraryFolderName = "/local_library/";
-    public static final String projectUnsavedDataFolderDir = mainDataDir + "/bak/";
+    public static final String projectUnsavedDataFolderDir = mainDataDir + "bak/";
     public static final String projectMySourceFolderDir = mainDataDir + "mysc/";
     public static final String projectInfoFolderDir = mainDataDir + "mysc/list/";
     public static final String projectDataFolderDir = mainDataDir + "data/";

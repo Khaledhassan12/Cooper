@@ -11,6 +11,7 @@ import androidx.annotation.NonNull;
 import com.besome.sketch.tools.CollectErrorActivity;
 
 import extensions.anbui.daydream.setup.DRSetup;
+import pro.sketchware.utility.CooperStorageMigration;
 import pro.sketchware.utility.theme.ThemeManager;
 
 public class SketchApplication extends Application {
@@ -35,6 +36,7 @@ public class SketchApplication extends Application {
             }
         });
         super.onCreate();
+        CooperStorageMigration.migrateLegacyStorage();
         ThemeManager.applyTheme(this, ThemeManager.getCurrentTheme(this));
 
         DRSetup.startUp(this);
