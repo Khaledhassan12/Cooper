@@ -81,9 +81,10 @@ public final class GitSafetyGuard {
                     || segment.equals("outputs") || segment.equals("intermediates")) return true;
         }
         String name = segments[segments.length - 1];
+        // Keep normal Android Studio dependencies and runtime libraries (Gradle wrapper JARs,
+        // app/libs JAR/AAR files, and jniLibs .so files). The exporter needs these to build.
         return name.endsWith(".apk") || name.endsWith(".aab") || name.endsWith(".dex")
                 || name.endsWith(".class") || name.endsWith(".odex") || name.endsWith(".oat")
-                || name.endsWith(".so") || name.endsWith(".jar") || name.endsWith(".aar")
                 || name.endsWith(".log") || name.endsWith(".tmp") || name.endsWith(".swp")
                 || name.endsWith("~");
     }
@@ -96,7 +97,7 @@ public final class GitSafetyGuard {
                 || name.endsWith(".jks") || name.endsWith(".keystore")
                 || name.endsWith(".p12") || name.endsWith(".pfx")
                 || name.equals("credentials") || name.equals("credentials.json")
-                || name.equals("secrets.properties") || name.equals("local.properties")
+                || name.equals("secrets.properties") || name.equals("local.properties") || name.equals("local.properties")
                 || name.contains("service-account") || name.contains("private_key");
     }
 }
