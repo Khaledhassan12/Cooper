@@ -13,7 +13,7 @@ android {
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "pro.sketchware"
+        applicationId = "Cooper.inc"
         namespace = "pro.sketchware"
         //noinspection ExpiredTargetSdkVersion
         targetSdk = 28
