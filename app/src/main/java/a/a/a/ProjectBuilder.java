@@ -192,6 +192,75 @@ public class ProjectBuilder {
         progressReceiver = buildAsyncTask;
     }
 
+    private long getFolderSize(File file) {
+        if (!file.exists()) return 0L;
+        if (file.isFile()) return file.length();
+        long size = 0L;
+        File[] children = file.listFiles();
+        if (children != null) {
+            for (File child : children) {
+                size += getFolderSize(child);
+            }
+        }
+        return size;
+    }
+
+    private boolean filesHaveSameContents(File first, File second) throws IOException {
+        if (!first.isFile() || !second.isFile() || first.length() != second.length()) {
+            return false;
+        }
+        try (java.io.InputStream firstStream =
+                     new java.io.BufferedInputStream(new java.io.FileInputStream(first));
+             java.io.InputStream secondStream =
+                     new java.io.BufferedInputStream(new java.io.FileInputStream(second))) {
+            while (true) {
+                int firstByte = firstStream.read();
+                int secondByte = secondStream.read();
+                if (firstByte != secondByte) return false;
+                if (firstByte == -1) return true;
+            }
+        }
+    }
+
+    private boolean haveSameContents(File first, File second) throws IOException {
+        if (!first.exists() || !second.exists()) return false;
+        if (first.isFile() || second.isFile()) {
+            return filesHaveSameContents(first, second);
+        }
+        if (!first.isDirectory() || !second.isDirectory()) return false;
+
+        // Size is only a fast rejection; equality is confirmed by relative paths and bytes.
+        if (getFolderSize(first) != getFolderSize(second)) return false;
+        File[] firstChildren = first.listFiles();
+        File[] secondChildren = second.listFiles();
+        if (firstChildren == null || secondChildren == null
+                || firstChildren.length != secondChildren.length) {
+            return false;
+        }
+        java.util.Arrays.sort(firstChildren,
+                (left, right) -> left.getName().compareTo(right.getName()));
+        java.util.Arrays.sort(secondChildren,
+                (left, right) -> left.getName().compareTo(right.getName()));
+        for (int i = 0; i < firstChildren.length; i++) {
+            if (!firstChildren[i].getName().equals(secondChildren[i].getName())
+                    || !haveSameContents(firstChildren[i], secondChildren[i])) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private void smartSyncDirectory(File src, File dest) throws IOException {
+        if (dest.exists() && haveSameContents(src, dest)) return;
+        FileUtil.deleteFile(dest.getAbsolutePath());
+        FileUtil.copyDirectory(src, dest);
+    }
+
+    private void smartCopyFile(File src, File dest) throws IOException {
+        if (dest.exists() && filesHaveSameContents(src, dest)) return;
+        FileUtil.copyFile(src.getAbsolutePath(), dest.getAbsolutePath());
+    }
+
     public static boolean hasFileChanged(String fileInAssets, String targetFile) {
         long length;
         File compareToFile = new File(targetFile);
@@ -238,8 +307,8 @@ public class ProjectBuilder {
             File cachedGen = new File(cached, "gen");
             if (cachedApk.exists() && cachedGen.exists()) {
                 if (progressReceiver != null) progressReceiver.onProgress("Resources UP-TO-DATE", 10);
-                FileUtil.copyFile(cachedApk.getAbsolutePath(), yq.resourcesApkPath);
-                FileUtil.copyDirectory(cachedGen, new File(yq.rJavaDirectoryPath));
+                smartCopyFile(cachedApk, new File(yq.resourcesApkPath));
+                smartSyncDirectory(cachedGen, new File(yq.rJavaDirectoryPath));
                 LogUtil.d(TAG, "Resources UP-TO-DATE");
                 return true;
             }
@@ -297,8 +366,7 @@ public class ProjectBuilder {
             File cachedDex = buildCache.stageOutputDir("dex");
             File[] cachedFiles = cachedDex.listFiles();
             if (cachedFiles != null && cachedFiles.length > 0) {
-                FileUtil.deleteFile(dexOutputDir.getAbsolutePath());
-                FileUtil.copyDirectory(cachedDex, dexOutputDir);
+                smartSyncDirectory(cachedDex, dexOutputDir);
                 if (progressReceiver != null) progressReceiver.onProgress("Dex UP-TO-DATE", 17);
                 LogUtil.d(TAG, "Dex UP-TO-DATE");
                 return true;
@@ -649,8 +717,7 @@ public class ProjectBuilder {
             File cachedClasses = new File(buildCache.stageOutputDir("java"), "classes");
             if (cachedClasses.exists()) {
                 if (progressReceiver != null) progressReceiver.onProgress("Java compile UP-TO-DATE", 13);
-                FileUtil.deleteFile(yq.compiledClassesPath);
-                FileUtil.copyDirectory(cachedClasses, new File(yq.compiledClassesPath));
+                smartSyncDirectory(cachedClasses, new File(yq.compiledClassesPath));
                 LogUtil.d(TAG, "Java compile UP-TO-DATE");
                 return true;
             }
@@ -784,16 +851,21 @@ public class ProjectBuilder {
                     ZipEntry entry = entries.nextElement();
                     String name = entry.getName();
 
-                    boolean isJunk = false;
-                    for (String prefix : MULTIPLATFORM_JUNK_PREFIXES) {
-                        if (name.contains(prefix)) {
-                            isJunk = true;
-                            foundJunk = true;
-                            break;
+                    // Raw .class entries are already dexed; they are not needed in APK resources.
+                    boolean isJunk = name.endsWith(".class");
+                    if (isJunk) {
+                        foundJunk = true;
+                    } else {
+                        for (String prefix : MULTIPLATFORM_JUNK_PREFIXES) {
+                            if (name.contains(prefix)) {
+                                isJunk = true;
+                                foundJunk = true;
+                                break;
+                            }
                         }
                     }
                     if (isJunk) {
-                        LogUtil.d(TAG, "Skipping junk entry: " + name + " (from " + originalJar.getName() + ")");
+                        LogUtil.d(TAG, "Skipping class/junk entry: " + name + " (from " + originalJar.getName() + ")");
                         continue;
                     }
 
@@ -817,14 +889,14 @@ public class ProjectBuilder {
                 if (key != null) {
                     File targetJar = new File(cacheDir, key + ".jar");
                     if (tmpFile.renameTo(targetJar)) {
-                        LogUtil.d(TAG, "Filtered Kotlin Multiplatform metadata from " + originalJar.getName());
+                        LogUtil.d(TAG, "Filtered Kotlin Multiplatform metadata and raw class entries from " + originalJar.getName());
                         return targetJar;
                     } else {
                         tmpFile.delete();
                         return originalJar;
                     }
                 } else {
-                    LogUtil.d(TAG, "Filtered Kotlin Multiplatform metadata from " + originalJar.getName() + " (no cache)");
+                    LogUtil.d(TAG, "Filtered Kotlin Multiplatform metadata and raw class entries from " + originalJar.getName() + " (no cache)");
                     return tmpFile;
                 }
             }
@@ -969,7 +1041,7 @@ public class ProjectBuilder {
             File[] cachedDexes = cachedMerge.listFiles((dir, name) -> name.startsWith("classes") && name.endsWith(".dex"));
             if (cachedDexes != null && cachedDexes.length > 0) {
                 for (File f : cachedDexes) {
-                    FileUtil.copyFile(f.getAbsolutePath(), new File(yq.binDirectoryPath, f.getName()).getAbsolutePath());
+                    smartCopyFile(f, new File(yq.binDirectoryPath, f.getName()));
                 }
                 if (progressReceiver != null) progressReceiver.onProgress("Dex merge UP-TO-DATE", 18);
                 LogUtil.d(TAG, "Dex merge UP-TO-DATE");
