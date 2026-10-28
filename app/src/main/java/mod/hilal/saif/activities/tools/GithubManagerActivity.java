@@ -56,6 +56,8 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
     private LinearLayout content;
     private final ExecutorService authExecutor = Executors.newSingleThreadExecutor();
     private final ExecutorService authPollingExecutor = Executors.newSingleThreadExecutor();
+    // Git network and JGit work must not queue behind device-flow authorization polling.
+    private final ExecutorService gitOperationExecutor = Executors.newFixedThreadPool(2);
     @Nullable private AtomicBoolean authSessionCancellation;
     @Nullable private AlertDialog authDialog;
     @Nullable private GitHubAuthManager.DeviceAuthorization pendingDeviceAuthorization;
@@ -2211,7 +2213,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
 
     private void runRemoteGitOperation(String operation) {
         if (!requireGitHubConnection()) return;
-        authExecutor.execute(() -> {
+        gitOperationExecutor.execute(() -> {
             try {
                 GitProjectBindingStore.Binding binding =
                         new GitProjectBindingStore(getApplicationContext()).getBoundProject();
@@ -2279,7 +2281,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
     private void performRemotePush(GitProjectBindingStore.Binding binding,
                                    LocalGitBackend.Snapshot planned) {
         if (!requireGitHubConnection()) return;
-        authExecutor.execute(() -> {
+        gitOperationExecutor.execute(() -> {
             try {
                 requireCurrentBoundProject(binding, true);
                 LocalGitBackend backend = new LocalGitBackend();
@@ -2347,7 +2349,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
     private void performRemotePull(GitProjectBindingStore.Binding binding,
                                    LocalGitBackend.Snapshot planned) {
         if (!requireGitHubConnection()) return;
-        authExecutor.execute(() -> {
+        gitOperationExecutor.execute(() -> {
             try {
                 requireCurrentBoundProject(binding, true);
                 LocalGitBackend backend = new LocalGitBackend();
@@ -2487,6 +2489,15 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
             for (Uri uri : directlyPendingImages) if (uri != null) imageUris.add(uri.toString());
         }
         outState.putStringArrayList("cooper_directly_draft_image_uris", imageUris);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        // Do not block the UI thread waiting for in-flight network or Git work.
+        authExecutor.shutdownNow();
+        authPollingExecutor.shutdownNow();
+        gitOperationExecutor.shutdownNow();
     }
 
     @Override
