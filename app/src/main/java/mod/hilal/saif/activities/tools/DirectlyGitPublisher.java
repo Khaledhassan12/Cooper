@@ -700,7 +700,7 @@ public final class DirectlyGitPublisher {
             }
             phase(progress, context.getString(R.string.cooper_github_directly_phase_finalize));
             persistPendingSession("REMOTE_VERIFIED", current, owner, name, description,
-                    branchName, expectedSha, repositoryUrl, startedAt, "", session.optBoolean("private", true));
+                    branchName, expectedSha, repositoryUrl, startedAt, "", session.optBoolean("private", true), operationRoot);
             bindings.linkRemote(owner, name);
             org.json.JSONArray history;
             try {
