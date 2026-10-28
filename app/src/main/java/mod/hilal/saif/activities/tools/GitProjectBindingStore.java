@@ -11,8 +11,8 @@ import a.a.a.lC;
 import a.a.a.wq;
 
 /**
- * Cooper Sketchware project binding. Project IDs are resolved through Cooper's own project
- * metadata and path utility instead of trusting a display name or an arbitrary filesystem path.
+ * Cooper project binding. The sourceProjectRoot identifies the original Sketchware project;
+ * projectRoot is the dedicated Android Studio export tree used by Git and GitHub operations.
  */
 public final class GitProjectBindingStore {
     private static final String PREFS = "cooper_github_project_binding";
@@ -28,13 +28,16 @@ public final class GitProjectBindingStore {
         public final String packageName;
         public final String versionName;
         public final String versionCode;
+        /** Dedicated, generated Android Studio project tree used by all Git operations. */
         public final File projectRoot;
+        /** Original Sketchware project data directory; used only to validate project identity/export sources. */
+        public final File sourceProjectRoot;
         public final String remoteOwner;
         public final String remoteRepository;
 
         private Binding(String scId, String workspaceName, String appName,
                         String packageName, String versionName, String versionCode,
-                        File projectRoot, String remoteOwner, String remoteRepository) {
+                        File projectRoot, File sourceProjectRoot, String remoteOwner, String remoteRepository) {
             this.scId = scId;
             this.workspaceName = workspaceName;
             this.appName = appName;
@@ -42,6 +45,7 @@ public final class GitProjectBindingStore {
             this.versionName = versionName;
             this.versionCode = versionCode;
             this.projectRoot = projectRoot;
+            this.sourceProjectRoot = sourceProjectRoot;
             this.remoteOwner = remoteOwner;
             this.remoteRepository = remoteRepository;
         }
@@ -52,11 +56,13 @@ public final class GitProjectBindingStore {
         }
     }
 
+    private final Context appContext;
     private final SharedPreferences preferences;
 
     public GitProjectBindingStore(Context context) {
         if (context == null) throw new IllegalArgumentException("Context is required.");
-        preferences = context.getApplicationContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        appContext = context.getApplicationContext();
+        preferences = appContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
     }
 
     public Binding bind(String scId) throws Exception {
@@ -67,10 +73,17 @@ public final class GitProjectBindingStore {
         if (metadata == null || !scId.equals(String.valueOf(metadata.get("sc_id")))) {
             throw new IllegalStateException("Cooper could not verify the selected project metadata.");
         }
-        File root = new File(wq.b(scId)).getCanonicalFile();
+        File sourceRoot = new File(wq.b(scId)).getCanonicalFile();
+        File root = GitAndroidStudioExportManager.getWorkspaceRoot(appContext, scId).getCanonicalFile();
         File metadataFile = new File(wq.c(scId), "project").getCanonicalFile();
-        if (!root.isDirectory() || !metadataFile.isFile()) {
+        if (!sourceRoot.isDirectory() || !metadataFile.isFile()) {
             throw new IllegalStateException("The selected Cooper project directory does not match its project metadata.");
+        }
+        if (root.exists() && !root.isDirectory()) {
+            throw new IllegalStateException("The Android Studio Git workspace path is not a directory.");
+        }
+        if (!root.exists() && !root.mkdirs() && !root.isDirectory()) {
+            throw new IllegalStateException("Cooper could not create the Android Studio Git workspace.");
         }
         String workspace = safeValue(metadata.get("my_ws_name"), "Cooper project");
         SharedPreferences.Editor editor = preferences.edit().putString(KEY_SC_ID, scId)
@@ -83,7 +96,7 @@ public final class GitProjectBindingStore {
         if (!saved) throw new IllegalStateException("Cooper could not save the project binding.");
         return new Binding(scId, workspace, safeValue(metadata.get("my_app_name"), ""),
                 safeValue(metadata.get("my_sc_pkg_name"), ""), safeValue(metadata.get("sc_ver_name"), ""),
-                safeValue(metadata.get("sc_ver_code"), ""), root,
+                safeValue(metadata.get("sc_ver_code"), ""), root, sourceRoot,
                 preferences.getString(KEY_REMOTE_OWNER, ""), preferences.getString(KEY_REMOTE_REPOSITORY, ""));
     }
 
@@ -94,16 +107,23 @@ public final class GitProjectBindingStore {
         if (metadata == null || !scId.equals(String.valueOf(metadata.get("sc_id")))) {
             throw new IllegalStateException("The bound Cooper project is no longer available or its identity changed.");
         }
-        File root = new File(wq.b(scId)).getCanonicalFile();
+        File sourceRoot = new File(wq.b(scId)).getCanonicalFile();
+        File root = GitAndroidStudioExportManager.getWorkspaceRoot(appContext, scId).getCanonicalFile();
         File metadataFile = new File(wq.c(scId), "project").getCanonicalFile();
-        if (!root.isDirectory() || !metadataFile.isFile()) {
+        if (!sourceRoot.isDirectory() || !metadataFile.isFile()) {
             throw new IllegalStateException("The bound Cooper project directory could not be verified.");
+        }
+        if (root.exists() && !root.isDirectory()) {
+            throw new IllegalStateException("The Android Studio Git workspace path is not a directory.");
+        }
+        if (!root.exists() && !root.mkdirs() && !root.isDirectory()) {
+            throw new IllegalStateException("Cooper could not create the Android Studio Git workspace.");
         }
         return new Binding(scId,
                 safeValue(metadata.get("my_ws_name"), preferences.getString(KEY_WORKSPACE_NAME, "Cooper project")),
                 safeValue(metadata.get("my_app_name"), ""),
                 safeValue(metadata.get("my_sc_pkg_name"), ""), safeValue(metadata.get("sc_ver_name"), ""),
-                safeValue(metadata.get("sc_ver_code"), ""), root,
+                safeValue(metadata.get("sc_ver_code"), ""), root, sourceRoot,
                 preferences.getString(KEY_REMOTE_OWNER, ""), preferences.getString(KEY_REMOTE_REPOSITORY, ""));
     }
 
