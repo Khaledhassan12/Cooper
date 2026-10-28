@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.content.Context;
 
 import org.eclipse.jgit.api.Git;
+import org.eclipse.jgit.api.ResetCommand;
 import org.json.JSONArray;
 
 import java.io.BufferedInputStream;
@@ -107,8 +108,8 @@ public final class GitAndroidStudioExportManager {
                 if (!legacySnapshot.initialized) {
                     throw new IllegalStateException("Cooper found old Git metadata but could not verify the repository.");
                 }
-                if (hasPendingChanges(legacySnapshot)) {
-                    throw new IllegalStateException("The previous Git repository contains uncommitted changes in the Sketchware data folder. Review that repository before switching to the Android Studio project structure.");
+                if (!legacySnapshot.conflicting.isEmpty() || hasGitOperationInProgress(legacyGit)) {
+                    throw new IllegalStateException("The previous Git repository has unresolved conflicts or an unfinished Git operation. Resolve or abort that operation before switching to the Android Studio project structure.");
                 }
             }
 
@@ -140,19 +141,23 @@ public final class GitAndroidStudioExportManager {
                     throw new IOException("Cooper could not atomically install the previous Git metadata in the Android Studio workspace.");
                 }
                 LocalGitBackend.Snapshot migrated;
-                try {
+                try (Git migratedGit = Git.open(workspaceRoot)) {
+                    // The old index may contain staged changes from the raw Sketchware tree.
+                    // Reset only the copied index to HEAD; keep the generated Android Studio
+                    // working tree unchanged and leave the original repository as a backup.
+                    migratedGit.reset().setMode(ResetCommand.ResetType.MIXED).setRef("HEAD").call();
                     migrated = backend.inspect(workspaceRoot);
                 } catch (Exception verificationError) {
                     deleteRecursively(destinationGit);
                     throw new IOException("Cooper could not verify the migrated Git history. The original repository was preserved.", verificationError);
                 }
-                if (!migrated.initialized || !same(expectedHead, migrated.headCommit)) {
+                if (!migrated.initialized || !same(expectedHead, migrated.headCommit)
+                        || !migrated.staged.isEmpty()) {
                     deleteRecursively(destinationGit);
-                    throw new IOException("Cooper could not verify the migrated Git history. The original repository was preserved.");
+                    throw new IOException("Cooper could not verify the migrated Git history and index. The original repository was preserved.");
                 }
-                if (!deleteRecursively(legacyGit)) {
-                    throw new IOException("The Android Studio Git workspace is ready, but the old Git metadata could not be removed from the Sketchware data folder.");
-                }
+                // Retain the original .git as a local backup. Every subsequent Git/GitHub
+                // operation uses workspaceRoot; the old Sketchware path is never a push root.
             }
             ExportSource.cleanupAfterExport(activity, binding.scId);
             return true;
