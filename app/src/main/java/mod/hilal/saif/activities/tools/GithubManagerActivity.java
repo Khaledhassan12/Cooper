@@ -28,6 +28,7 @@ import androidx.annotation.Nullable;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import androidx.appcompat.app.AlertDialog;
 
@@ -54,6 +55,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public class GithubManagerActivity extends BaseAppCompatActivity {
     private LinearLayout content;
+    @Nullable private SwipeRefreshLayout swipeRefreshLayout;
+    @Nullable private TextView liveSyncHeadline;
+    @Nullable private TextView liveSyncDetails;
+    private final AtomicBoolean syncRefreshInFlight = new AtomicBoolean(false);
     private final ExecutorService authExecutor = Executors.newSingleThreadExecutor();
     private final ExecutorService authPollingExecutor = Executors.newSingleThreadExecutor();
     // Git network and JGit work must not queue behind device-flow authorization polling.
@@ -132,9 +137,17 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         content.setOrientation(LinearLayout.VERTICAL);
         content.setPadding(dp(16), dp(12), dp(16), dp(24));
         scroll.addView(content, new androidx.core.widget.NestedScrollView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        swipeRefreshLayout = new SwipeRefreshLayout(this);
+        swipeRefreshLayout.setColorSchemeResources(com.google.android.material.R.color.design_default_color_primary);
+        swipeRefreshLayout.addView(scroll, new SwipeRefreshLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        swipeRefreshLayout.setOnRefreshListener(() -> {
+            refreshLiveSyncStatus(true);
+            if (new GitCredentialStore(getApplicationContext()).hasCredential()) loadRepositories();
+        });
         androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams scrollParams = new androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
         scrollParams.setBehavior(new com.google.android.material.appbar.AppBarLayout.ScrollingViewBehavior());
-        root.addView(scroll, scrollParams);
+        root.addView(swipeRefreshLayout, scrollParams);
 
         ViewCompat.setOnApplyWindowInsetsListener(root, (v, insets) -> {
             Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout());
@@ -179,6 +192,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                 v -> showCreatePullRequestDialog());
 
         addSectionTitle(getString(R.string.cooper_github_local_git));
+        addLiveSyncBar();
         addInfoCard(getString(R.string.cooper_github_local_status), getString(R.string.cooper_github_not_initialized),
                 getString(R.string.cooper_github_local_status_description));
         addActionCard(getString(R.string.cooper_github_inspect_changes), getString(R.string.cooper_github_inspect_changes_description),
@@ -1612,12 +1626,20 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
 
     private void showLocalGitError(Exception error) {
         if (handleReauthenticationFailure(error)) return;
-        String message = error.getMessage() == null ? "Local Git operation failed." : error.getMessage();
-        new Handler(Looper.getMainLooper()).post(() ->
-                new MaterialAlertDialogBuilder(this)
-                        .setTitle(R.string.cooper_github_local_status_title)
-                        .setMessage(getString(R.string.cooper_github_local_git_failed, message))
-                        .setPositiveButton(R.string.common_word_ok, null).show());
+        String raw = error.getMessage();
+        String message = raw == null ? "Local Git operation failed." : raw;
+        String lower = message.toLowerCase(java.util.Locale.ROOT);
+        if (lower.contains("unable to access") || lower.contains("network is unreachable")
+                || lower.contains("connection reset") || lower.contains("unknownhost")
+                || lower.contains("timed out") || lower.contains("timeout")
+                || lower.contains("no route to host")) {
+            message = "Network connection was interrupted. No automatic Push retry was started because the remote result may be uncertain. Check the GitHub branch before retrying. Details: " + message;
+        }
+        final String safeMessage = message;
+        ui(() -> new MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.cooper_github_local_status_title)
+                .setMessage(getString(R.string.cooper_github_local_git_failed, safeMessage))
+                .setPositiveButton(R.string.common_word_ok, null).show());
     }
 
     private static String shortCommit(String commit) {
@@ -2281,8 +2303,26 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
     private void performRemotePush(GitProjectBindingStore.Binding binding,
                                    LocalGitBackend.Snapshot planned) {
         if (!requireGitHubConnection()) return;
+        LinearLayout progressPanel = new LinearLayout(this);
+        progressPanel.setOrientation(LinearLayout.VERTICAL);
+        progressPanel.setPadding(dp(24), dp(12), dp(24), dp(8));
+        TextView phase = text("1/4 · Rechecking project and outgoing history…", 14, false);
+        progressPanel.addView(phase);
+        ProgressBar progress = new ProgressBar(this);
+        progress.setIndeterminate(true);
+        LinearLayout.LayoutParams progressParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(36));
+        progressParams.topMargin = dp(8);
+        progressPanel.addView(progress, progressParams);
+        AlertDialog progressDialog = new MaterialAlertDialogBuilder(this)
+                .setTitle("Push to GitHub")
+                .setView(progressPanel)
+                .setCancelable(false)
+                .create();
+        progressDialog.show();
         gitOperationExecutor.execute(() -> {
             try {
+                ui(() -> phase.setText("1/4 · Rechecking project binding, branch, and clean worktree…"));
                 requireCurrentBoundProject(binding, true);
                 LocalGitBackend backend = new LocalGitBackend();
                 backend.configureRemote(binding.projectRoot, binding.remoteUrl(), true);
@@ -2297,11 +2337,14 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                         || !current.untracked.isEmpty() || !current.staged.isEmpty()) {
                     throw new IllegalStateException("The project changed after Push approval. Inspect and approve a new plan.");
                 }
+                ui(() -> phase.setText("2/4 · Verifying the already-created commit and scanning outgoing history…"));
+                // LocalGitBackend performs the mandatory outgoing-history and secret/path scan
+                // immediately before the network push. This operation does not create a commit.
+                ui(() -> phase.setText("3/4 · Uploading the approved branch to GitHub…"));
                 String expected = backend.push(binding.projectRoot, token, true);
+                ui(() -> phase.setText("4/4 · Reading the remote branch back to verify the commit…"));
                 String remoteSha = "";
                 Exception lastVerificationError = null;
-                // GitHub may briefly lag after a successful push. Retry read-back only;
-                // never repeat the push automatically because its outcome may be ambiguous.
                 for (int attempt = 0; attempt < 3; attempt++) {
                     try {
                         org.json.JSONObject remoteBranch = apiClient().getBranch(
@@ -2333,15 +2376,21 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                         getApplicationContext(), binding, binding.remoteOwner, binding.remoteRepository,
                         remoteRepository.optString("html_url", "https://github.com/" + binding.remoteOwner + "/" + binding.remoteRepository),
                         expected, planned.currentBranch, remoteRepository.optBoolean("private", true), "ADVANCED_GIT");
-                new Handler(Looper.getMainLooper()).post(() ->
-                        new MaterialAlertDialogBuilder(this)
-                                .setTitle(R.string.cooper_github_push_remote)
-                                .setMessage(getString(R.string.cooper_github_push_success, shortCommit(expected))
-                                        + "\n\n" + getString(historySaved ? R.string.cooper_github_history_saved
-                                        : R.string.cooper_github_history_save_failed))
-                                .setPositiveButton(R.string.common_word_ok, null).show());
+                ui(() -> {
+                    if (progressDialog.isShowing()) progressDialog.dismiss();
+                    new MaterialAlertDialogBuilder(this)
+                            .setTitle(R.string.cooper_github_push_remote)
+                            .setMessage(getString(R.string.cooper_github_push_success, shortCommit(expected))
+                                    + "\n\n" + getString(historySaved ? R.string.cooper_github_history_saved
+                                    : R.string.cooper_github_history_save_failed))
+                            .setPositiveButton(R.string.common_word_ok, null).show();
+                    refreshLiveSyncStatus(false);
+                });
             } catch (Exception e) {
-                showLocalGitError(e);
+                ui(() -> {
+                    if (progressDialog.isShowing()) progressDialog.dismiss();
+                    showLocalGitError(e);
+                });
             }
         });
     }
@@ -2503,6 +2552,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
     @Override
     public void onResume() {
         super.onResume();
+        refreshLiveSyncStatus(false);
         if (!directlyDraftFormVisible && DirectlyGitPublisher.hasPendingSession(this) && !directlyRecoveryPromptShown) {
             new Handler(Looper.getMainLooper()).post(this::showDirectlyGitRecoveryPrompt);
         }
@@ -2657,6 +2707,93 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         super.onDestroy();
         authExecutor.shutdown();
         authPollingExecutor.shutdown();
+    }
+
+    /** Posts UI work only while this Activity is still able to render it. */
+    private void ui(Runnable action) {
+        if (action == null) return;
+        new Handler(Looper.getMainLooper()).post(() -> {
+            if (isFinishing() || isDestroyed()) return;
+            action.run();
+        });
+    }
+
+    private void addLiveSyncBar() {
+        MaterialCardView card = card();
+        card.setRadius(dp(18));
+        LinearLayout panel = new LinearLayout(this);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setPadding(dp(16), dp(14), dp(16), dp(14));
+        LinearLayout header = new LinearLayout(this);
+        header.setGravity(Gravity.CENTER_VERTICAL);
+        TextView icon = text("↻", 22, true);
+        icon.setGravity(Gravity.CENTER);
+        header.addView(icon, new LinearLayout.LayoutParams(dp(34), dp(34)));
+        LinearLayout labels = new LinearLayout(this);
+        labels.setOrientation(LinearLayout.VERTICAL);
+        labels.setPadding(dp(10), 0, 0, 0);
+        liveSyncHeadline = text("Checking project sync…", 16, true);
+        liveSyncDetails = text("Reading local Git state", 13, false);
+        labels.addView(liveSyncHeadline);
+        labels.addView(liveSyncDetails);
+        header.addView(labels, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        com.google.android.material.button.MaterialButton refresh = new com.google.android.material.button.MaterialButton(this);
+        refresh.setText("Refresh");
+        refresh.setIconResource(android.R.drawable.ic_popup_sync);
+        refresh.setOnClickListener(v -> refreshLiveSyncStatus(true));
+        header.addView(refresh);
+        panel.addView(header);
+        card.addView(panel);
+        content.addView(card);
+    }
+
+    private void refreshLiveSyncStatus(boolean showFeedback) {
+        if (liveSyncHeadline == null || liveSyncDetails == null) return;
+        if (!syncRefreshInFlight.compareAndSet(false, true)) return;
+        ui(() -> {
+            if (liveSyncHeadline != null) liveSyncHeadline.setText("Refreshing project status…");
+        });
+        gitOperationExecutor.execute(() -> {
+            String headline;
+            String detail;
+            try {
+                GitProjectBindingStore.Binding binding =
+                        new GitProjectBindingStore(getApplicationContext()).getBoundProject();
+                if (binding == null) {
+                    headline = "No project selected";
+                    detail = "Select a Cooper project to calculate Git sync status.";
+                } else {
+                    LocalGitBackend.Snapshot local = new LocalGitBackend().inspect(binding.projectRoot);
+                    if (!local.initialized) {
+                        headline = "Git not initialized";
+                        detail = binding.workspaceName + " · Initialize local Git to enable sync.";
+                    } else {
+                        GitSyncEngine.Snapshot sync = new GitSyncEngine().inspect(binding.projectRoot);
+                        headline = sync.state.name().replace('_', ' ');
+                        detail = binding.workspaceName + " · " + sync.branch
+                                + " · " + sync.changedFileCount + " changed · "
+                                + sync.aheadBy + " ahead / " + sync.behindBy + " behind";
+                    }
+                }
+            } catch (Exception error) {
+                headline = "Sync status unavailable";
+                String detailError = error.getMessage();
+                detail = (detailError == null || detailError.trim().isEmpty())
+                        ? "Could not read local Git state. Retry when the project is available."
+                        : detailError;
+            }
+            final String resultHeadline = headline;
+            final String resultDetail = detail;
+            ui(() -> {
+                if (liveSyncHeadline != null) liveSyncHeadline.setText(resultHeadline);
+                if (liveSyncDetails != null) liveSyncDetails.setText(resultDetail);
+                if (swipeRefreshLayout != null) swipeRefreshLayout.setRefreshing(false);
+                syncRefreshInFlight.set(false);
+                if (showFeedback && content != null) {
+                    Snackbar.make(content, "Project sync status refreshed.", Snackbar.LENGTH_SHORT).show();
+                }
+            });
+        });
     }
 
     private void addSectionTitle(String title) {
