@@ -265,7 +265,7 @@ public final class GitAndroidStudioExportManager {
 
     private static boolean isExcludedDirectory(String name) {
         String lower = name.toLowerCase(java.util.Locale.ROOT);
-        return lower.startsWith(".git") || lower.equals(".gradle") || lower.equals("build")
+        return lower.equals(".git") || lower.equals(".git-migration-temp") || lower.equals(".gradle") || lower.equals("build")
                 || lower.equals("bin") || lower.equals("gen") || lower.equals("outputs")
                 || lower.equals("intermediates") || lower.equals("cache") || lower.equals("caches");
     }
