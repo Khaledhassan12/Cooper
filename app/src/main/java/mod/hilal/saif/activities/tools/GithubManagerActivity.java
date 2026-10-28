@@ -1107,7 +1107,9 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
     private void cancelDeviceAuthorization(
             AtomicBoolean sessionCancellation,
             GitHubAuthManager.DeviceAuthorization device) {
-        sessionCancellation.set(true);
+        synchronized (sessionCancellation) {
+            sessionCancellation.set(true);
+        }
         if (authSessionCancellation != sessionCancellation) return;
         authSessionCancellation = null;
         authInProgress = false;
@@ -2565,7 +2567,12 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
 
     @Override
     public void onDestroy() {
-        if (authSessionCancellation != null) authSessionCancellation.set(true);
+        AtomicBoolean activeSession = authSessionCancellation;
+        if (activeSession != null) {
+            synchronized (activeSession) {
+                activeSession.set(true);
+            }
+        }
         authSessionCancellation = null;
         authInProgress = false;
         pendingDeviceAuthorization = null;
