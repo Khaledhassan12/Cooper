@@ -49,6 +49,16 @@ object CooperStorageMigration {
             if (oldPublicRoot.isDirectory && oldPublicRoot.listFiles()?.isEmpty() == true) {
                 oldPublicRoot.delete()
             }
+
+            // Ensure fresh installs can create settings and project data under Cooper even if
+            // there is no legacy directory to rename.
+            if (!cooperRoot.exists() && !cooperRoot.mkdirs()) {
+                Log.w(TAG, "Could not create Cooper storage root: $cooperRoot")
+            }
+            val dataDirectory = File(cooperRoot, "data")
+            if (!dataDirectory.exists() && !dataDirectory.mkdirs()) {
+                Log.w(TAG, "Could not create Cooper data directory: $dataDirectory")
+            }
         } catch (error: Exception) {
             // Keep launch working if storage access is temporarily unavailable. The migration
             // is retried on the next launch; source files are retained on incomplete copies.

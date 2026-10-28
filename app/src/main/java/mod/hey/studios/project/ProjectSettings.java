@@ -2,7 +2,6 @@ package mod.hey.studios.project;
 
 import android.app.Application;
 import android.content.pm.ApplicationInfo;
-import android.os.Environment;
 import android.util.Log;
 import android.view.View;
 import android.widget.Checkable;
@@ -117,7 +116,7 @@ public class ProjectSettings {
     }
 
     public String getPath() {
-        return new File(Environment.getExternalStorageDirectory(), ".sketchware/data/" + sc_id + "/project_config").getAbsolutePath();
+        return new File(pro.sketchware.utility.CooperStorageMigration.getRootDirectory(), "data/" + sc_id + "/project_config").getAbsolutePath();
     }
 
     public String getValue(String key, String defaultValue) {
