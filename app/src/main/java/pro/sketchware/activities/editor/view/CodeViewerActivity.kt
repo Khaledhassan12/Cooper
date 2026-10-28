@@ -29,7 +29,7 @@ class CodeViewerActivity : BaseAppCompatActivity() {
 
         binding.editor.setScId(scId)
         binding.editor.setTypefaceText(EditorUtils.getTypeface(this))
-        binding.editor.textSize = 14f
+        binding.editor.setTextSize(14)
         binding.editor.setText(Lx.j(code, false))
         binding.editor.setEditable(false)
         binding.editor.setWordwrap(false)
