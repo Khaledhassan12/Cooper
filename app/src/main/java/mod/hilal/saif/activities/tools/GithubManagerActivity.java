@@ -56,7 +56,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
     private LinearLayout content;
     private final ExecutorService authExecutor = Executors.newSingleThreadExecutor();
     private final ExecutorService authPollingExecutor = Executors.newSingleThreadExecutor();
-    private final AtomicBoolean authCancelled = new AtomicBoolean(false);
+    @Nullable private AtomicBoolean authSessionCancellation;
     @Nullable private AlertDialog authDialog;
     @Nullable private GitHubAuthManager.DeviceAuthorization pendingDeviceAuthorization;
     private boolean authInProgress = false;
@@ -951,58 +951,94 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
             showDeviceAuthorizationDialog();
             return;
         }
-        authCancelled.set(false);
+
+        // Every device-flow attempt owns its cancellation token. Reusing one AtomicBoolean
+        // lets a rapid retry reset the previous session's cancellation request.
+        final AtomicBoolean sessionCancellation = new AtomicBoolean(false);
+        authSessionCancellation = sessionCancellation;
         authInProgress = true;
+
         authExecutor.execute(() -> {
             try {
                 GitHubAuthManager manager = new GitHubAuthManager(getApplicationContext());
                 GitHubAuthManager.DeviceAuthorization device =
                         manager.beginDeviceAuthorization(BuildConfig.COOPER_GITHUB_CLIENT_ID);
-                pendingDeviceAuthorization = device;
-                new Handler(Looper.getMainLooper()).post(this::showDeviceAuthorizationDialog);
+                if (sessionCancellation.get()) return;
+
+                new Handler(Looper.getMainLooper()).post(() -> {
+                    if (isFinishing() || isDestroyed() || sessionCancellation.get()
+                            || authSessionCancellation != sessionCancellation) return;
+                    pendingDeviceAuthorization = device;
+                    showDeviceAuthorizationDialog();
+                });
+
+                if (sessionCancellation.get()) return;
                 authPollingExecutor.execute(() -> {
                     try {
-                        manager.pollForAccessToken(BuildConfig.COOPER_GITHUB_CLIENT_ID, device, authCancelled);
+                        manager.pollForAccessToken(
+                                BuildConfig.COOPER_GITHUB_CLIENT_ID, device, sessionCancellation);
+                        if (sessionCancellation.get()) {
+                            throw new GitHubAuthManager.AuthException(
+                                    "CANCELLED", "GitHub sign-in was cancelled.");
+                        }
+
                         org.json.JSONObject account = apiClient().getAuthenticatedAccount();
                         String login = account.optString("login", "GitHub user");
                         new Handler(Looper.getMainLooper()).post(() -> {
+                            if (authSessionCancellation != sessionCancellation
+                                    || sessionCancellation.get()) return;
                             authInProgress = false;
                             pendingDeviceAuthorization = null;
                             if (authDialog != null && authDialog.isShowing()) authDialog.dismiss();
                             authDialog = null;
+                            authSessionCancellation = null;
                             if (isFinishing() || isDestroyed()) return;
                             Snackbar.make(content,
                                     getString(R.string.cooper_github_account_verified, login),
                                     Snackbar.LENGTH_LONG).show();
                             recreate();
                         });
-                    } catch (Exception e) {
-                        if (e instanceof GitHubAuthManager.AuthException
-                                && "CANCELLED".equals(((GitHubAuthManager.AuthException) e).safeCode)) return;
+                    } catch (Exception error) {
+                        boolean cancelled = sessionCancellation.get()
+                                || (error instanceof GitHubAuthManager.AuthException
+                                && "CANCELLED".equals(
+                                ((GitHubAuthManager.AuthException) error).safeCode));
                         new Handler(Looper.getMainLooper()).post(() -> {
+                            if (authSessionCancellation != sessionCancellation) return;
                             authInProgress = false;
                             pendingDeviceAuthorization = null;
                             if (authDialog != null && authDialog.isShowing()) authDialog.dismiss();
                             authDialog = null;
-                            showAuthError(e.getMessage() == null ? "GitHub sign-in failed." : e.getMessage());
+                            authSessionCancellation = null;
+                            if (cancelled || isFinishing() || isDestroyed()) return;
+                            showAuthError(error.getMessage() == null
+                                    ? "GitHub sign-in failed." : error.getMessage());
                         });
                     }
                 });
-            } catch (Exception e) {
+            } catch (Exception error) {
                 new Handler(Looper.getMainLooper()).post(() -> {
+                    if (authSessionCancellation != sessionCancellation) return;
                     authInProgress = false;
                     pendingDeviceAuthorization = null;
-                    showAuthError(e.getMessage() == null ? "GitHub sign-in could not start." : e.getMessage());
+                    if (authDialog != null && authDialog.isShowing()) authDialog.dismiss();
+                    authDialog = null;
+                    authSessionCancellation = null;
+                    if (isFinishing() || isDestroyed()) return;
+                    showAuthError(error.getMessage() == null
+                            ? "GitHub sign-in could not start." : error.getMessage());
                 });
             }
         });
     }
 
     private void showDeviceAuthorizationDialog() {
-        if (isFinishing() || isDestroyed() || pendingDeviceAuthorization == null) return;
+        if (isFinishing() || isDestroyed() || pendingDeviceAuthorization == null
+                || authSessionCancellation == null || authSessionCancellation.get()) return;
         if (authDialog != null && authDialog.isShowing()) return;
 
-        GitHubAuthManager.DeviceAuthorization device = pendingDeviceAuthorization;
+        final GitHubAuthManager.DeviceAuthorization device = pendingDeviceAuthorization;
+        final AtomicBoolean sessionCancellation = authSessionCancellation;
         LinearLayout panel = new LinearLayout(this);
         panel.setOrientation(LinearLayout.VERTICAL);
         panel.setPadding(dp(24), dp(8), dp(24), dp(8));
@@ -1048,18 +1084,10 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                 .setTitle(R.string.cooper_github_device_code_title)
                 .setView(panel)
                 .setPositiveButton(R.string.cooper_github_open_settings, null)
-                .setNegativeButton(R.string.common_word_cancel, (dialog, which) -> {
-                    authCancelled.set(true);
-                    authInProgress = false;
-                    pendingDeviceAuthorization = null;
-                    authDialog = null;
-                })
-                .setOnCancelListener(dialog -> {
-                    authCancelled.set(true);
-                    authInProgress = false;
-                    pendingDeviceAuthorization = null;
-                    authDialog = null;
-                })
+                .setNegativeButton(R.string.common_word_cancel, (dialog, which) ->
+                        cancelDeviceAuthorization(sessionCancellation, device))
+                .setOnCancelListener(dialog ->
+                        cancelDeviceAuthorization(sessionCancellation, device))
                 .create();
         authDialog.setOnShowListener(dialog -> {
             android.widget.Button openButton = authDialog.getButton(AlertDialog.BUTTON_POSITIVE);
@@ -1074,6 +1102,17 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
             }
         });
         authDialog.show();
+    }
+
+    private void cancelDeviceAuthorization(
+            AtomicBoolean sessionCancellation,
+            GitHubAuthManager.DeviceAuthorization device) {
+        sessionCancellation.set(true);
+        if (authSessionCancellation != sessionCancellation) return;
+        authSessionCancellation = null;
+        authInProgress = false;
+        if (pendingDeviceAuthorization == device) pendingDeviceAuthorization = null;
+        authDialog = null;
     }
 
     private void loadProjectSelection() {
@@ -1602,11 +1641,21 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         });
     }
 
+    private boolean requireGitHubConnection() {
+        if (new GitCredentialStore(getApplicationContext()).hasCredential()) return true;
+        if (isFinishing() || isDestroyed()) return false;
+        new MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.cooper_github_connection_title)
+                .setMessage(R.string.cooper_github_auth_required)
+                .setNegativeButton(R.string.common_word_cancel, null)
+                .setPositiveButton(R.string.cooper_github_connect,
+                        (dialog, which) -> startGitHubAuthorization())
+                .show();
+        return false;
+    }
+
     private void loadRepositories() {
-        if (!new GitCredentialStore(this).hasCredential()) {
-            startGitHubAuthorization();
-            return;
-        }
+        if (!requireGitHubConnection()) return;
         authExecutor.execute(() -> {
             try {
                 org.json.JSONArray repositories = apiClient().listRepositories(1, 50);
@@ -1769,10 +1818,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
     }
 
     private void showCreatePullRequestDialog() {
-        if (!new GitCredentialStore(this).hasCredential()) {
-            startGitHubAuthorization();
-            return;
-        }
+        if (!requireGitHubConnection()) return;
         LinearLayout form = new LinearLayout(this);
         form.setOrientation(LinearLayout.VERTICAL);
         form.setPadding(dp(24), dp(8), dp(24), dp(4));
@@ -2122,6 +2168,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
     }
 
     private void runRemoteGitOperation(String operation) {
+        if (!requireGitHubConnection()) return;
         authExecutor.execute(() -> {
             try {
                 GitProjectBindingStore.Binding binding =
@@ -2189,6 +2236,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
 
     private void performRemotePush(GitProjectBindingStore.Binding binding,
                                    LocalGitBackend.Snapshot planned) {
+        if (!requireGitHubConnection()) return;
         authExecutor.execute(() -> {
             try {
                 LocalGitBackend backend = new LocalGitBackend();
@@ -2233,6 +2281,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
 
     private void performRemotePull(GitProjectBindingStore.Binding binding,
                                    LocalGitBackend.Snapshot planned) {
+        if (!requireGitHubConnection()) return;
         authExecutor.execute(() -> {
             try {
                 LocalGitBackend backend = new LocalGitBackend();
@@ -2265,10 +2314,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
     }
 
     private void showCreateRepositoryDialog() {
-        if (!new GitCredentialStore(this).hasCredential()) {
-            startGitHubAuthorization();
-            return;
-        }
+        if (!requireGitHubConnection()) return;
         LinearLayout form = new LinearLayout(this);
         form.setOrientation(LinearLayout.VERTICAL);
         form.setPadding(dp(24), dp(8), dp(24), dp(4));
@@ -2519,8 +2565,13 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
 
     @Override
     public void onDestroy() {
+        if (authSessionCancellation != null) authSessionCancellation.set(true);
+        authSessionCancellation = null;
+        authInProgress = false;
+        pendingDeviceAuthorization = null;
+        if (authDialog != null && authDialog.isShowing()) authDialog.dismiss();
+        authDialog = null;
         super.onDestroy();
-        authCancelled.set(true);
         authExecutor.shutdown();
         authPollingExecutor.shutdown();
     }
