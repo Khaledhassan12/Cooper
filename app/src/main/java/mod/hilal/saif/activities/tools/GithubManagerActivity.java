@@ -1870,6 +1870,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
 
     private void createPullRequest(String owner, String repository, String title,
                                    String body, String head, String base) {
+        if (!requireGitHubConnection()) return;
         authExecutor.execute(() -> {
             try {
                 org.json.JSONObject created = apiClient().createPullRequest(
@@ -2120,6 +2121,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
     }
 
     private void linkRemoteToBoundProject(String owner, String repository) {
+        if (!requireGitHubConnection()) return;
         authExecutor.execute(() -> {
             try {
                 GitProjectBindingStore store = new GitProjectBindingStore(getApplicationContext());
@@ -2150,6 +2152,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
     }
 
     private void persistRemoteBinding(String owner, String repository, GitProjectBindingStore.Binding binding) {
+        if (!requireGitHubConnection()) return;
         authExecutor.execute(() -> {
             try {
                 GitProjectBindingStore store = new GitProjectBindingStore(getApplicationContext());
@@ -2358,6 +2361,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
     }
 
     private void createRepository(String name, String description, boolean isPrivate) {
+        if (!requireGitHubConnection()) return;
         authExecutor.execute(() -> {
             try {
                 org.json.JSONObject created = apiClient().createRepository(name, description, isPrivate, true);
