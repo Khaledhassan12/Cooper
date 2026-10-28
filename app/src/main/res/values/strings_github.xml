@@ -23,7 +23,7 @@
     <string name="cooper_github_browse_repositories">Browse repositories</string>
     <string name="cooper_github_browse_repositories_description">List repositories after secure authentication is implemented.</string>
     <string name="cooper_github_link_project">Link Cooper project</string>
-    <string name="cooper_github_link_project_description">Bind a Sketchware project to a verified repository without moving or deleting project files.</string>
+    <string name="cooper_github_link_project_description">Bind a Cooper project to a verified repository without moving or deleting project files.</string>
     <string name="cooper_github_create_repository">Create repository</string>
     <string name="cooper_github_create_repository_description">Create a public or private repository after authentication and explicit confirmation.</string>
     <string name="cooper_github_local_git">Local Git</string>

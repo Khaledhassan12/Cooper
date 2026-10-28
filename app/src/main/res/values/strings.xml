@@ -1,16 +1,16 @@
 <resources>
-    <string name="app_name">Cooper's</string>
+    <string name="app_name">Cooper\'s</string>
     <!--new atribut 2026-->
     <string name="menu_manifest_manager_manual_enable">Enable Editor Manifest</string>
     <string name="menu_manifest_manager_manual_enable_dec">Enable it so you can edit the manifest in full mode.</string>
     <string name="menu_manifest_open">Open Xml Editor</string>
-    <string name="name_menu_green">Cooper's Settings</string>
+    <string name="name_menu_green">Cooper\'s Settings</string>
     <string name="menu_manifest_manager_open_dec">Edit AndroidManifest.xml directly in the code editor</string>
     <string name="name_tag_discord_new">Discord</string>
     <string name="name_tag_github_new">Github</string>
     <string name="name_tag_donation_new">Donation</string>
     <string name="name_tag_create_new">New Project</string>
-    <string name="title_sketchware">Cooper's</string>
+    <string name="title_sketchware">Cooper\'s</string>
     <string name="program_information_title_open_source_license">Open Source Licenses</string>
     <!--link new-->
     <string name="link_github_release">https://github.com/Khaledhassan12/Cooper/releases</string>
@@ -941,7 +941,7 @@ Please make room and try again"</string>
     <string name="common_message_name_unavailable">Current name is unavailable</string>
     <string name="common_message_permission_denied">Permission denied</string>
     <string name="common_message_permission_need_load_project">We need your permission to Storage to save and load projects</string>
-    <string name="common_message_permission_storage">To access photos, media, and files, please give Sketchware permission in the next step</string>
+    <string name="common_message_permission_storage">To access photos, media, and files, please grant Cooper the required permission in the next step</string>
     <string name="common_message_permission_storage1">"Permission Denied.
 Please click on Settings to allow permission for Storage. Without this permission, some features may not function properly"</string>
     <string name="common_message_permission_title_storage">Permission Required</string>
@@ -1537,14 +1537,14 @@ But, components should be added manually for working correctly."</string>
     <string name="logic_variable_type_string">String</string>
     <string name="main_drawer_context_menu_title_slack_invitation">Get my invitation</string>
     <string name="main_drawer_context_menu_title_slack_open">Open in Slack (Invitation Required)</string>
-    <string name="main_drawer_title_ad_label">Another Apps of Sketchware</string>
+    <string name="main_drawer_title_ad_label">Other Apps</string>
     <string name="main_drawer_title_docs">Documentation</string>
     <string name="main_drawer_title_export_urls">Export URLs</string>
     <string name="main_drawer_title_language_settings">Language Settings</string>
     <string name="main_drawer_title_program_information">Program information</string>
     <string name="main_drawer_title_purchase_list">Purchase List</string>
     <string name="main_drawer_title_remove_ads">Remove Ads</string>
-    <string name="main_drawer_title_save_sketchware">Save Sketchware</string>
+    <string name="main_drawer_title_save_sketchware">Save Cooper Project</string>
     <string name="main_drawer_title_share_with_friends">Share with Friends</string>
     <string name="main_drawer_title_sketchware_for_arduino">Sketchware for Arduino</string>
     <string name="main_drawer_title_subscribe">Subscribe</string>
@@ -2213,7 +2213,7 @@ Please try again later"</string>
     <string name="code_shrinker_warning">Using R8/ProGuard might be risky to some extent. Make sure to provide a proper rules configuration file in order not to break your project.</string>
     <string name="code_shrinker_rules">Code Shrinker Rules</string>
     <string name="code_shrinker_configure_shrinker">Configure R8/ProGuard by editing the rules file. This step is necessary because without a proper configuration, ProGuard might break your project.</string>
-    <string name="code_shrinker_full_mode_def">Using this, you can configure specific local libs to be included in R8/ProGuarding process. (Note: Enabling this will ignore DEX files of the local libs you select and it will force Sketchware to compile them to dex, making compilation noticeably slower.)</string>
+    <string name="code_shrinker_full_mode_def">Using this, you can configure specific local libs to be included in R8/ProGuarding process. (Note: Enabling this will ignore DEX files of the local libs you select and it will force Cooper to compile them to dex, making compilation noticeably slower.)</string>
     <string name="code_shrinker_generate_debug_files">Generate debug files</string>
     <string name="local_library_manager_dependency_example">Example: org.ow2.asm:asm:9.5</string>
     <string name="local_library_manager">Local library Manager</string>
@@ -2226,8 +2226,8 @@ Please try again later"</string>
     <string name="local_library_manager_skip_downloading_dependencies">Skip downloading sub-dependencies</string>
     <string name="signatures_title">Signatures</string>
     <string name="settings_appearance">Appearance</string>
-    <string name="settings_appearance_description">Change the Sketchware appearance</string>
-    <string name="settings_appearance_theme">Sketchware Theme</string>
+    <string name="settings_appearance_description">Change the Cooper appearance</string>
+    <string name="settings_appearance_theme">Cooper Theme</string>
     <string name="settings_appearance_theme_system">System default</string>
     <string name="settings_appearance_theme_light">Light theme</string>
     <string name="settings_appearance_theme_dark">Dark theme</string>
@@ -2247,7 +2247,7 @@ Please try again later"</string>
     <string name="assets_manager_rename">Rename</string>
 
     <!--  about the team screen  -->
-    <string name="about_title">About Cooper's</string>
+    <string name="about_title">About Cooper\'s</string>
     <string name="about_team_title">The team</string>
     <string name="about_specialthanks_title">Special Thanks</string>
     <string name="about_changelog_title">Changelog</string>
@@ -2314,8 +2314,8 @@ Please try again later"</string>
     <string name="attr_already_exist">This attribute already exists</string>
     <string name="link_sw_assist">https://play.google.com/store/apps/details?id=com.w3wide.swassist</string>
 
-    <string name="daydream">Cooper's</string>
-    <string name="daydream_tag_new_settings">Use Cooper's features</string>
+    <string name="daydream">Cooper\'s</string>
+    <string name="daydream_tag_new_settings">Use Cooper\'s features</string>
     <string name="beta">Beta</string>
     <string name="daydream_subtitile">Magic for your project.</string>
 
