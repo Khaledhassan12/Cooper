@@ -172,6 +172,17 @@ public final class GitAndroidStudioExportManager {
         }
         return Collections.unmodifiableSet(new TreeSet<>(readManifest(manifestFile(context, scId))));
     }
+    private static boolean hasGitOperationInProgress(File gitDirectory) {
+        if (gitDirectory == null || !gitDirectory.isDirectory()) return false;
+        String[] markers = {
+                "MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "REBASE_HEAD",
+                "BISECT_START", "rebase-merge", "rebase-apply", "sequencer"
+        };
+        for (String marker : markers) {
+            if (new File(gitDirectory, marker).exists()) return true;
+        }
+        return false;
+    }
     private static boolean hasUsableGitHubOrigin(File projectRoot) {
         try (Git git = Git.open(projectRoot)) {
             String origin = git.getRepository().getConfig().getString("remote", "origin", "url");
