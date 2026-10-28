@@ -818,7 +818,9 @@ public class ProjectBuilder {
     }
 
     private File filterMultiplatformJunkFromJar(File originalJar) {
+        // Bump the cache key when filtering rules change so old cached JARs cannot bypass them.
         String key = BuildCache.hashStrings(
+                "apk-resource-filter-v2-class-entries",
                 originalJar.getAbsolutePath(),
                 String.valueOf(originalJar.length()),
                 String.valueOf(originalJar.lastModified())
