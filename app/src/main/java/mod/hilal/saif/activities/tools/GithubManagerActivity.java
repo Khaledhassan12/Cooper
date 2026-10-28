@@ -647,7 +647,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                     getApplicationContext(), BuildConfig.COOPER_GITHUB_CLIENT_ID);
             final DirectlyGitPublisher.Plan plan;
             try {
-                plan = publisher.prepare(binding, name, description, readmeMode, readmeContent, repositoryPrivate, images);
+                plan = publisher.prepare(this, binding, name, description, readmeMode, readmeContent, repositoryPrivate, images);
             } catch (Exception error) {
                 String message = error.getMessage() == null
                         ? "Cooper could not prepare the publishing plan." : error.getMessage();
