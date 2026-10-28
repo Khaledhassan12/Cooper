@@ -2713,7 +2713,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
     /** Posts UI work only while this Activity is still able to render it. */
     private void ui(Runnable action) {
         if (action == null) return;
-        ui(() -> {
+        new Handler(Looper.getMainLooper()).post(() -> {
             if (isFinishing() || isDestroyed()) return;
             action.run();
         });
