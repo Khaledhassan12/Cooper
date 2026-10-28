@@ -129,8 +129,22 @@ public final class GitAndroidStudioExportManager {
 
             if (migrateLegacyRepository) {
                 String expectedHead = backend.inspect(sourceRoot).headCommit;
-                copyDirectory(legacyGit, destinationGit, legacyGit.getCanonicalFile());
-                LocalGitBackend.Snapshot migrated = backend.inspect(workspaceRoot);
+                File temporaryGit = new File(workspaceRoot, ".git-migration-temp");
+                if (temporaryGit.exists() && !deleteRecursively(temporaryGit)) {
+                    throw new IOException("Cooper could not clean a previous incomplete Git metadata migration.");
+                }
+                copyDirectory(legacyGit, temporaryGit, legacyGit.getCanonicalFile());
+                if (!temporaryGit.renameTo(destinationGit)) {
+                    deleteRecursively(temporaryGit);
+                    throw new IOException("Cooper could not atomically install the previous Git metadata in the Android Studio workspace.");
+                }
+                LocalGitBackend.Snapshot migrated;
+                try {
+                    migrated = backend.inspect(workspaceRoot);
+                } catch (Exception verificationError) {
+                    deleteRecursively(destinationGit);
+                    throw new IOException("Cooper could not verify the migrated Git history. The original repository was preserved.", verificationError);
+                }
                 if (!migrated.initialized || !same(expectedHead, migrated.headCommit)) {
                     deleteRecursively(destinationGit);
                     throw new IOException("Cooper could not verify the migrated Git history. The original repository was preserved.");
@@ -237,7 +251,7 @@ public final class GitAndroidStudioExportManager {
 
     private static boolean isExcludedDirectory(String name) {
         String lower = name.toLowerCase(java.util.Locale.ROOT);
-        return lower.equals(".git") || lower.equals(".gradle") || lower.equals("build")
+        return lower.startsWith(".git") || lower.equals(".gradle") || lower.equals("build")
                 || lower.equals("bin") || lower.equals("gen") || lower.equals("outputs")
                 || lower.equals("intermediates") || lower.equals("cache") || lower.equals("caches");
     }
