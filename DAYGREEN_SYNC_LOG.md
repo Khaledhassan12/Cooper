@@ -12,7 +12,7 @@ This file is the durable comparison cursor and audit trail for the daily DayGree
 - Integration branch: [integration/daygreen-updates-2026-10-27](https://github.com/Khaledhassan12/Cooper/tree/integration/daygreen-updates-2026-10-27)
 - Previous comparison cursor: [90bc91815bb64c700040ecefd1879f8d4ef1faa1](https://github.com/fora2323/Sketchware-DayGreen/commit/90bc91815bb64c700040ecefd1879f8d4ef1faa1)
 - Cursor provenance: reconstructed from the source commits listed in merged [Cooper PR #2](https://github.com/Khaledhassan12/Cooper/pull/2) and the upstream history. No `DAYGREEN_SYNC_LOG.md` existed on Cooper `main` or the prior integration branch.
-- Status at log creation: source changes reviewed and the compatible version-code change committed to this branch; comparison cursor remains at the previous baseline until the PR build and artifact are verified.
+- Verification completed on 2026-10-28: the previous sync's PR branch build succeeded and a non-expired Debug APK artifact was confirmed. The previous comparison cursor is now verified through `fb7e419951d8033b059c712e027067cecd8aafd2`; the next sync below remains pending until its own build/artifact verification.
 
 ### Source comparison
 
@@ -39,6 +39,50 @@ GitHub reports 2 commits and 2 changed files.
 
 ### Verification and cursor
 
-- PR: pending creation/CI result.
-- Debug APK workflow and artifact: pending verification.
-- Last successfully synchronized upstream cursor: remains [90bc91815bb64c700040ecefd1879f8d4ef1faa1](https://github.com/fora2323/Sketchware-DayGreen/commit/90bc91815bb64c700040ecefd1879f8d4ef1faa1) until the branch commit, PR state, successful workflow, and actual artifact are checked. After verification, this section will be updated to the reviewed HEAD `fb7e419951d8033b059c712e027067cecd8aafd2`.
+- [Cooper PR #6](https://github.com/Khaledhassan12/Cooper/pull/6) remains open and unmerged.
+- [Android Debug APK workflow run 40454764066](https://github.com/Khaledhassan12/Cooper/actions/runs/40454764066) completed successfully on integration commit `b02f1b3ad71ce1e67ba0b61dd9c9e55ec9bba76d`.
+- All job steps passed, including **Build Debug APK**, **Verify Debug APK exists**, and **Upload Debug APK for download**.
+- Confirmed non-expired artifact: [Cooper-debug-apk-178](https://github.com/Khaledhassan12/Cooper/actions/runs/40454764066), artifact ID `12712193165`, 271,664,610 bytes.
+- The prior cursor is verified through [`fb7e419951d8033b059c712e027067cecd8aafd2`](https://github.com/fora2323/Sketchware-DayGreen/commit/fb7e419951d8033b059c712e027067cecd8aafd2).
+
+
+## Synchronization attempt — 2026-10-28
+
+- Upstream repository: [fora2323/Sketchware-DayGreen](https://github.com/fora2323/Sketchware-DayGreen)
+- Upstream branch and current HEAD reviewed: [`main` at `227b9c7e20910b2a128fd1cda730d821d008e457`](https://github.com/fora2323/Sketchware-DayGreen/commit/227b9c7e20910b2a128fd1cda730d821d008e457)
+- Previous verified comparison cursor: [`fb7e419951d8033b059c712e027067cecd8aafd2`](https://github.com/fora2323/Sketchware-DayGreen/commit/fb7e419951d8033b059c712e027067cecd8aafd2)
+- Exact source comparison: [`fb7e419...` → `227b9c7...`](https://github.com/fora2323/Sketchware-DayGreen/compare/fb7e419951d8033b059c712e027067cecd8aafd2...227b9c7e20910b2a128fd1cda730d821d008e457). GitHub reports **2 commits and 3 changed files**.
+- Cooper target branch: [`integration/daygreen-updates-2026-10-27`](https://github.com/Khaledhassan12/Cooper/tree/integration/daygreen-updates-2026-10-27), PR [#6](https://github.com/Khaledhassan12/Cooper/pull/6), base `main` at `15b4e3ab27ec9fd37fcaecc115d63daf7c8d07b1`.
+- Code updates committed on the integration branch; code head before this log update: [`935402ade56de61dc9ebb439ef23e6e6e2044f9d`](https://github.com/Khaledhassan12/Cooper/commit/935402ade56de61dc9ebb439ef23e6e6e2044f9d).
+- Comparison cursor for this attempt remains at `fb7e419...` until this attempt's build and artifact are verified.
+
+### New source commits reviewed
+
+1. [`3a1e301be928961ce3f855be8667992c57fd97a9`](https://github.com/fora2323/Sketchware-DayGreen/commit/3a1e301be928961ce3f855be8667992c57fd97a9) — **build-cache copy optimization and progress queue**, affecting:
+   - [`ProjectBuilder.java`](https://github.com/fora2323/Sketchware-DayGreen/blob/main/app/src/main/java/a/a/a/ProjectBuilder.java): avoid redundant copies for cached resource, generated-source, compiled-class, dex, and merged-dex outputs; skip raw `.class` entries when packaging library JAR resources into the APK.
+   - [`DesignActivity.java`](https://github.com/fora2323/Sketchware-DayGreen/blob/main/app/src/main/java/com/besome/sketch/design/DesignActivity.java): queue progress messages, render them sequentially, and delay UI teardown until pending progress messages drain.
+   - [`BuildTaskNew.kt`](https://github.com/fora2323/Sketchware-DayGreen/blob/main/app/src/main/java/org/sketchware/daygreen/builds/BuildTaskNew.kt): include Debug/Release mode in build-task labels.
+2. [`227b9c7e20910b2a128fd1cda730d821d008e457`](https://github.com/fora2323/Sketchware-DayGreen/commit/227b9c7e20910b2a128fd1cda730d821d008e457) — declares `throws IOException` on `smartSyncDirectory` to propagate the copy operation's I/O contract.
+
+### Changes actually applied
+
+- [Cooper `ProjectBuilder.java`](https://github.com/Khaledhassan12/Cooper/blob/integration/daygreen-updates-2026-10-27/app/src/main/java/a/a/a/ProjectBuilder.java):
+  - Added cache-output copy helpers for resources APK, generated `R` source directory, compiled Java classes, dex output, and merged dex files.
+  - **Safety adaptation:** did not copy upstream's size-only shortcut (`getFolderSize(src) == getFolderSize(dest)`) or length-only file shortcut. Equal sizes do not prove equal content. Cooper now uses size as a fast rejection and then checks relative directory entries and actual file bytes before skipping a copy. Existing SHA-256-based `BuildCache` input invalidation remains intact.
+  - Skips raw `.class` entries only in the APK resource-JAR packaging path; the class files are already dexed and this does not alter the Java/Kotlin compilation classpath.
+- [Cooper `DesignActivity.java`](https://github.com/Khaledhassan12/Cooper/blob/integration/daygreen-updates-2026-10-27/app/src/main/java/com/besome/sketch/design/DesignActivity.java): serialized progress updates with a 200 ms queue cadence; UI teardown waits until queued messages drain; cancellation clears stale progress. Cooper-specific missing-tool handling, build-error reporting, and cleanup flow were preserved.
+- [Cooper `BuildTaskNew.kt`](https://github.com/Khaledhassan12/Cooper/blob/integration/daygreen-updates-2026-10-27/app/src/main/java/org/sketchware/daygreen/builds/BuildTaskNew.kt): build-task labels now include the Debug/Release mode.
+- Retained the prior verified [`app/build.gradle` versionCode update to 191](https://github.com/Khaledhassan12/Cooper/blob/integration/daygreen-updates-2026-10-27/app/build.gradle).
+- No resource/XML/Manifest/dependency changes were present in this source comparison, so none were added.
+
+### Source audit: PRs, issues, releases, tags
+
+- Upstream [PR list](https://github.com/fora2323/Sketchware-DayGreen/pulls): PRs #1–#9 are closed; [PR #10](https://github.com/fora2323/Sketchware-DayGreen/pull/10) remains open but its head is Cooper's `Cooper-integrated-github` branch and its base is DayGreen `main`; it is a Cooper-to-DayGreen cross-repository PR, not a new DayGreen feature to import.
+- Upstream [Issues](https://github.com/fora2323/Sketchware-DayGreen/issues): the API returned PR-linked issue records only; no standalone issue was returned in the checked first page.
+- Latest release remains [`v191`](https://github.com/fora2323/Sketchware-DayGreen/releases/tag/v191), published 2026-10-26; tag [`v191`](https://github.com/fora2323/Sketchware-DayGreen/tree/v191) points to `fb7e419...`. No newer release or tag matching the two new commits was found.
+- No AI, agent, LLM, AI setting, AI resource, or AI dependency was imported. No unrelated Cooper feature was removed or modified.
+
+### Verification pending for this attempt
+
+- [Debug APK workflow run for code commit `935402a...`](https://github.com/Khaledhassan12/Cooper/actions/runs/40640001979) was queued at log-update time; a prior attempt for the preceding commit was also in progress. Final status and actual artifact must be checked before moving the cursor.
+- Current verified cursor remains [`fb7e419951d8033b059c712e027067cecd8aafd2`](https://github.com/fora2323/Sketchware-DayGreen/commit/fb7e419951d8033b059c712e027067cecd8aafd2); advance it to `227b9c7...` only after a successful Debug APK job and a non-expired artifact are confirmed.
