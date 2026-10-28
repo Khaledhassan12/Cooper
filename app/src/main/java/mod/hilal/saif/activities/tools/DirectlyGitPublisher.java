@@ -315,7 +315,7 @@ public final class DirectlyGitPublisher {
         if (snapshot.initialized) {
             File gitDir = new File(current.projectRoot, ".git");
             if (gitDir.exists()) {
-                try (Git git = Git.open(operationRoot)) {
+                try (Git git = Git.open(current.projectRoot)) {
                     String origin = git.getRepository().getConfig().getString("remote", "origin", "url");
                     if (origin != null && !origin.trim().isEmpty()) {
                         throw new IllegalStateException("An origin remote already exists. Directly Git will not replace it.");
@@ -437,7 +437,7 @@ public final class DirectlyGitPublisher {
                 LocalGitBackend.Snapshot verified = backend.inspect(current.projectRoot);
                 if (!outcome.commitId.equals(verified.headCommit)) throw new IllegalStateException("Local commit read-back verification failed.");
             }
-            LocalGitBackend.Snapshot local = backend.inspect(operationRoot);
+            LocalGitBackend.Snapshot local = backend.inspect(current.projectRoot);
             if (local.headCommit == null || local.headCommit.trim().isEmpty()) throw new IllegalStateException("No local commit exists to publish.");
             expectedSha = local.headCommit;
             branchName = local.currentBranch;
@@ -500,7 +500,7 @@ public final class DirectlyGitPublisher {
             sessionState = "PUSH_IN_PROGRESS";
             persistPendingSession(sessionState, current, plan.owner, plan.repositoryName, plan.description,
                     branchName, expectedSha, repositoryUrl, startedAt, "", plan.isPrivate);
-            String pushedSha = backend.push(operationRoot, token, true, cancelled);
+            String pushedSha = backend.push(current.projectRoot, token, true, cancelled);
             if (!expectedSha.equals(pushedSha)) throw new IllegalStateException("The push result did not match the reviewed local commit.");
             sessionState = "PUSH_VERIFY_PENDING";
             persistPendingSession(sessionState, current, plan.owner, plan.repositoryName, plan.description,
