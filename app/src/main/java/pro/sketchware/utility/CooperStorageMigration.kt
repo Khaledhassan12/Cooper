@@ -99,7 +99,7 @@ object CooperStorageMigration {
             }
             var allChildrenMigrated = true
             for (child in children) {
-                val childRelativePath = "$relativePath/\u0024{child.name}"
+                val childRelativePath = relativePath + "/" + child.name
                 if (!mergeNode(child, File(destination, child.name), conflictRoot, childRelativePath)) {
                     allChildrenMigrated = false
                 }

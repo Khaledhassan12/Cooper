@@ -1,7 +1,5 @@
 package pro.sketchware.utility;
 
-import android.os.Environment;
-
 import java.io.File;
 
 public class FilePathUtil {

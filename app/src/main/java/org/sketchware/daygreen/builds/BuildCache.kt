@@ -6,12 +6,13 @@ import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 
 import mod.jbk.util.LogUtil
+import pro.sketchware.utility.CooperStorageMigration
 import pro.sketchware.utility.FileUtil
 
 
 class BuildCache(sc_id: String) {
     
-    private val cacheRoot: File = File(FileUtil.getExternalStorageDir() + "/.sketchware/data/" + sc_id + "/build_cache")
+    private val cacheRoot: File = File(CooperStorageMigration.getRootDirectory(), "data/" + sc_id + "/build_cache")
 
     init {
         cacheRoot.mkdirs()
