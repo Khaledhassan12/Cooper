@@ -237,13 +237,13 @@ class AppSettings : BaseAppCompatActivity() {
 
     private fun openWorkingDirectory() {
         val options = FilePickerOptions().apply {
-            setSelectionMode(SelectionMode.BOTH)
-            setMultipleSelection(true)
-            setTitle("Select an entry to modify")
-            setInitialDirectory(requireNotNull(filesDir.parentFile).absolutePath)
+            selectionMode = SelectionMode.BOTH
+            multipleSelection = true
+            title = "Select an entry to modify"
+            initialDirectory = requireNotNull(filesDir.parentFile).absolutePath
         }
 
-        val callback = object : FilePickerCallback {
+        val callback = object : FilePickerCallback() {
             override fun onFilesSelected(files: List<File>) {
                 if (files.isEmpty()) return
 
@@ -284,7 +284,7 @@ class AppSettings : BaseAppCompatActivity() {
                                 1 -> MaterialAlertDialogBuilder(this@AppSettings)
                                     .setTitle("Delete file?")
                                     .setMessage(
-                                        "Are you sure you want to delete this file permanently. " +
+                                        "Are you sure you want to delete this file permanently? " +
                                             "This cannot be undone."
                                     )
                                     .setPositiveButton(R.string.common_word_delete) { _, _ ->
@@ -315,9 +315,9 @@ class AppSettings : BaseAppCompatActivity() {
 
         apkPathBinding.selectFile.setOnClickListener {
             val options = FilePickerOptions().apply {
-                setExtensions(arrayOf("apk"))
+                extensions = arrayOf("apk")
             }
-            val callback = object : FilePickerCallback {
+            val callback = object : FilePickerCallback() {
                 override fun onFileSelected(file: File) {
                     isApkSelected = true
                     apkPathText.text = file.absolutePath
