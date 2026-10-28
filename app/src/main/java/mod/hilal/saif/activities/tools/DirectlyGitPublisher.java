@@ -2,6 +2,7 @@ package mod.hilal.saif.activities.tools;
 
 import pro.sketchware.R;
 
+import android.app.Activity;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.net.Uri;
@@ -223,12 +224,25 @@ public final class DirectlyGitPublisher {
                                        String owner, String repositoryName, String description,
                                        String branch, String commitSha, String repositoryUrl,
                                        long startedAt, String diagnostic, boolean isPrivate) throws IOException {
+        persistPendingSession(state, binding, owner, repositoryName, description, branch, commitSha,
+                repositoryUrl, startedAt, diagnostic, isPrivate, binding.projectRoot);
+    }
+
+    private void persistPendingSession(String state, GitProjectBindingStore.Binding binding,
+                                       String owner, String repositoryName, String description,
+                                       String branch, String commitSha, String repositoryUrl,
+                                       long startedAt, String diagnostic, boolean isPrivate,
+                                       File gitProjectRoot) throws IOException {
         try {
             JSONObject session = new JSONObject();
             session.put("schema", 1);
             session.put("state", state);
             session.put("projectId", binding.scId);
-            session.put("projectRoot", binding.projectRoot.getCanonicalPath());
+            // Keep the original Sketchware identity for recovery selection, while storing the
+            // actual Git workspace separately. Older sessions lack gitProjectRoot and are handled
+            // by the legacy recovery path below.
+            session.put("projectRoot", binding.sourceProjectRoot.getCanonicalPath());
+            session.put("gitProjectRoot", gitProjectRoot.getCanonicalPath());
             session.put("owner", owner);
             session.put("repositoryName", repositoryName);
             session.put("description", description == null ? "" : description);
@@ -247,8 +261,12 @@ public final class DirectlyGitPublisher {
         }
     }
 
-    public Plan prepare(GitProjectBindingStore.Binding selected, String name, String description,
-                        String readmeMode, String readmeContent, boolean isPrivate, List<Uri> images) throws Exception {
+    public Plan prepare(Activity exportActivity, GitProjectBindingStore.Binding selected,
+                        String name, String description, String readmeMode, String readmeContent,
+                        boolean isPrivate, List<Uri> images) throws Exception {
+        if (exportActivity == null || exportActivity.isFinishing() || exportActivity.isDestroyed()) {
+            throw new IllegalStateException("GitHub publishing requires an active Git Manager screen.");
+        }
         if (selected == null) throw new IllegalArgumentException("Select a Cooper project first.");
         JSONObject pendingSession = getPendingSession(context);
         if (pendingSession != null) {
@@ -282,6 +300,12 @@ public final class DirectlyGitPublisher {
             throw new IllegalStateException("This Cooper project has already been published by Directly Git. Use the existing repository instead of creating a duplicate.");
         }
         ensureRepositoryDoesNotExist(owner, name);
+        // Directly Git must publish the reviewed Android Studio export, not the internal Sketchware
+        // data tree. Export happens before building the publish plan so file review is truthful.
+        boolean refreshed = GitAndroidStudioExportManager.refreshIfClean(exportActivity, current);
+        if (!refreshed) {
+            throw new IllegalStateException("The Android Studio project has local changes. Review or commit them in GitHub Manager before starting Directly Git.");
+        }
         LocalGitBackend.Snapshot snapshot = backend.inspect(current.projectRoot);
         if (snapshot.initialized && (!snapshot.staged.isEmpty() || !snapshot.modified.isEmpty()
                 || !snapshot.added.isEmpty() || !snapshot.removed.isEmpty()
@@ -291,7 +315,7 @@ public final class DirectlyGitPublisher {
         if (snapshot.initialized) {
             File gitDir = new File(current.projectRoot, ".git");
             if (gitDir.exists()) {
-                try (Git git = Git.open(current.projectRoot)) {
+                try (Git git = Git.open(operationRoot)) {
                     String origin = git.getRepository().getConfig().getString("remote", "origin", "url");
                     if (origin != null && !origin.trim().isEmpty()) {
                         throw new IllegalStateException("An origin remote already exists. Directly Git will not replace it.");
@@ -413,7 +437,7 @@ public final class DirectlyGitPublisher {
                 LocalGitBackend.Snapshot verified = backend.inspect(current.projectRoot);
                 if (!outcome.commitId.equals(verified.headCommit)) throw new IllegalStateException("Local commit read-back verification failed.");
             }
-            LocalGitBackend.Snapshot local = backend.inspect(current.projectRoot);
+            LocalGitBackend.Snapshot local = backend.inspect(operationRoot);
             if (local.headCommit == null || local.headCommit.trim().isEmpty()) throw new IllegalStateException("No local commit exists to publish.");
             expectedSha = local.headCommit;
             branchName = local.currentBranch;
@@ -476,7 +500,7 @@ public final class DirectlyGitPublisher {
             sessionState = "PUSH_IN_PROGRESS";
             persistPendingSession(sessionState, current, plan.owner, plan.repositoryName, plan.description,
                     branchName, expectedSha, repositoryUrl, startedAt, "", plan.isPrivate);
-            String pushedSha = backend.push(current.projectRoot, token, true, cancelled);
+            String pushedSha = backend.push(operationRoot, token, true, cancelled);
             if (!expectedSha.equals(pushedSha)) throw new IllegalStateException("The push result did not match the reviewed local commit.");
             sessionState = "PUSH_VERIFY_PENDING";
             persistPendingSession(sessionState, current, plan.owner, plan.repositoryName, plan.description,
@@ -547,6 +571,7 @@ public final class DirectlyGitPublisher {
             String state = session.optString("state", "");
             String scId = session.optString("projectId", "");
             String rootPath = session.optString("projectRoot", "");
+            String savedGitProjectRoot = session.optString("gitProjectRoot", "");
             String owner = session.optString("owner", "");
             String name = session.optString("repositoryName", "");
             String description = session.optString("description", "");
@@ -560,8 +585,19 @@ public final class DirectlyGitPublisher {
             }
             GitProjectBindingStore.Binding current = bindings.getBoundProject();
             if (current == null || !scId.equals(current.scId)
-                    || !rootPath.equals(current.projectRoot.getCanonicalPath())) {
+                    || !rootPath.equals(current.sourceProjectRoot.getCanonicalPath())) {
                 throw new IllegalStateException("The selected Cooper project no longer matches the saved recovery session. Re-select the original project in GitHub Manager.");
+            }
+            // Sessions created before the Android Studio workspace migration point at the
+            // original Sketchware repository; keep recovering that exact commit without export.
+            final File operationRoot;
+            if (savedGitProjectRoot == null || savedGitProjectRoot.trim().isEmpty()) {
+                operationRoot = current.sourceProjectRoot;
+            } else {
+                if (!savedGitProjectRoot.equals(current.projectRoot.getCanonicalPath())) {
+                    throw new IllegalStateException("The saved Git workspace differs from the current Android Studio project. Recovery stopped without a remote write.");
+                }
+                operationRoot = current.projectRoot;
             }
             String token = auth.getUsableAccessToken(clientId);
             if (token == null || token.trim().isEmpty()) throw new IllegalStateException("Reconnect the original GitHub account before resuming publication.");
@@ -594,7 +630,8 @@ public final class DirectlyGitPublisher {
                 remote = api.createRepository(name, description, session.optBoolean("private", true), true);
                 repositoryUrl = remote.optString("html_url", "https://github.com/" + owner + "/" + name);
                 persistPendingSession("REMOTE_CREATED", current, owner, name, description,
-                        branchName, expectedSha, repositoryUrl, startedAt, "Recovered by recreating a confirmed repository");
+                        branchName, expectedSha, repositoryUrl, startedAt, "Recovered by recreating a confirmed repository",
+                        session.optBoolean("private", true), operationRoot);
                 state = "REMOTE_CREATED";
             }
             String actualOwner = remote.optJSONObject("owner") == null ? "" : remote.optJSONObject("owner").optString("login", "");
@@ -611,7 +648,7 @@ public final class DirectlyGitPublisher {
                 }
                 repositoryUrl = remote.optString("html_url", repositoryUrl);
                 persistPendingSession("REMOTE_CREATED", current, owner, name, description,
-                        branchName, expectedSha, repositoryUrl, startedAt, "", session.optBoolean("private", true));
+                        branchName, expectedSha, repositoryUrl, startedAt, "", session.optBoolean("private", true), operationRoot);
                 state = "REMOTE_CREATED";
             } else if ("READY_TO_CREATE".equals(state)) {
                 throw new IllegalStateException("A repository with this name exists before the saved creation step. Cooper refused to use or overwrite it.");
@@ -628,7 +665,7 @@ public final class DirectlyGitPublisher {
                 configured = git.getRepository().getConfig().getString("remote", "origin", "url");
             }
             if (configured == null || configured.trim().isEmpty()) {
-                backend.configureRemote(current.projectRoot, expectedRemoteUrl, true);
+                backend.configureRemote(operationRoot, expectedRemoteUrl, true);
             } else if (!expectedRemoteUrl.equals(configured)) {
                 throw new IllegalStateException("The saved session remote does not match the local origin.");
             }
