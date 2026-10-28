@@ -1,7 +1,6 @@
 package dev.aldi.sayuti.editor.manage;
 
 import static pro.sketchware.utility.FileUtil.deleteFile;
-import static pro.sketchware.utility.FileUtil.getExternalStorageDir;
 import static pro.sketchware.utility.FileUtil.isExistFile;
 import static pro.sketchware.utility.FileUtil.listDirAsFile;
 import static pro.sketchware.utility.FileUtil.readFile;
@@ -17,9 +16,10 @@ import java.util.List;
 import java.util.Map;
 
 import mod.hey.studios.util.Helper;
+import pro.sketchware.utility.CooperStorageMigration;
 
 public class LocalLibrariesUtil {
-    private static final String localLibsPath = getExternalStorageDir().concat("/.sketchware/libs/local_libs/");
+    private static final String localLibsPath = new File(CooperStorageMigration.getRootDirectory(), "libs/local_libs").getAbsolutePath() + File.separator;
 
     public static List<LocalLibrary> getAllLocalLibraries() {
         ArrayList<File> localLibraryFiles = new ArrayList<>();
@@ -72,7 +72,7 @@ public class LocalLibrariesUtil {
     }
 
     public static File getLocalLibFile(String scId) {
-        return new File(getExternalStorageDir().concat("/.sketchware/data/").concat(scId.concat("/local_library")));
+        return new File(CooperStorageMigration.getRootDirectory(), "data/" + scId + "/local_library");
     }
 
     public static void rewriteLocalLibFile(String scId, String newContent) {

@@ -19,11 +19,17 @@ public class SkSettings {
 
     public static String getBackupDir() {
         Map<String, Object> map = getSettingsData();
-        if (map == null) return "/.sketchware/backups/";
-        if (!map.containsKey("backup-dir")) return "/.sketchware/backups/";
+        if (map == null) return "/Cooper/backups/";
+        if (!map.containsKey("backup-dir")) return "/Cooper/backups/";
 
-        Log.i(TAG, "getBackupDir: " + map.get("backup-dir"));
-        return Objects.requireNonNull(map.get("backup-dir")).toString();
+        String backupPath = Objects.requireNonNull(map.get("backup-dir")).toString();
+        // Migrate a previously saved directory instead of silently recreating .sketchware.
+        if (backupPath.contains("/.sketchware/")) {
+            backupPath = backupPath.replace("/.sketchware/", "/Cooper/");
+            setDataString("backup-dir", backupPath);
+        }
+        Log.i(TAG, "getBackupDir: " + backupPath);
+        return backupPath;
     }
 
     public static void setDataString(String key, String value) {
