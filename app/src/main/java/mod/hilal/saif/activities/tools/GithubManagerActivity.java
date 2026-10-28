@@ -1335,11 +1335,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                         "", state, now, now, "Commit plan created; no credentials or file contents recorded."));
                 state = GitOperationStateMachine.transition(state, GitOperationStateMachine.State.INSPECTING);
                 persistOperationState(store, operationId, binding, state, now, "Revalidating project and worktree.");
-                GitProjectBindingStore.Binding current = new GitProjectBindingStore(getApplicationContext()).getBoundProject();
-                if (current == null || !current.scId.equals(binding.scId)
-                        || !current.projectRoot.getCanonicalPath().equals(binding.projectRoot.getCanonicalPath())) {
-                    throw new IllegalStateException("The bound Cooper project changed after the commit plan was prepared.");
-                }
+                GitProjectBindingStore.Binding current = requireCurrentBoundProject(binding, false);
                 LocalGitBackend backend = new LocalGitBackend();
                 LocalGitBackend.Snapshot currentSnapshot = backend.inspect(current.projectRoot);
                 if (!currentSnapshot.initialized || !currentSnapshot.conflicting.isEmpty()) {
@@ -1401,6 +1397,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
     private void initializeLocalGit(GitProjectBindingStore.Binding binding) {
         authExecutor.execute(() -> {
             try {
+                requireCurrentBoundProject(binding, false);
                 new LocalGitBackend().initialize(binding.projectRoot, true);
                 LocalGitBackend.Snapshot verified = new LocalGitBackend().inspect(binding.projectRoot);
                 if (!verified.initialized) throw new IllegalStateException("Git initialization read-back failed.");
@@ -2058,6 +2055,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                     }
                     authExecutor.execute(() -> {
                         try {
+                            requireCurrentBoundProject(binding, false);
                             LocalGitBackend backend = new LocalGitBackend();
                             backend.createBranch(binding.projectRoot, name, true);
                             if (!backend.listBranches(binding.projectRoot).contains(name)) {
@@ -2076,6 +2074,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
     private void checkoutLocalBranch(GitProjectBindingStore.Binding binding, String target) {
         authExecutor.execute(() -> {
             try {
+                requireCurrentBoundProject(binding, false);
                 LocalGitBackend backend = new LocalGitBackend();
                 backend.checkout(binding.projectRoot, target, true);
                 LocalGitBackend.Snapshot verified = backend.inspect(binding.projectRoot);
@@ -2120,6 +2119,28 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                 .setNegativeButton(R.string.common_word_cancel, null).show();
     }
 
+    private GitProjectBindingStore.Binding requireCurrentBoundProject(
+            GitProjectBindingStore.Binding expected, boolean verifyRemoteBinding) throws Exception {
+        if (expected == null) {
+            throw new IllegalArgumentException("A reviewed Cooper project binding is required.");
+        }
+        GitProjectBindingStore.Binding current =
+                new GitProjectBindingStore(getApplicationContext()).getBoundProject();
+        if (current == null
+                || !expected.scId.equals(current.scId)
+                || !expected.projectRoot.getCanonicalPath().equals(current.projectRoot.getCanonicalPath())) {
+            throw new IllegalStateException(
+                    "The selected Cooper project changed after this action was prepared. Review the action again.");
+        }
+        if (verifyRemoteBinding
+                && (!java.util.Objects.equals(expected.remoteOwner, current.remoteOwner)
+                || !java.util.Objects.equals(expected.remoteRepository, current.remoteRepository))) {
+            throw new IllegalStateException(
+                    "The project's GitHub repository binding changed after this action was prepared. Review the remote again.");
+        }
+        return current;
+    }
+
     private void linkRemoteToBoundProject(String owner, String repository) {
         if (!requireGitHubConnection()) return;
         authExecutor.execute(() -> {
@@ -2156,6 +2177,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         authExecutor.execute(() -> {
             try {
                 GitProjectBindingStore store = new GitProjectBindingStore(getApplicationContext());
+                requireCurrentBoundProject(binding, true);
                 store.linkRemote(owner, repository);
                 LocalGitBackend backend = new LocalGitBackend();
                 LocalGitBackend.Snapshot snapshot = backend.inspect(binding.projectRoot);
@@ -2244,6 +2266,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         if (!requireGitHubConnection()) return;
         authExecutor.execute(() -> {
             try {
+                requireCurrentBoundProject(binding, true);
                 LocalGitBackend backend = new LocalGitBackend();
                 backend.configureRemote(binding.projectRoot, binding.remoteUrl(), true);
                 String token = new GitHubAuthManager(getApplicationContext())
@@ -2289,6 +2312,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         if (!requireGitHubConnection()) return;
         authExecutor.execute(() -> {
             try {
+                requireCurrentBoundProject(binding, true);
                 LocalGitBackend backend = new LocalGitBackend();
                 backend.configureRemote(binding.projectRoot, binding.remoteUrl(), true);
                 String token = new GitHubAuthManager(getApplicationContext())
