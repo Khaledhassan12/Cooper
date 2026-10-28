@@ -53,7 +53,7 @@ GitHub reports 2 commits and 2 changed files.
 - Previous verified comparison cursor: [`fb7e419951d8033b059c712e027067cecd8aafd2`](https://github.com/fora2323/Sketchware-DayGreen/commit/fb7e419951d8033b059c712e027067cecd8aafd2)
 - Exact source comparison: [`fb7e419...` → `227b9c7...`](https://github.com/fora2323/Sketchware-DayGreen/compare/fb7e419951d8033b059c712e027067cecd8aafd2...227b9c7e20910b2a128fd1cda730d821d008e457). GitHub reports **2 commits and 3 changed files**.
 - Cooper target branch: [`integration/daygreen-updates-2026-10-27`](https://github.com/Khaledhassan12/Cooper/tree/integration/daygreen-updates-2026-10-27), PR [#6](https://github.com/Khaledhassan12/Cooper/pull/6), base `main` at `15b4e3ab27ec9fd37fcaecc115d63daf7c8d07b1`.
-- Code updates committed on the integration branch; code head before this log update: [`935402ade56de61dc9ebb439ef23e6e6e2044f9d`](https://github.com/Khaledhassan12/Cooper/commit/935402ade56de61dc9ebb439ef23e6e6e2044f9d).
+- Code updates committed on the integration branch at [`f5477ab0b08e9ab26f9ee6ce746c4ee03da04eab`](https://github.com/Khaledhassan12/Cooper/commit/f5477ab0b08e9ab26f9ee6ce746c4ee03da04eab); the successful workflow below tested this exact code head before this log-only cursor update.
 - Comparison cursor for this attempt remains at `fb7e419...` until this attempt's build and artifact are verified.
 
 ### New source commits reviewed
@@ -82,7 +82,10 @@ GitHub reports 2 commits and 2 changed files.
 - Latest release remains [`v191`](https://github.com/fora2323/Sketchware-DayGreen/releases/tag/v191), published 2026-10-26; tag [`v191`](https://github.com/fora2323/Sketchware-DayGreen/tree/v191) points to `fb7e419...`. No newer release or tag matching the two new commits was found.
 - No AI, agent, LLM, AI setting, AI resource, or AI dependency was imported. No unrelated Cooper feature was removed or modified.
 
-### Verification pending for this attempt
+### Verification completed — comparison cursor advanced
 
-- [Debug APK workflow run for code commit `935402a...`](https://github.com/Khaledhassan12/Cooper/actions/runs/40640001979) was queued at log-update time; a prior attempt for the preceding commit was also in progress. Final status and actual artifact must be checked before moving the cursor.
-- Current verified cursor remains [`fb7e419951d8033b059c712e027067cecd8aafd2`](https://github.com/fora2323/Sketchware-DayGreen/commit/fb7e419951d8033b059c712e027067cecd8aafd2); advance it to `227b9c7...` only after a successful Debug APK job and a non-expired artifact are confirmed.
+- [Android Debug APK workflow run 40640112639](https://github.com/Khaledhassan12/Cooper/actions/runs/40640112639) completed with conclusion **success** on code head [`f5477ab0b08e9ab26f9ee6ce746c4ee03da04eab`](https://github.com/Khaledhassan12/Cooper/commit/f5477ab0b08e9ab26f9ee6ce746c4ee03da04eab).
+- Job [`Build and upload Debug APK`](https://github.com/Khaledhassan12/Cooper/actions/runs/40640112639) passed. The job steps **Build Debug APK**, **Verify Debug APK exists**, and **Upload Debug APK for download** all completed successfully.
+- Confirmed non-expired artifact: [`Cooper-debug-apk-183`](https://github.com/Khaledhassan12/Cooper/actions/runs/40640112639), artifact ID `12795346474`, size `271669901` bytes.
+- With code changes saved, the Debug APK job successful, and the actual artifact confirmed, the comparison cursor is now advanced to [`227b9c7e20910b2a128fd1cda730d821d008e457`](https://github.com/fora2323/Sketchware-DayGreen/commit/227b9c7e20910b2a128fd1cda730d821d008e457).
+- PR [#6](https://github.com/Khaledhassan12/Cooper/pull/6) remains open and unmerged. A log-only commit records this verification and will trigger a fresh PR workflow for the final PR head.
