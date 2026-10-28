@@ -142,7 +142,8 @@ public final class GitAndroidStudioExportManager {
     private static boolean hasPendingChanges(LocalGitBackend.Snapshot snapshot) {
         return !snapshot.conflicting.isEmpty() || !snapshot.staged.isEmpty()
                 || !snapshot.modified.isEmpty() || !snapshot.added.isEmpty()
-                || !snapshot.removed.isEmpty() || !snapshot.untracked.isEmpty();
+                || !snapshot.removed.isEmpty() || !snapshot.missing.isEmpty()
+                || !snapshot.untracked.isEmpty();
     }
 
     private static void mirrorExportTree(Context context, String scId, File exportRoot, File workspaceRoot) throws IOException {
