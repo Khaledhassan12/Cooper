@@ -144,11 +144,19 @@ public final class GitHubAuthManager {
                     throw new AuthException("REFRESH_TOKEN_MISSING",
                             "GitHub returned an expiring token without a refresh token. Enable offline_access support and authorize Cooper again.");
                 }
-                // Cancellation may arrive while the HTTP request is in flight or while
-                // its response is being parsed. Never persist a token for a cancelled session.
-                ensureNotCancelled(cancelled);
+                // Serialize cancellation with token persistence. This closes the race where
+                // the user cancels after the last check but before the credential write.
                 try {
-                    credentialStore.saveTokenSet(tokenSet);
+                    if (cancelled == null) {
+                        credentialStore.saveTokenSet(tokenSet);
+                    } else {
+                        synchronized (cancelled) {
+                            ensureNotCancelled(cancelled);
+                            credentialStore.saveTokenSet(tokenSet);
+                        }
+                    }
+                } catch (AuthException e) {
+                    throw e;
                 } catch (Exception e) {
                     throw new AuthException("CREDENTIAL_STORE_FAILED",
                             "Cooper could not securely store the GitHub token set.");
