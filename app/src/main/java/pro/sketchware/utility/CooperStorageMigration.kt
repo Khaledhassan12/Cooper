@@ -191,15 +191,24 @@ object CooperStorageMigration {
                 BufferedInputStream(FileInputStream(second)).use { inputB ->
                     val bufferA = ByteArray(DEFAULT_BUFFER_SIZE * 4)
                     val bufferB = ByteArray(DEFAULT_BUFFER_SIZE * 4)
+                    var identical = true
                     while (true) {
                         val readA = inputA.read(bufferA)
                         val readB = inputB.read(bufferB)
-                        if (readA != readB) return false
-                        if (readA < 0) return true
-                        for (index in 0 until readA) {
-                            if (bufferA[index] != bufferB[index]) return false
+                        if (readA != readB) {
+                            identical = false
+                            break
                         }
+                        if (readA < 0) break
+                        for (index in 0 until readA) {
+                            if (bufferA[index] != bufferB[index]) {
+                                identical = false
+                                break
+                            }
+                        }
+                        if (!identical) break
                     }
+                    identical
                 }
             }
         } catch (error: IOException) {
