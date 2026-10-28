@@ -17,6 +17,7 @@
     <string name="cooper_github_connect">Connect GitHub</string>
     <string name="cooper_github_connect_description">Review GitHub authorization settings. In-app sign-in requires Cooper OAuth configuration.</string>
     <string name="cooper_github_connection_title">GitHub connection</string>
+    <string name="cooper_github_auth_required">Connect to GitHub before using this remote feature. No remote operation has started.</string>
     <string name="cooper_github_oauth_required">Cooper must be configured with a secure OAuth flow before account access can be enabled. No token or client secret is embedded in this build.</string>
     <string name="cooper_github_open_settings">Open GitHub settings</string>
     <string name="cooper_github_repositories">Repositories</string>
