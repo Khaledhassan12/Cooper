@@ -12,9 +12,9 @@ class DonationDialog(private val context: Context, private val donationUrl: Stri
     fun show() {
         MaterialAlertDialogBuilder(context)
             .setIcon(R.drawable.favorite_24px)
-            .setTitle("Support DayGreen 🍃")
+            .setTitle("Support Cooper 🍃")
             .setMessage(
-                "Hey! If DayGreen has been helpful to you, " +
+                "Hey! If Cooper has been helpful to you, " +
                 "consider supporting the development by making a donation. " +
                 "There's absolutely no pressure — even the smallest contribution " +
                 "means a lot to us. Thank you so much! 🙏"

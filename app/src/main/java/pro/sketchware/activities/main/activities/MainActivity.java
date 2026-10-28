@@ -580,7 +580,7 @@ binding.drawerToggleBtn.setBackground(drawerCircle);
                 dialog.setTitle("Android 11 storage access");
                 dialog.setMessage(
                         "Starting with Android 11, "
-                                + "Sketchware Pro needs a new "
+                                + "Cooper needs a new "
                                 + "permission to avoid taking "
                                 + "ages to build projects. "
                                 + "Don't worry, we can't do "

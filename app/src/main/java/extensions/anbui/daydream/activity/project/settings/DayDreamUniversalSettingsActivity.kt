@@ -63,7 +63,7 @@ class DayDreamUniversalSettingsActivity : AppCompatActivity() {
         universalCategory.setTitle(null)
         preferences.add(universalCategory)
 
-        val backupPref = createSwitchPreference(R.drawable.restore_page_24px, "Backup tool", "Use DayGreen's new backup tool instead of the old one.")
+        val backupPref = createSwitchPreference(R.drawable.restore_page_24px, "Backup tool", "Use Cooper's new backup tool instead of the old one.")
         backupPref.sw_enable.visibility = View.VISIBLE
         backupPref.sw_enable.isClickable = true
         DRSettings.getUseBackupTool(this) { backupPref.sw_enable.isChecked = it }
