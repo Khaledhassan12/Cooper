@@ -75,7 +75,7 @@ public final class GitSafetyGuard {
         String path = relativePath.replace('\\', '/').toLowerCase(java.util.Locale.ROOT);
         String[] segments = path.split("/");
         for (String segment : segments) {
-            if (segment.equals(".git") || segment.equals(".gradle") || segment.equals("build")
+            if (segment.equals(".git") || segment.equals(".git-migration-temp") || segment.equals(".gradle") || segment.equals("build")
                     || segment.equals("bin") || segment.equals("gen") || segment.equals("cache")
                     || segment.equals("caches") || segment.equals("tmp") || segment.equals("temp")
                     || segment.equals("outputs") || segment.equals("intermediates")) return true;
