@@ -351,6 +351,8 @@ public final class GitAndroidStudioExportManager {
             while ((read = input.read(buffer)) != -1) output.write(buffer, 0, read);
             output.flush();
         }
+        // Preserve the executable bit on gradlew and any other exported scripts.
+        target.setExecutable(source.canExecute(), false);
         target.setLastModified(source.lastModified());
     }
 
