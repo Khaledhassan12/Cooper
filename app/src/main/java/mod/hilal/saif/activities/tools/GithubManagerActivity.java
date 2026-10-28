@@ -1309,6 +1309,19 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         form.addView(authorEmail, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
+        final java.util.Set<String> exportedPaths;
+        try {
+            exportedPaths = GitAndroidStudioExportManager.getManagedExportPaths(
+                    getApplicationContext(), binding.scId);
+        } catch (Exception manifestError) {
+            new MaterialAlertDialogBuilder(this)
+                    .setTitle(R.string.cooper_github_commit_review_title)
+                    .setMessage("Cooper could not verify the generated Android Studio file list. Refresh the project status before committing.\n\n"
+                            + (manifestError.getMessage() == null ? "The export manifest is unavailable." : manifestError.getMessage()))
+                    .setPositiveButton(R.string.common_word_ok, null).show();
+            return;
+        }
+
         ScrollView pathScroll = new ScrollView(this);
         LinearLayout pathList = new LinearLayout(this);
         pathList.setOrientation(LinearLayout.VERTICAL);
@@ -1321,10 +1334,10 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
             CheckBox checkBox = new CheckBox(this);
             checkBox.setText(path);
             boolean staged = alreadyStaged.contains(path);
-            // Default deleted paths to selected: this is especially important when an older
-            // Sketchware-root repository is migrated to the new Android Studio export tree.
-            // The user may still uncheck any deletion before confirming the commit.
-            checkBox.setChecked(staged || snapshot.missing.contains(path));
+            // Include the current Android Studio export by default, and remove obsolete tracked
+            // files from the previous Sketchware tree by default. Other ad-hoc files remain
+            // unchecked; each individual selection is still reviewable before committing.
+            checkBox.setChecked(staged || snapshot.missing.contains(path) || exportedPaths.contains(path));
             checkBox.setEnabled(!staged);
             checkBoxes.add(checkBox);
             pathList.addView(checkBox);
