@@ -1209,6 +1209,8 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                                     .setNegativeButton(R.string.common_word_cancel, null).show());
                     return;
                 }
+                // Always compare/push the generated Android Studio project, never the raw Sketchware data tree.
+                GitAndroidStudioExportManager.refreshIfClean(this, binding);
                 LocalGitBackend.Snapshot snapshot = new LocalGitBackend().inspect(binding.projectRoot);
                 ui(() -> showLocalStatus(binding, snapshot));
             } catch (Exception e) {
@@ -1429,6 +1431,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         authExecutor.execute(() -> {
             try {
                 requireCurrentBoundProject(binding, false);
+                GitAndroidStudioExportManager.refreshIfClean(this, binding);
                 new LocalGitBackend().initialize(binding.projectRoot, true);
                 LocalGitBackend.Snapshot verified = new LocalGitBackend().inspect(binding.projectRoot);
                 if (!verified.initialized) throw new IllegalStateException("Git initialization read-back failed.");
@@ -1950,6 +1953,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                 GitProjectBindingStore.Binding binding =
                         new GitProjectBindingStore(getApplicationContext()).getBoundProject();
                 if (binding == null) throw new IllegalStateException("Select a Cooper project first.");
+                GitAndroidStudioExportManager.refreshIfClean(this, binding);
                 LocalGitBackend.Snapshot snapshot = new LocalGitBackend().inspect(binding.projectRoot);
                 java.util.TreeSet<String> paths = new java.util.TreeSet<>();
                 paths.addAll(snapshot.staged);
@@ -2250,6 +2254,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                                     .setNegativeButton(R.string.common_word_cancel, null).show());
                     return;
                 }
+                GitAndroidStudioExportManager.refreshIfClean(this, binding);
                 LocalGitBackend backend = new LocalGitBackend();
                 LocalGitBackend.Snapshot snapshot = backend.inspect(binding.projectRoot);
                 if (!snapshot.initialized) throw new IllegalStateException("Initialize local Git before remote synchronization.");
@@ -2325,6 +2330,9 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
             try {
                 ui(() -> phase.setText("1/4 · Rechecking project binding, branch, and clean worktree…"));
                 requireCurrentBoundProject(binding, true);
+                // Re-export once more at the point of write. If the source changed after approval,
+                // the worktree becomes dirty and the branch/HEAD/worktree checks stop this Push.
+                GitAndroidStudioExportManager.refreshIfClean(this, binding);
                 LocalGitBackend backend = new LocalGitBackend();
                 backend.configureRemote(binding.projectRoot, binding.remoteUrl(), true);
                 String token = new GitHubAuthManager(getApplicationContext())
@@ -2596,7 +2604,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                 }
                 GitProjectBindingStore.Binding binding =
                         new GitProjectBindingStore(getApplicationContext()).bind(scId);
-                if (!binding.projectRoot.getCanonicalPath().equals(new java.io.File(expectedRoot).getCanonicalPath())) {
+                if (!binding.sourceProjectRoot.getCanonicalPath().equals(new java.io.File(expectedRoot).getCanonicalPath())) {
                     throw new IllegalStateException("Cooper could not re-verify the original project binding.");
                 }
                 ui(() -> {
