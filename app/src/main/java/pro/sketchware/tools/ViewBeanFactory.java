@@ -668,13 +668,21 @@ public class ViewBeanFactory {
 
     private void applyImage(Map<String, String> attributes, Map<String, String> injectAttributes) {
         var bean = this.bean.image;
+        // AppCompat ImageView layouts often use app:srcCompat for vector drawables.
+        // Prefer android:src when present; otherwise resolve srcCompat through the same
+        // native drawable model so the designer preview does not fall back unnecessarily.
         var src = attributes.getOrDefault("android:src", null);
+        boolean fromSrcCompat = false;
+        if (src == null) {
+            src = attributes.getOrDefault("app:srcCompat", null);
+            fromSrcCompat = src != null;
+        }
         if (src != null) {
             if (src.startsWith("@drawable/")) {
                 bean.resName = parseReferName(src, "/");
             } else {
                 bean.resName = "default_image";
-                injectAttributes.put("android:src", src);
+                injectAttributes.put(fromSrcCompat ? "app:srcCompat" : "android:src", src);
             }
         } else {
             bean.resName = "default_image";
