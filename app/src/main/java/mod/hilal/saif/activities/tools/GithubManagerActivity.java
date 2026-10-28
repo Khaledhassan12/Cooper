@@ -2292,7 +2292,8 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                 }
                 if (operation.equals("PULL")) {
                     if (!snapshot.conflicting.isEmpty() || !snapshot.modified.isEmpty() || !snapshot.added.isEmpty()
-                            || !snapshot.removed.isEmpty() || !snapshot.untracked.isEmpty() || !snapshot.staged.isEmpty()) {
+                            || !snapshot.removed.isEmpty() || !snapshot.missing.isEmpty()
+                            || !snapshot.untracked.isEmpty() || !snapshot.staged.isEmpty()) {
                         throw new IllegalStateException("Pull is blocked until all local changes are reviewed and committed.");
                     }
                     ui(() ->
@@ -2424,7 +2425,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                         || !java.util.Objects.equals(current.headCommit, planned.headCommit)
                         || !java.util.Objects.equals(current.currentBranch, planned.currentBranch)
                         || !current.conflicting.isEmpty() || !current.modified.isEmpty()
-                        || !current.added.isEmpty() || !current.removed.isEmpty()
+                        || !current.added.isEmpty() || !current.removed.isEmpty() || !current.missing.isEmpty()
                         || !current.untracked.isEmpty() || !current.staged.isEmpty()) {
                     throw new IllegalStateException("The project changed after Pull approval. Inspect and approve a new plan.");
                 }
