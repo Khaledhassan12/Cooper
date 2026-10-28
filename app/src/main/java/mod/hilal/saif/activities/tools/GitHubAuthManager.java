@@ -129,10 +129,12 @@ public final class GitHubAuthManager {
             try {
                 response = postJson(TOKEN_URL, body, "TOKEN_POLL_FAILED");
             } catch (AuthException e) {
+                ensureNotCancelled(cancelled);
                 if (!e.retryable) throw e;
                 interval = Math.min(Math.max(interval, 5) + 5, 60);
                 continue;
             }
+            ensureNotCancelled(cancelled);
 
             String accessToken = response.optString("access_token", "");
             if (!blank(accessToken)) {
@@ -142,6 +144,9 @@ public final class GitHubAuthManager {
                     throw new AuthException("REFRESH_TOKEN_MISSING",
                             "GitHub returned an expiring token without a refresh token. Enable offline_access support and authorize Cooper again.");
                 }
+                // Cancellation may arrive while the HTTP request is in flight or while
+                // its response is being parsed. Never persist a token for a cancelled session.
+                ensureNotCancelled(cancelled);
                 try {
                     credentialStore.saveTokenSet(tokenSet);
                 } catch (Exception e) {
@@ -292,6 +297,12 @@ public final class GitHubAuthManager {
         if (seconds <= 0L) return 0L;
         if (seconds > (Long.MAX_VALUE - nowMillis) / 1000L) return Long.MAX_VALUE;
         return nowMillis + seconds * 1000L;
+    }
+
+    private static void ensureNotCancelled(AtomicBoolean cancelled) throws AuthException {
+        if (cancelled != null && cancelled.get()) {
+            throw new AuthException("CANCELLED", "GitHub sign-in was cancelled.");
+        }
     }
 
     private static void sleepCancellable(long delayMillis, AtomicBoolean cancelled, long deadline)
