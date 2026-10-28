@@ -2542,15 +2542,6 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
     }
 
     @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        // Do not block the UI thread waiting for in-flight network or Git work.
-        authExecutor.shutdownNow();
-        authPollingExecutor.shutdownNow();
-        gitOperationExecutor.shutdownNow();
-    }
-
-    @Override
     public void onResume() {
         super.onResume();
         refreshLiveSyncStatus(false);
@@ -2706,8 +2697,10 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         if (authDialog != null && authDialog.isShowing()) authDialog.dismiss();
         authDialog = null;
         super.onDestroy();
-        authExecutor.shutdown();
-        authPollingExecutor.shutdown();
+        // Do not block the UI thread waiting for in-flight network or Git work.
+        authExecutor.shutdownNow();
+        authPollingExecutor.shutdownNow();
+        gitOperationExecutor.shutdownNow();
     }
 
     /** Posts UI work only while this Activity is still able to render it. */
