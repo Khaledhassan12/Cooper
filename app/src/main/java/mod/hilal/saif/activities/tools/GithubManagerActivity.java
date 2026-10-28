@@ -651,7 +651,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
             } catch (Exception error) {
                 String message = error.getMessage() == null
                         ? "Cooper could not prepare the publishing plan." : error.getMessage();
-                new Handler(Looper.getMainLooper()).post(() -> {
+                ui(() -> {
                     if (isFinishing() || isDestroyed()) return;
                     new MaterialAlertDialogBuilder(this)
                             .setTitle(R.string.cooper_github_directly_publish_failed_title)
@@ -661,7 +661,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                 });
                 return;
             }
-            new Handler(Looper.getMainLooper()).post(() -> {
+            ui(() -> {
                 if (isFinishing() || isDestroyed()) return;
                 new MaterialAlertDialogBuilder(this)
                         .setTitle(R.string.cooper_github_directly_publish_confirm)
@@ -716,10 +716,10 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         authExecutor.execute(() -> {
             try {
                 DirectlyGitPublisher.Result result = publisher.publish(plan, cancelled, value ->
-                        new Handler(Looper.getMainLooper()).post(() -> {
+                        ui(() -> {
                             if (!isFinishing() && !isDestroyed() && dialog.isShowing()) phase.setText(value);
                         }));
-                new Handler(Looper.getMainLooper()).post(() -> {
+                ui(() -> {
                     if (isFinishing() || isDestroyed()) return;
                     if (dialog.isShowing()) dialog.dismiss();
                     new MaterialAlertDialogBuilder(this)
@@ -744,7 +744,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                         ? getString(R.string.cooper_github_directly_publish_partial,
                                 remoteUrl.isEmpty() ? plan.getOwner() + "/" + plan.repositoryName : remoteUrl, detail)
                         : getString(R.string.cooper_github_directly_publish_failed, detail);
-                new Handler(Looper.getMainLooper()).post(() -> {
+                ui(() -> {
                     if (isFinishing() || isDestroyed()) return;
                     if (dialog.isShowing()) dialog.dismiss();
                     MaterialAlertDialogBuilder errorDialog = new MaterialAlertDialogBuilder(this)
@@ -752,7 +752,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                                     : R.string.cooper_github_directly_publish_failed_title)
                             .setMessage(message)
                             .setPositiveButton(R.string.common_word_ok, (d, which) ->
-                                    new Handler(Looper.getMainLooper()).post(() -> {
+                                    ui(() -> {
                                         directlyRecoveryPromptShown = false;
                                         if (DirectlyGitPublisher.hasPendingSession(this)) {
                                             showDirectlyGitRecoveryPrompt();
@@ -788,7 +788,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                     ids.add(id);
                     icons.add(loadDirectlyGitProjectIcon(id, project));
                 }
-                new Handler(Looper.getMainLooper()).post(() -> {
+                ui(() -> {
                     if (isFinishing() || isDestroyed()) return;
                     if (labels.isEmpty()) {
                         new MaterialAlertDialogBuilder(this)
@@ -863,7 +863,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
             try {
                 GitProjectBindingStore.Binding binding =
                         new GitProjectBindingStore(getApplicationContext()).bind(scId);
-                new Handler(Looper.getMainLooper()).post(() -> {
+                ui(() -> {
                     if (isFinishing() || isDestroyed()) return;
                     Snackbar.make(content, getString(R.string.cooper_github_project_bound,
                             binding.workspaceName, binding.scId), Snackbar.LENGTH_SHORT).show();
@@ -945,7 +945,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                     org.json.JSONObject account = apiClient().getAuthenticatedAccount();
                     String login = account.optString("login", "").trim();
                     if (login.isEmpty()) throw new IllegalStateException("GitHub did not return a valid account identity.");
-                    new Handler(Looper.getMainLooper()).post(() -> {
+                    ui(() -> {
                         if (isFinishing() || isDestroyed()) return;
                         dialog.dismiss();
                         Snackbar.make(content, "Access token verified for " + login, Snackbar.LENGTH_LONG).show();
@@ -963,7 +963,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                     String message = e instanceof GitHubApiClient.ApiException
                             ? e.getMessage()
                             : "Cooper could not verify this token. Check the connection and try again.";
-                    new Handler(Looper.getMainLooper()).post(() -> {
+                    ui(() -> {
                         if (isFinishing() || isDestroyed()) return;
                         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(true);
                         new MaterialAlertDialogBuilder(this)
@@ -996,7 +996,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                         manager.beginDeviceAuthorization(BuildConfig.COOPER_GITHUB_CLIENT_ID);
                 if (sessionCancellation.get()) return;
 
-                new Handler(Looper.getMainLooper()).post(() -> {
+                ui(() -> {
                     if (isFinishing() || isDestroyed() || sessionCancellation.get()
                             || authSessionCancellation != sessionCancellation) return;
                     pendingDeviceAuthorization = device;
@@ -1015,7 +1015,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
 
                         org.json.JSONObject account = apiClient().getAuthenticatedAccount();
                         String login = account.optString("login", "GitHub user");
-                        new Handler(Looper.getMainLooper()).post(() -> {
+                        ui(() -> {
                             if (authSessionCancellation != sessionCancellation
                                     || sessionCancellation.get()) return;
                             authInProgress = false;
@@ -1034,7 +1034,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                                 || (error instanceof GitHubAuthManager.AuthException
                                 && "CANCELLED".equals(
                                 ((GitHubAuthManager.AuthException) error).safeCode));
-                        new Handler(Looper.getMainLooper()).post(() -> {
+                        ui(() -> {
                             if (authSessionCancellation != sessionCancellation) return;
                             authInProgress = false;
                             pendingDeviceAuthorization = null;
@@ -1048,7 +1048,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                     }
                 });
             } catch (Exception error) {
-                new Handler(Looper.getMainLooper()).post(() -> {
+                ui(() -> {
                     if (authSessionCancellation != sessionCancellation) return;
                     authInProgress = false;
                     pendingDeviceAuthorization = null;
@@ -1162,7 +1162,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                     labels.add(workspace + " — " + appName + "  (ID " + id + ")");
                     ids.add(id);
                 }
-                new Handler(Looper.getMainLooper()).post(() -> {
+                ui(() -> {
                     if (labels.isEmpty()) {
                         new MaterialAlertDialogBuilder(this)
                                 .setTitle(R.string.cooper_github_project_picker_title)
@@ -1185,7 +1185,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         authExecutor.execute(() -> {
             try {
                 GitProjectBindingStore.Binding binding = new GitProjectBindingStore(getApplicationContext()).bind(scId);
-                new Handler(Looper.getMainLooper()).post(() ->
+                ui(() ->
                         Snackbar.make(content, getString(R.string.cooper_github_project_bound,
                                 binding.workspaceName, binding.scId), Snackbar.LENGTH_LONG).show());
             } catch (Exception e) {
@@ -1200,7 +1200,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                 GitProjectBindingStore.Binding binding =
                         new GitProjectBindingStore(getApplicationContext()).getBoundProject();
                 if (binding == null) {
-                    new Handler(Looper.getMainLooper()).post(() ->
+                    ui(() ->
                             new MaterialAlertDialogBuilder(this)
                                     .setTitle(R.string.cooper_github_local_status_title)
                                     .setMessage(R.string.cooper_github_project_not_bound)
@@ -1210,7 +1210,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                     return;
                 }
                 LocalGitBackend.Snapshot snapshot = new LocalGitBackend().inspect(binding.projectRoot);
-                new Handler(Looper.getMainLooper()).post(() -> showLocalStatus(binding, snapshot));
+                ui(() -> showLocalStatus(binding, snapshot));
             } catch (Exception e) {
                 showLocalGitError(e);
             }
@@ -1390,7 +1390,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                 }
                 state = GitOperationStateMachine.transition(state, GitOperationStateMachine.State.SUCCEEDED);
                 persistOperationState(store, operationId, binding, state, now, "Verified local commit " + outcome.commitId);
-                new Handler(Looper.getMainLooper()).post(() ->
+                ui(() ->
                         new MaterialAlertDialogBuilder(this)
                                 .setTitle(R.string.cooper_github_commit_local)
                                 .setMessage(getString(R.string.cooper_github_commit_success, shortCommit(outcome.commitId))
@@ -1408,7 +1408,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                     }
                 } catch (Exception ignored) { }
                 String safeMessage = e.getMessage() == null ? "Local commit failed." : e.getMessage();
-                new Handler(Looper.getMainLooper()).post(() ->
+                ui(() ->
                         new MaterialAlertDialogBuilder(this)
                                 .setTitle(R.string.cooper_github_commit_local)
                                 .setMessage(getString(R.string.cooper_github_commit_failed, safeMessage))
@@ -1435,7 +1435,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                 if (!binding.remoteUrl().isEmpty()) {
                     new LocalGitBackend().configureRemote(binding.projectRoot, binding.remoteUrl(), true);
                 }
-                new Handler(Looper.getMainLooper()).post(() -> {
+                ui(() -> {
                     Snackbar.make(content, R.string.cooper_github_initialize_git_success, Snackbar.LENGTH_LONG).show();
                     showLocalStatus(binding, verified);
                 });
@@ -1552,7 +1552,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
             row.addView(card, cardParams);
             authExecutor.execute(() -> {
                 android.graphics.Bitmap bitmap = decodeDirectlyGitThumbnail(uri);
-                new Handler(Looper.getMainLooper()).post(() -> {
+                ui(() -> {
                     if (bitmap != null && !isFinishing() && !isDestroyed()
                             && uri.toString().equals(preview.getTag())) preview.setImageBitmap(bitmap);
                 });
@@ -1585,7 +1585,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
 
     private void showProjectBindingError(Exception error) {
         String message = error.getMessage() == null ? "Project binding failed." : error.getMessage();
-        new Handler(Looper.getMainLooper()).post(() ->
+        ui(() ->
                 new MaterialAlertDialogBuilder(this)
                         .setTitle(R.string.cooper_github_project_picker_title)
                         .setMessage(getString(R.string.cooper_github_project_binding_failed, message))
@@ -1609,7 +1609,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         }
         if (!needsSignIn) return false;
 
-        new Handler(Looper.getMainLooper()).post(() -> {
+        ui(() -> {
             if (isFinishing() || isDestroyed()) return;
             String message = error.getMessage() == null
                     ? "The GitHub session needs to be renewed." : error.getMessage();
@@ -1664,13 +1664,13 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
             try {
                 org.json.JSONObject account = apiClient().getAuthenticatedAccount();
                 String login = account.optString("login", "GitHub user");
-                new Handler(Looper.getMainLooper()).post(() ->
+                ui(() ->
                         Snackbar.make(content, getString(R.string.cooper_github_account_verified, login),
                                 Snackbar.LENGTH_LONG).show());
             } catch (Exception e) {
                 if (handleReauthenticationFailure(e)) return;
                 String message = e.getMessage() == null ? "Account verification failed." : e.getMessage();
-                new Handler(Looper.getMainLooper()).post(() ->
+                ui(() ->
                         new MaterialAlertDialogBuilder(this)
                                 .setTitle(R.string.cooper_github_connection_title)
                                 .setMessage(getString(R.string.cooper_github_account_verify_failed, message))
@@ -1708,7 +1708,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                     urls.add(repository.optString("html_url", ""));
                     fullNames.add(fullName);
                 }
-                new Handler(Looper.getMainLooper()).post(() -> {
+                ui(() -> {
                     if (labels.isEmpty()) {
                         new MaterialAlertDialogBuilder(this)
                                 .setTitle(R.string.cooper_github_repository_list_title)
@@ -1726,7 +1726,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
             } catch (Exception e) {
                 if (handleReauthenticationFailure(e)) return;
                 String message = e.getMessage() == null ? "Repository request failed." : e.getMessage();
-                new Handler(Looper.getMainLooper()).post(() ->
+                ui(() ->
                         new MaterialAlertDialogBuilder(this)
                                 .setTitle(R.string.cooper_github_repository_list_title)
                                 .setMessage(getString(R.string.cooper_github_repository_list_failed, message))
@@ -1818,7 +1818,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                 editor.commit();
 
                 final Bitmap profileBitmap = bitmap;
-                new Handler(Looper.getMainLooper()).post(() -> {
+                ui(() -> {
                     if (isFinishing() || isDestroyed()) return;
                     accountName.setText(displayName);
                     accountBio.setText(bio);
@@ -1826,7 +1826,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                     if (profileBitmap != null) avatar.setImageBitmap(profileBitmap);
                 });
             } catch (Exception error) {
-                new Handler(Looper.getMainLooper()).post(() -> {
+                ui(() -> {
                     if (isFinishing() || isDestroyed()) return;
                     // Preserve cached account data; only explain the offline state if no cache exists.
                     if (!profileCache.contains("login")) {
@@ -1922,7 +1922,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                     throw new IllegalStateException("Pull Request read-back did not match the requested branches.");
                 }
                 String url = verified.optString("html_url", "");
-                new Handler(Looper.getMainLooper()).post(() ->
+                ui(() ->
                         new MaterialAlertDialogBuilder(this)
                                 .setTitle(R.string.cooper_github_create_pull_request)
                                 .setMessage(getString(R.string.cooper_github_pr_created, number) + "\n" + url)
@@ -1935,7 +1935,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
             } catch (Exception e) {
                 if (handleReauthenticationFailure(e)) return;
                 String message = e.getMessage() == null ? "Pull Request operation failed." : e.getMessage();
-                new Handler(Looper.getMainLooper()).post(() ->
+                ui(() ->
                         new MaterialAlertDialogBuilder(this)
                                 .setTitle(R.string.cooper_github_create_pull_request)
                                 .setMessage(getString(R.string.cooper_github_pr_failed, message))
@@ -1959,7 +1959,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                 paths.addAll(snapshot.untracked);
                 paths.addAll(snapshot.conflicting);
                 paths.removeIf(GitSafetyGuard::isExcludedByDefault);
-                new Handler(Looper.getMainLooper()).post(() -> {
+                ui(() -> {
                     if (paths.isEmpty()) {
                         new MaterialAlertDialogBuilder(this)
                                 .setTitle(R.string.cooper_github_review_diff)
@@ -1983,7 +1983,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         authExecutor.execute(() -> {
             try {
                 GitDiffEngine.DiffResult result = new GitDiffEngine().diff(binding.projectRoot, path);
-                new Handler(Looper.getMainLooper()).post(() -> {
+                ui(() -> {
                     android.widget.TextView text = new android.widget.TextView(this);
                     text.setText(result.text);
                     text.setTextIsSelectable(true);
@@ -1999,7 +1999,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                 });
             } catch (Exception e) {
                 String message = e.getMessage() == null ? "Diff calculation failed." : e.getMessage();
-                new Handler(Looper.getMainLooper()).post(() ->
+                ui(() ->
                         new MaterialAlertDialogBuilder(this)
                                 .setTitle(R.string.cooper_github_review_diff)
                                 .setMessage(getString(R.string.cooper_github_diff_failed, message))
@@ -2019,7 +2019,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                         snapshot.state.name(), snapshot.branch, shortCommit(snapshot.localHead),
                         shortCommit(snapshot.remoteHead), snapshot.aheadBy, snapshot.behindBy,
                         snapshot.changedFileCount);
-                new Handler(Looper.getMainLooper()).post(() ->
+                ui(() ->
                         new MaterialAlertDialogBuilder(this)
                                 .setTitle(R.string.cooper_github_sync_state)
                                 .setMessage(detail)
@@ -2040,7 +2040,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                 LocalGitBackend.Snapshot snapshot = backend.inspect(binding.projectRoot);
                 if (!snapshot.initialized) throw new IllegalStateException("Initialize local Git first.");
                 java.util.List<String> branches = backend.listBranches(binding.projectRoot);
-                new Handler(Looper.getMainLooper()).post(() -> {
+                ui(() -> {
                     if (branches.isEmpty()) {
                         new MaterialAlertDialogBuilder(this)
                                 .setTitle(R.string.cooper_github_local_branches)
@@ -2100,7 +2100,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                             if (!backend.listBranches(binding.projectRoot).contains(name)) {
                                 throw new IllegalStateException("New branch was not found during read-back verification.");
                             }
-                            new Handler(Looper.getMainLooper()).post(() ->
+                            ui(() ->
                                     Snackbar.make(content, getString(R.string.cooper_github_branch_created, name),
                                             Snackbar.LENGTH_LONG).show());
                         } catch (Exception e) {
@@ -2120,7 +2120,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                 if (!target.equals(verified.currentBranch)) {
                     throw new IllegalStateException("The active branch did not match the requested branch after checkout.");
                 }
-                new Handler(Looper.getMainLooper()).post(() ->
+                ui(() ->
                         Snackbar.make(content, getString(R.string.cooper_github_branch_switched, target),
                                 Snackbar.LENGTH_LONG).show());
             } catch (Exception e) {
@@ -2131,7 +2131,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
 
     private void showBranchError(Exception error) {
         String message = error.getMessage() == null ? "Branch operation failed." : error.getMessage();
-        new Handler(Looper.getMainLooper()).post(() ->
+        ui(() ->
                 new MaterialAlertDialogBuilder(this)
                         .setTitle(R.string.cooper_github_local_branches)
                         .setMessage(getString(R.string.cooper_github_branch_failed, message))
@@ -2187,7 +2187,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                 GitProjectBindingStore store = new GitProjectBindingStore(getApplicationContext());
                 GitProjectBindingStore.Binding binding = store.getBoundProject();
                 if (binding == null) {
-                    new Handler(Looper.getMainLooper()).post(() ->
+                    ui(() ->
                             new MaterialAlertDialogBuilder(this)
                                     .setTitle(R.string.cooper_github_link_remote)
                                     .setMessage(R.string.cooper_github_project_not_bound)
@@ -2196,7 +2196,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                                     .setNegativeButton(R.string.common_word_cancel, null).show());
                     return;
                 }
-                new Handler(Looper.getMainLooper()).post(() ->
+                ui(() ->
                         new MaterialAlertDialogBuilder(this)
                                 .setTitle(R.string.cooper_github_link_remote)
                                 .setMessage(getString(R.string.cooper_github_link_remote_confirm,
@@ -2224,7 +2224,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                     backend.configureRemote(binding.projectRoot,
                             "https://github.com/" + owner + "/" + repository + ".git", true);
                 }
-                new Handler(Looper.getMainLooper()).post(() ->
+                ui(() ->
                         Snackbar.make(content, getString(R.string.cooper_github_remote_linked,
                                 owner + "/" + repository, binding.workspaceName), Snackbar.LENGTH_LONG).show());
             } catch (Exception e) {
@@ -2241,7 +2241,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                         new GitProjectBindingStore(getApplicationContext()).getBoundProject();
                 if (binding == null) throw new IllegalStateException("Select a Cooper project first.");
                 if (binding.remoteUrl().isEmpty()) {
-                    new Handler(Looper.getMainLooper()).post(() ->
+                    ui(() ->
                             new MaterialAlertDialogBuilder(this)
                                     .setTitle(R.string.cooper_github_link_remote)
                                     .setMessage(R.string.cooper_github_remote_not_linked)
@@ -2258,7 +2258,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                             .getUsableAccessToken(BuildConfig.COOPER_GITHUB_CLIENT_ID);
                     backend.configureRemote(binding.projectRoot, binding.remoteUrl(), true);
                     backend.fetch(binding.projectRoot, token);
-                    new Handler(Looper.getMainLooper()).post(() ->
+                    ui(() ->
                             Snackbar.make(content, R.string.cooper_github_fetch_success, Snackbar.LENGTH_LONG).show());
                     return;
                 }
@@ -2267,12 +2267,13 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                             || !snapshot.removed.isEmpty() || !snapshot.untracked.isEmpty() || !snapshot.staged.isEmpty()) {
                         throw new IllegalStateException("Push is blocked until all local changes are reviewed and committed.");
                     }
-                    new Handler(Looper.getMainLooper()).post(() ->
+                    ui(() ->
                             new MaterialAlertDialogBuilder(this)
                                     .setTitle(R.string.cooper_github_push_remote)
                                     .setMessage(getString(R.string.cooper_github_push_confirm,
                                             snapshot.currentBranch, shortCommit(snapshot.headCommit),
-                                            binding.remoteOwner + "/" + binding.remoteRepository))
+                                            binding.remoteOwner + "/" + binding.remoteRepository)
+                                            + "\n\nPush publishes complete committed history for this branch. Review individual file inclusion in the Commit dialog before creating the commit; Cooper will revalidate the branch, HEAD, clean worktree, and outgoing safety scan before uploading. Files cannot be removed from an existing commit by toggling them in this confirmation.")
                                     .setNegativeButton(R.string.common_word_cancel, null)
                                     .setPositiveButton(R.string.cooper_github_push_remote,
                                             (dialog, which) -> performRemotePush(binding, snapshot))
@@ -2284,7 +2285,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                             || !snapshot.removed.isEmpty() || !snapshot.untracked.isEmpty() || !snapshot.staged.isEmpty()) {
                         throw new IllegalStateException("Pull is blocked until all local changes are reviewed and committed.");
                     }
-                    new Handler(Looper.getMainLooper()).post(() ->
+                    ui(() ->
                             new MaterialAlertDialogBuilder(this)
                                     .setTitle(R.string.cooper_github_pull_remote)
                                     .setMessage(getString(R.string.cooper_github_pull_confirm,
@@ -2419,7 +2420,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                 if (!expected.equals(verified.headCommit)) {
                     throw new IllegalStateException("Pull result could not be verified against local HEAD.");
                 }
-                new Handler(Looper.getMainLooper()).post(() ->
+                ui(() ->
                         new MaterialAlertDialogBuilder(this)
                                 .setTitle(R.string.cooper_github_pull_remote)
                                 .setMessage(getString(R.string.cooper_github_pull_success, shortCommit(expected)))
@@ -2489,7 +2490,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                     throw new IllegalStateException("The repository read-back did not match the created repository.");
                 }
                 String url = verified.optString("html_url", "");
-                new Handler(Looper.getMainLooper()).post(() -> {
+                ui(() -> {
                     Snackbar.make(content, getString(R.string.cooper_github_repository_create_success, fullName),
                             Snackbar.LENGTH_LONG).show();
                     if (url.startsWith("https://github.com/")) {
@@ -2504,7 +2505,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
             } catch (Exception e) {
                 if (handleReauthenticationFailure(e)) return;
                 String message = e.getMessage() == null ? "Repository creation failed." : e.getMessage();
-                new Handler(Looper.getMainLooper()).post(() ->
+                ui(() ->
                         new MaterialAlertDialogBuilder(this)
                                 .setTitle(R.string.cooper_github_repository_create_title)
                                 .setMessage(getString(R.string.cooper_github_repository_list_failed, message))
@@ -2554,7 +2555,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         super.onResume();
         refreshLiveSyncStatus(false);
         if (!directlyDraftFormVisible && DirectlyGitPublisher.hasPendingSession(this) && !directlyRecoveryPromptShown) {
-            new Handler(Looper.getMainLooper()).post(this::showDirectlyGitRecoveryPrompt);
+            ui(this::showDirectlyGitRecoveryPrompt);
         }
     }
 
@@ -2607,14 +2608,14 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                 if (!binding.projectRoot.getCanonicalPath().equals(new java.io.File(expectedRoot).getCanonicalPath())) {
                     throw new IllegalStateException("Cooper could not re-verify the original project binding.");
                 }
-                new Handler(Looper.getMainLooper()).post(() -> {
+                ui(() -> {
                     if (isFinishing() || isDestroyed()) return;
                     Snackbar.make(content, getString(R.string.cooper_github_recovery_original_project_selected, binding.workspaceName), Snackbar.LENGTH_LONG).show();
                     directlyRecoveryPromptShown = false;
                     showDirectlyGitRecoveryPrompt();
                 });
             } catch (Exception error) {
-                new Handler(Looper.getMainLooper()).post(() -> {
+                ui(() -> {
                     if (isFinishing() || isDestroyed()) return;
                     directlyRecoveryPromptShown = false;
                     new MaterialAlertDialogBuilder(this)
@@ -2658,10 +2659,10 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
             try {
                 DirectlyGitPublisher publisher = new DirectlyGitPublisher(getApplicationContext(), BuildConfig.COOPER_GITHUB_CLIENT_ID);
                 DirectlyGitPublisher.Result result = publisher.resumePending(cancelled, value ->
-                        new Handler(Looper.getMainLooper()).post(() -> {
+                        ui(() -> {
                             if (!isFinishing() && !isDestroyed() && dialog.isShowing()) phase.setText(value);
                         }));
-                new Handler(Looper.getMainLooper()).post(() -> {
+                ui(() -> {
                     if (isFinishing() || isDestroyed()) return;
                     if (dialog.isShowing()) dialog.dismiss();
                     new MaterialAlertDialogBuilder(this)
@@ -2677,7 +2678,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                 });
             } catch (Exception error) {
                 String detail = error.getMessage() == null ? "Recovery did not complete. The saved session was retained." : error.getMessage();
-                new Handler(Looper.getMainLooper()).post(() -> {
+                ui(() -> {
                     if (isFinishing() || isDestroyed()) return;
                     if (dialog.isShowing()) dialog.dismiss();
                     directlyRecoveryPromptShown = false;
@@ -2712,7 +2713,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
     /** Posts UI work only while this Activity is still able to render it. */
     private void ui(Runnable action) {
         if (action == null) return;
-        new Handler(Looper.getMainLooper()).post(() -> {
+        ui(() -> {
             if (isFinishing() || isDestroyed()) return;
             action.run();
         });
