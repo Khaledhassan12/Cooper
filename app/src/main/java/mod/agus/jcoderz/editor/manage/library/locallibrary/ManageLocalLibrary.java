@@ -24,27 +24,83 @@ public class ManageLocalLibrary {
     public ManageLocalLibrary(String sc_id) {
         projectId = sc_id;
         String localLibraryConfigPath = new FilePathUtil().getPathLocalLibrary(projectId);
-        if (FileUtil.isExistFile(localLibraryConfigPath)) {
-            try {
-                list = new Gson().fromJson(FileUtil.readFile(localLibraryConfigPath), Helper.TYPE_MAP_LIST);
+        File configFile = new File(localLibraryConfigPath);
 
-                if (list == null) {
-                    LogUtil.w(getClass().getSimpleName(), "Read null from file " + localLibraryConfigPath + ", deleting invalid configuration.");
-                    if (!new File(localLibraryConfigPath).delete()) {
-                        LogUtil.e(getClass().getSimpleName(), "Couldn't delete file " + localLibraryConfigPath);
-                    }
-
-                    // fall-through to shared error handler
-                } else {
-                    return;
-                }
-            } catch (JsonParseException e) {
-                // fall-through to shared error handler
-            }
-
-            SketchwareUtil.toastError("Invalid Local library configuration found! Temporarily using none");
+        if (!configFile.isFile()) {
+            list = new ArrayList<>();
+            return;
         }
+
+        // An empty file means that no local libraries have been configured yet.
+        // Normalize it to a valid empty JSON array instead of showing an error toast.
+        String content = FileUtil.readFileIfExist(localLibraryConfigPath);
+        if (content.trim().isEmpty()) {
+            list = new ArrayList<>();
+            FileUtil.writeFile(localLibraryConfigPath, "[]");
+            if (!"[]".equals(FileUtil.readFileIfExist(localLibraryConfigPath).trim())) {
+                LogUtil.e(getClass().getSimpleName(),
+                        "Could not initialize empty local library configuration: " + localLibraryConfigPath);
+                SketchwareUtil.toastError("Local library configuration could not be initialized; temporarily using none");
+            }
+            return;
+        }
+
+        try {
+            ArrayList<HashMap<String, Object>> parsed =
+                    new Gson().fromJson(content, Helper.TYPE_MAP_LIST);
+            if (isValidConfig(parsed)) {
+                list = parsed;
+                return;
+            }
+        } catch (JsonParseException e) {
+            LogUtil.w(getClass().getSimpleName(),
+                    "Invalid local library JSON for " + localLibraryConfigPath + ": " + e.getMessage());
+        }
+
+        // The current build already has to ignore a malformed config. Preserve it for
+        // diagnostics/recovery, then replace the active file so future builds do not
+        // repeat the same warning.
+        recoverInvalidConfig(configFile, localLibraryConfigPath);
         list = new ArrayList<>();
+    }
+
+    private static boolean isValidConfig(ArrayList<HashMap<String, Object>> libraries) {
+        if (libraries == null) {
+            return false;
+        }
+        for (HashMap<String, Object> library : libraries) {
+            if (library == null) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private void recoverInvalidConfig(File configFile, String configPath) {
+        long originalLength = configFile.length();
+        File backupFile = new File(configPath + ".invalid-" + System.currentTimeMillis());
+        boolean preserved = configFile.renameTo(backupFile);
+
+        if (!preserved) {
+            FileUtil.copyFile(configPath, backupFile.getAbsolutePath());
+            preserved = backupFile.isFile() && backupFile.length() == originalLength;
+        }
+
+        if (preserved) {
+            LogUtil.w(getClass().getSimpleName(),
+                    "Preserved invalid local library configuration at " + backupFile.getAbsolutePath());
+        } else {
+            LogUtil.e(getClass().getSimpleName(),
+                    "Could not preserve invalid local library configuration at " + configPath);
+        }
+
+        FileUtil.writeFile(configPath, "[]");
+        boolean reset = "[]".equals(FileUtil.readFileIfExist(configPath).trim());
+        if (!reset) {
+            LogUtil.e(getClass().getSimpleName(),
+                    "Could not reset invalid local library configuration: " + configPath);
+            SketchwareUtil.toastError("Invalid Local library configuration could not be repaired; temporarily using none");
+        }
     }
 
     public ArrayList<String> getAssets() {
