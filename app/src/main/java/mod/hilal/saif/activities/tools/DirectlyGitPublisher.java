@@ -588,15 +588,15 @@ public final class DirectlyGitPublisher {
                     || !rootPath.equals(current.sourceProjectRoot.getCanonicalPath())) {
                 throw new IllegalStateException("The selected Cooper project no longer matches the saved recovery session. Re-select the original project in GitHub Manager.");
             }
-            // Sessions created before the Android Studio workspace migration point at the
-            // original Sketchware repository; keep recovering that exact commit without export.
-            final File operationRoot;
+            // Never resume a legacy publication from the original Sketchware data tree. That
+            // recovery path predates Android Studio export routing and could publish the wrong
+            // structure. Keep the saved record for inspection, but require a new reviewed export.
             if (savedGitProjectRoot == null || savedGitProjectRoot.trim().isEmpty()
                     || savedGitProjectRoot.equals(current.sourceProjectRoot.getCanonicalPath())) {
-                // Empty means a session created before workspace migration; a source-root path
-                // means that this legacy session has already been safely rewritten once.
-                operationRoot = current.sourceProjectRoot;
-            } else if (savedGitProjectRoot.equals(current.projectRoot.getCanonicalPath())) {
+                throw new IllegalStateException("This publishing session was created before Android Studio export routing. Cooper stopped recovery to prevent uploading the raw Sketchware data folder. Inspect the destination repository, then start a new Directly Git plan from the Android Studio export.");
+            }
+            final File operationRoot;
+            if (savedGitProjectRoot.equals(current.projectRoot.getCanonicalPath())) {
                 operationRoot = current.projectRoot;
             } else {
                 throw new IllegalStateException("The saved Git workspace differs from the current Android Studio project. Recovery stopped without a remote write.");
