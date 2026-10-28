@@ -7,6 +7,7 @@ import android.widget.TextView;
 import java.io.File;
 import java.util.HashMap;
 
+import a.a.a.Configs;
 import a.a.a.ProjectBuilder;
 import a.a.a.eC;
 import a.a.a.hC;
@@ -28,9 +29,23 @@ public class ExportSource {
     private static yq project_metadata = null;
 
     public static boolean startExport(Activity activity, String sc_id, TextView statusTextView) {
-        DRProjectTracker.startNowForAndroidStudio(sc_id);
+        return startExport(activity, sc_id, statusTextView, true);
+    }
 
+    /**
+     * Runs the Android Studio source exporter. Callers that must copy the generated tree before
+     * optional cleanup can pass scheduleAutoCleanup=false and invoke cleanupAfterExport afterward.
+     */
+    public static synchronized boolean startExport(Activity activity, String sc_id, TextView statusTextView,
+                                                   boolean scheduleAutoCleanup) {
+        if (activity == null || activity.isFinishing() || activity.isDestroyed()) return false;
+        if (Configs.isBuilding) {
+            Log.w(TAG, "A build or export is already running; refusing a concurrent source export.");
+            return false;
+        }
+        Configs.isBuilding = true;
         try {
+            DRProjectTracker.startNowForAndroidStudio(sc_id);
 
             sc_metadata = lC.b(sc_id);
             project_metadata = new yq(activity, wq.d(sc_id), sc_metadata);
@@ -109,17 +124,25 @@ public class ExportSource {
 
             updateStatus(statusTextView, "Exported source code for Android Studio.");
 
-            DRSettings.getAutoCleanUpAfterBuild(activity, isClean -> {
-                if (isClean) {
-                    new Thread(() -> CleanUpCore.cleanUpAfterBuildInDesign(sc_id)).start();
-                }
-            });
+            if (scheduleAutoCleanup) cleanupAfterExport(activity, sc_id);
 
             return true;
         } catch (Exception e) {
             Log.e(TAG, "Error: ", e);
             return false;
+        } finally {
+            Configs.isBuilding = false;
         }
+    }
+
+    /** Run the user's configured temporary-file cleanup only after consumers copied the export. */
+    public static void cleanupAfterExport(Activity activity, String sc_id) {
+        if (activity == null || activity.isFinishing() || activity.isDestroyed()) return;
+        DRSettings.getAutoCleanUpAfterBuild(activity, isClean -> {
+            if (isClean) {
+                new Thread(() -> CleanUpCore.cleanUpAfterBuildInDesign(sc_id)).start();
+            }
+        });
     }
 
     private static void updateStatus(TextView statusTextView, String msg) {
