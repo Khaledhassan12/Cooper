@@ -215,6 +215,10 @@ public final class GitAndroidStudioExportManager {
         for (String relativePath : nextManifest) {
             File source = resolveChild(canonicalExportRoot, relativePath);
             File target = resolveChild(canonicalWorkspaceRoot, relativePath);
+            if (target.isFile() && filesEqual(source, target)) {
+                if (target.canExecute() != source.canExecute()) target.setExecutable(source.canExecute(), false);
+                continue;
+            }
             copyFile(source, target);
         }
         writeManifest(manifestFile(context, scId), nextManifest);
