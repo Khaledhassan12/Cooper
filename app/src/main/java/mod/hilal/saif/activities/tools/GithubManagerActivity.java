@@ -1247,14 +1247,16 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         appendPaths(paths, "Staged", snapshot.staged);
         appendPaths(paths, "Modified", snapshot.modified);
         appendPaths(paths, "Added", snapshot.added);
-        appendPaths(paths, "Removed", snapshot.removed);
+        appendPaths(paths, "Removed (staged)", snapshot.removed);
+        appendPaths(paths, "Missing / deleted", snapshot.missing);
         appendPaths(paths, "Untracked", snapshot.untracked);
         appendPaths(paths, "Conflicts", snapshot.conflicting);
         MaterialAlertDialogBuilder statusDialog = new MaterialAlertDialogBuilder(this)
                 .setTitle(R.string.cooper_github_local_status_title)
                 .setMessage(paths.toString());
         boolean hasChanges = !snapshot.staged.isEmpty() || !snapshot.modified.isEmpty()
-                || !snapshot.added.isEmpty() || !snapshot.removed.isEmpty() || !snapshot.untracked.isEmpty();
+                || !snapshot.added.isEmpty() || !snapshot.removed.isEmpty()
+                || !snapshot.missing.isEmpty() || !snapshot.untracked.isEmpty();
         if (!snapshot.conflicting.isEmpty()) {
             statusDialog.setPositiveButton(R.string.common_word_ok, null);
             statusDialog.setMessage(paths + "\n\n" + getString(R.string.cooper_github_conflicts_block_commit));
@@ -1280,6 +1282,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
         paths.addAll(snapshot.modified);
         paths.addAll(snapshot.added);
         paths.addAll(snapshot.removed);
+        paths.addAll(snapshot.missing);
         paths.addAll(snapshot.untracked);
         if (paths.isEmpty()) {
             Snackbar.make(content, R.string.cooper_github_no_changes, Snackbar.LENGTH_LONG).show();
@@ -1960,6 +1963,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                 paths.addAll(snapshot.modified);
                 paths.addAll(snapshot.added);
                 paths.addAll(snapshot.removed);
+                paths.addAll(snapshot.missing);
                 paths.addAll(snapshot.untracked);
                 paths.addAll(snapshot.conflicting);
                 paths.removeIf(GitSafetyGuard::isExcludedByDefault);
@@ -2269,7 +2273,8 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                 }
                 if (operation.equals("PUSH")) {
                     if (!snapshot.conflicting.isEmpty() || !snapshot.modified.isEmpty() || !snapshot.added.isEmpty()
-                            || !snapshot.removed.isEmpty() || !snapshot.untracked.isEmpty() || !snapshot.staged.isEmpty()) {
+                            || !snapshot.removed.isEmpty() || !snapshot.missing.isEmpty()
+                            || !snapshot.untracked.isEmpty() || !snapshot.staged.isEmpty()) {
                         throw new IllegalStateException("Push is blocked until all local changes are reviewed and committed.");
                     }
                     ui(() ->
@@ -2342,7 +2347,7 @@ public class GithubManagerActivity extends BaseAppCompatActivity {
                         || !java.util.Objects.equals(current.headCommit, planned.headCommit)
                         || !java.util.Objects.equals(current.currentBranch, planned.currentBranch)
                         || !current.conflicting.isEmpty() || !current.modified.isEmpty()
-                        || !current.added.isEmpty() || !current.removed.isEmpty()
+                        || !current.added.isEmpty() || !current.removed.isEmpty() || !current.missing.isEmpty()
                         || !current.untracked.isEmpty() || !current.staged.isEmpty()) {
                     throw new IllegalStateException("The project changed after Push approval. Inspect and approve a new plan.");
                 }
