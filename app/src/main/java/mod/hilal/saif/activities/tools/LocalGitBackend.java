@@ -45,12 +45,14 @@ public final class LocalGitBackend {
         public final List<String> modified;
         public final List<String> added;
         public final List<String> removed;
+        /** Tracked paths deleted from the worktree but not staged yet. */
+        public final List<String> missing;
         public final List<String> untracked;
         public final List<String> conflicting;
 
         private Snapshot(boolean initialized, String currentBranch, String headCommit,
                          Set<String> staged, Set<String> modified, Set<String> added,
-                         Set<String> removed, Set<String> untracked, Set<String> conflicting) {
+                         Set<String> removed, Set<String> missing, Set<String> untracked, Set<String> conflicting) {
             this.initialized = initialized;
             this.currentBranch = currentBranch;
             this.headCommit = headCommit;
@@ -58,6 +60,7 @@ public final class LocalGitBackend {
             this.modified = immutableSorted(modified);
             this.added = immutableSorted(added);
             this.removed = immutableSorted(removed);
+            this.missing = immutableSorted(missing);
             this.untracked = immutableSorted(untracked);
             this.conflicting = immutableSorted(conflicting);
         }
@@ -103,7 +106,7 @@ public final class LocalGitBackend {
         File root = canonicalRoot(projectRoot);
         if (!new File(root, ".git").exists()) {
             return new Snapshot(false, "", "", Collections.emptySet(), Collections.emptySet(),
-                    Collections.emptySet(), Collections.emptySet(), Collections.emptySet(), Collections.emptySet());
+                    Collections.emptySet(), Collections.emptySet(), Collections.emptySet(), Collections.emptySet(), Collections.emptySet());
         }
         try (Git git = openRoot(root)) {
             Repository repository = git.getRepository();
@@ -111,7 +114,7 @@ public final class LocalGitBackend {
             ObjectId head = repository.resolve("HEAD");
             return new Snapshot(true, repository.getBranch(), head == null ? "" : head.name(),
                     status.getChanged(), status.getModified(), status.getAdded(), status.getRemoved(),
-                    status.getUntracked(), status.getConflicting());
+                    status.getMissing(), status.getUntracked(), status.getConflicting());
         } catch (GitAPIException | IOException e) {
             throw new GitFailure("STATUS_FAILED", "Cooper could not inspect the local Git repository.", e);
         }
@@ -492,10 +495,14 @@ public final class LocalGitBackend {
         GitSafetyGuard.Validation validation = GitSafetyGuard.validatePaths(root, paths);
         if (!validation.isAllowed()) throw new GitFailure("PATH_REJECTED", validation.safeMessage);
         for (String path : validation.normalizedPaths) {
-            if (GitSafetyGuard.isSensitivePath(path)) {
+            // A previously committed path can become excluded/sensitive after the project is
+            // re-exported. Allow a deletion-only change for absent files so the new Android
+            // Studio tree can remove obsolete internal files without permitting them to be added.
+            boolean deletionOnly = !new File(root, path).exists();
+            if (GitSafetyGuard.isSensitivePath(path) && !deletionOnly) {
                 throw new GitFailure("SENSITIVE_PATH", "Cooper blocks staging sensitive file paths by default: " + path);
             }
-            if (GitSafetyGuard.isExcludedByDefault(path)) {
+            if (GitSafetyGuard.isExcludedByDefault(path) && !deletionOnly) {
                 throw new GitFailure("EXCLUDED_PATH", "Cooper excludes generated or temporary files by default: " + path);
             }
         }
