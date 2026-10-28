@@ -308,7 +308,7 @@ public final class DirectlyGitPublisher {
         }
         LocalGitBackend.Snapshot snapshot = backend.inspect(current.projectRoot);
         if (snapshot.initialized && (!snapshot.staged.isEmpty() || !snapshot.modified.isEmpty()
-                || !snapshot.added.isEmpty() || !snapshot.removed.isEmpty()
+                || !snapshot.added.isEmpty() || !snapshot.removed.isEmpty() || !snapshot.missing.isEmpty()
                 || !snapshot.untracked.isEmpty() || !snapshot.conflicting.isEmpty())) {
             throw new IllegalStateException("The local Git worktree is not clean. Review or commit existing changes in GitHub Manager before Directly Git.");
         }
@@ -427,7 +427,7 @@ public final class DirectlyGitPublisher {
             if (!before.initialized) backend.initialize(current.projectRoot, true);
             LocalGitBackend.Snapshot snapshot = backend.inspect(current.projectRoot);
             if (!snapshot.staged.isEmpty() || !snapshot.modified.isEmpty() || !snapshot.added.isEmpty()
-                    || !snapshot.removed.isEmpty() || !snapshot.conflicting.isEmpty()) {
+                    || !snapshot.removed.isEmpty() || !snapshot.missing.isEmpty() || !snapshot.conflicting.isEmpty()) {
                 throw new IllegalStateException("The local worktree changed during publishing. No remote repository was created.");
             }
             ArrayList<String> changed = new ArrayList<>(snapshot.untracked);
