@@ -89,3 +89,34 @@ GitHub reports 2 commits and 2 changed files.
 - Confirmed non-expired artifact: [`Cooper-debug-apk-183`](https://github.com/Khaledhassan12/Cooper/actions/runs/40640112639), artifact ID `12795346474`, size `271669901` bytes.
 - With code changes saved, the Debug APK job successful, and the actual artifact confirmed, the comparison cursor is now advanced to [`227b9c7e20910b2a128fd1cda730d821d008e457`](https://github.com/fora2323/Sketchware-DayGreen/commit/227b9c7e20910b2a128fd1cda730d821d008e457).
 - PR [#6](https://github.com/Khaledhassan12/Cooper/pull/6) remains open and unmerged. A log-only commit records this verification and will trigger a fresh PR workflow for the final PR head.
+
+
+## Synchronization attempt — 2026-10-29 (build verification pending)
+
+- Upstream repository: [fora2323/Sketchware-DayGreen](https://github.com/fora2323/Sketchware-DayGreen), default branch [main](https://github.com/fora2323/Sketchware-DayGreen/tree/main).
+- Upstream HEAD reviewed: [`85c4e96c990fa04032e7bcda720c47832b7af3be`](https://github.com/fora2323/Sketchware-DayGreen/commit/85c4e96c990fa04032e7bcda720c47832b7af3be), matching release/tag [v192](https://github.com/fora2323/Sketchware-DayGreen/releases/tag/v192).
+- Previous verified main-branch comparison cursor: [`227b9c7e20910b2a128fd1cda730d821d008e457`](https://github.com/fora2323/Sketchware-DayGreen/commit/227b9c7e20910b2a128fd1cda730d821d008e457).
+- Exact source comparison: [`227b9c7...` → `85c4e96...`](https://github.com/fora2323/Sketchware-DayGreen/compare/227b9c7e20910b2a128fd1cda730d821d008e457...85c4e96c990fa04032e7bcda720c47832b7af3be). GitHub reports **2 commits and 9 changed files**.
+- Cooper target base: [`0755734a1224d649fa5973b3e10c37ae8ba33a11`](https://github.com/Khaledhassan12/Cooper/commit/0755734a1224d649fa5973b3e10c37ae8ba33a11). Integration branch: [`integration/daygreen-sync-2026-10-29`](https://github.com/Khaledhassan12/Cooper/tree/integration/daygreen-sync-2026-10-29).
+- Correction to the previous entry's PR status: Cooper PR [#6](https://github.com/Khaledhassan12/Cooper/pull/6) was merged on 2026-10-28; the merge commit is [`0755734a1224d649fa5973b3e10c37ae8ba33a11`](https://github.com/Khaledhassan12/Cooper/commit/0755734a1224d649fa5973b3e10c37ae8ba33a11).
+
+### Upstream main commits reviewed
+
+1. [`2f5aaee6b51385707024531aa571053c45e0b14e`](https://github.com/fora2323/Sketchware-DayGreen/commit/2f5aaee6b51385707024531aa571053c45e0b14e) — R8 shrinking changes and a resource-shrinking feature.
+2. [`85c4e96c990fa04032e7bcda720c47832b7af3be`](https://github.com/fora2323/Sketchware-DayGreen/commit/85c4e96c990fa04032e7bcda720c47832b7af3be) — further R8/resource-shrinking changes and versionCode 192.
+
+### Changes applied to this Cooper integration branch
+
+- [`app/build.gradle`](https://github.com/Khaledhassan12/Cooper/blob/integration/daygreen-sync-2026-10-29/app/build.gradle): advanced `versionCode` from 191 to 192; kept `versionName` unchanged. Removed the external `com.github.PranavPurwar:filepicker` dependency because its compatible implementation is vendored below.
+- Separately reviewed and imported the file-picker fix from still-open upstream [PR #11](https://github.com/fora2323/Sketchware-DayGreen/pull/11), head [`70a792f6795cd99e0db888b3ed490cf53429e4b0`](https://github.com/fora2323/Sketchware-DayGreen/commit/70a792f6795cd99e0db888b3ed490cf53429e4b0). This PR is not part of upstream `main`; it is recorded separately so a future upstream merge is not blindly duplicated.
+- Added the vendored file-picker Kotlin classes and matching resources: `FilePicker.kt`, `FilePickerCallback.kt`, `FilePickerOptions.kt`, five drawable resources, two layouts, the sort menu, and dedicated strings/styles resources. Existing Cooper call sites already use `dev.pranav.filepicker`; the Java/Kotlin API, resource names, styles, and Material dependency were checked for compatibility and collisions. CI compilation is still pending.
+- Cooper-specific correctness adjustment in `FilePicker.kt`: a selected item can now be unchecked when single-selection mode is active; the upstream implementation cleared the selection before checking whether the item was already selected, making deselection impossible.
+- No AI, agent, LLM, AI setting, resource, or dependency was added.
+
+### Upstream changes reviewed but not imported
+
+- `ProjectBuilder.java` R8 library filtering from commits [`2f5aaee...`](https://github.com/fora2323/Sketchware-DayGreen/commit/2f5aaee6b51385707024531aa571053c45e0b14e) and [`85c4e96...`](https://github.com/fora2323/Sketchware-DayGreen/commit/85c4e96c990fa04032e7bcda720c47832b7af3be) was not copied. It matches libraries by exact package names and adds a global `-dontwarn **`; this can hide missing classes and omit transitive runtime dependencies.
+- The resource-shrinking feature was not partially enabled. Its changes span `ManageProguardActivity.java`, `ProguardHandler.java`, `ResourceCompiler.java`, `BuildTaskNew.kt`, new `ResourceShrinker.kt`, `manage_proguard.xml`, and `values/strings.xml`. The current algorithm uses XML regexes and DEX string/name heuristics to delete resources; dynamic/reflection/library references can be missed, and the stable-ID file lifecycle was not verified. Porting only the toggle or relinking code would expose projects to broken generated APKs, so this feature is deferred until it has safer reachability analysis and generated-project regression tests.
+- Upstream [PR #10](https://github.com/fora2323/Sketchware-DayGreen/pull/10) is a cross-repository Cooper-to-DayGreen PR, not a new upstream feature; it was excluded.
+- Upstream [PR #11](https://github.com/fora2323/Sketchware-DayGreen/pull/11) remains open and was imported separately as described above. Standalone issues: none returned by the checked upstream issues API page. Release [v192](https://github.com/fora2323/Sketchware-DayGreen/releases/tag/v192) is published; tag [v192](https://github.com/fora2323/Sketchware-DayGreen/tree/v192) points to the reviewed HEAD.
+- Comparison cursor remains at `227b9c7...` until the integration code is saved, its Debug APK workflow succeeds, and a real artifact is confirmed. Build/artifact status: **pending**.
