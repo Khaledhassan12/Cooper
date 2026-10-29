@@ -16,6 +16,7 @@ import mod.agus.jcoderz.editor.manage.library.locallibrary.ManageLocalLibrary;
 import mod.hey.studios.code.SrcCodeEditor;
 import pro.sketchware.R;
 import pro.sketchware.databinding.ManageProguardBinding;
+import pro.sketchware.utility.SketchwareUtil;
 
 public class ManageProguardActivity extends BaseAppCompatActivity
         implements View.OnClickListener, CompoundButton.OnCheckedChangeListener {
@@ -102,6 +103,9 @@ public class ManageProguardActivity extends BaseAppCompatActivity
             pg.setDebugEnabled(isChecked);
         } else if (id == binding.swShrinkResources.getId()) {
             pg.setShrinkResourcesEnabled(isChecked);
+            if (isChecked) {
+                SketchwareUtil.toast("Info: Create keep_resources.txt in .sketchware/data/<project-id>/ to preserve resources referenced via getIdentifier.");
+            }
         }
     }
 
