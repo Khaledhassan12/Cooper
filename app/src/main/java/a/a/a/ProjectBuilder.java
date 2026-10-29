@@ -875,15 +875,21 @@ public class ProjectBuilder {
                     String name = entry.getName();
 
                     boolean isJunk = false;
-                    for (String prefix : MULTIPLATFORM_JUNK_PREFIXES) {
-                        if (name.contains(prefix)) {
-                            isJunk = true;
-                            foundJunk = true;
-                            break;
+                    // Class files are dexed separately; copying them again as APK resources wastes packaging time.
+                    if (name.endsWith(".class")) {
+                        isJunk = true;
+                        foundJunk = true;
+                    } else {
+                        for (String prefix : MULTIPLATFORM_JUNK_PREFIXES) {
+                            if (name.contains(prefix)) {
+                                isJunk = true;
+                                foundJunk = true;
+                                break;
+                            }
                         }
                     }
                     if (isJunk) {
-                        LogUtil.d(TAG, "Skipping junk entry: " + name + " (from " + originalJar.getName() + ")");
+                        LogUtil.d(TAG, "Skipping class/junk entry: " + name + " (from " + originalJar.getName() + ")");
                         continue;
                     }
 
@@ -907,14 +913,14 @@ public class ProjectBuilder {
                 if (key != null) {
                     File targetJar = new File(cacheDir, key + ".jar");
                     if (tmpFile.renameTo(targetJar)) {
-                        LogUtil.d(TAG, "Filtered Kotlin Multiplatform metadata from " + originalJar.getName());
+                        LogUtil.d(TAG, "Filtered Kotlin Multiplatform and class metadata from " + originalJar.getName());
                         return targetJar;
                     } else {
                         tmpFile.delete();
                         return originalJar;
                     }
                 } else {
-                    LogUtil.d(TAG, "Filtered Kotlin Multiplatform metadata from " + originalJar.getName() + " (no cache)");
+                    LogUtil.d(TAG, "Filtered Kotlin Multiplatform and class metadata from " + originalJar.getName() + " (no cache)");
                     return tmpFile;
                 }
             }
