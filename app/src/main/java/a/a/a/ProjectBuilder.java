@@ -29,6 +29,7 @@ import com.iyxan23.zipalignjava.ZipAlign;
 import org.xml.sax.SAXException;
 
 import java.io.File;
+import java.io.DataInputStream;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -50,6 +51,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -1234,7 +1236,7 @@ public class ProjectBuilder {
         config.add(ProguardHandler.ANDROID_PROGUARD_RULES_PATH);
         config.add(yq.proguardAaptRules);
         config.add(proguard.getCustomProguardRules());
-        var rules = new ArrayList<>(Arrays.asList(getRJavaRules().split("\n")));
+        var rules = new ArrayList<>(Arrays.asList(getRJavaRules().split("\\n")));
         for (Jp library : builtInLibraryManager.getLibraries()) {
             File f = BuiltInLibraries.getLibraryProguardConfiguration(library.getName());
             if (f.exists()) {
@@ -1242,22 +1244,257 @@ public class ProjectBuilder {
             }
         }
         config.addAll(mll.getPgRules());
+
         ArrayList<String> jars = new ArrayList<>();
         jars.add(yq.compiledClassesPath + ".jar");
-
         for (HashMap<String, Object> hashMap : mll.list) {
             String obj = hashMap.get("name").toString();
             if (hashMap.containsKey("jarPath") && proguard.libIsProguardFMEnabled(obj)) {
                 jars.add(hashMap.get("jarPath").toString());
             }
         }
+
         try {
             JarBuilder.INSTANCE.generateJar(new File(yq.compiledClassesPath));
-            new R8Compiler(rules, config.toArray(new String[0]), getProguardClasspath().split(":"), jars.toArray(new String[0]), settings.getMinSdkVersion(), yq).compile();
+
+            String[] allLibs = getProguardClasspath().split(":");
+            List<String> filteredLibs = filterR8LibrariesConservatively(allLibs);
+            LogUtil.d(TAG, "R8 library filtering: " + filteredLibs.size()
+                    + "/" + allLibs.length + " libraries retained");
+
+            new R8Compiler(rules, config.toArray(new String[0]),
+                    filteredLibs.toArray(new String[0]), jars.toArray(new String[0]),
+                    settings.getMinSdkVersion(), yq).compile();
         } catch (Exception e) {
             throw new IOException(e);
         }
         LogUtil.d(TAG, "R8 took " + (System.currentTimeMillis() - savedTimeMillis) + " ms");
+    }
+
+    /**
+     * Filters R8's library classpath by following package references from project
+     * bytecode through library bytecode. If analysis is uncertain, it deliberately
+     * returns the full classpath rather than risking a broken generated project.
+     */
+    private List<String> filterR8LibrariesConservatively(String[] allLibs) {
+        List<String> all = new ArrayList<>();
+        for (String path : allLibs) {
+            if (path != null && !path.trim().isEmpty()) {
+                all.add(path.trim());
+            }
+        }
+        if (all.isEmpty()) {
+            return all;
+        }
+
+        // Custom ProGuard rules may preserve classes loaded reflectively. Until those
+        // rules can be fully interpreted, retain every library when custom rules exist.
+        File customRules = new File(proguard.getCustomProguardRules());
+        if (customRules.exists()) {
+            try {
+                String text = FileUtil.readFile(customRules.getAbsolutePath());
+                if (text != null && !text.trim().isEmpty()
+                        && !text.trim().matches("(?s)(\\s|#.*|//.*)+")) {
+                    LogUtil.d(TAG, "R8 library filtering disabled: custom ProGuard rules present");
+                    return all;
+                }
+            } catch (Exception e) {
+                LogUtil.d(TAG, "R8 library filtering disabled: unable to read custom rules");
+                return all;
+            }
+        }
+
+        try {
+            Set<String> references = new HashSet<>();
+            File compiledDir = new File(yq.compiledClassesPath);
+            if (!extractClassReferencesFromDir(compiledDir, references) || references.isEmpty()) {
+                LogUtil.d(TAG, "R8 library filtering disabled: project bytecode analysis incomplete");
+                return all;
+            }
+            addKeepRulePackages(new File(yq.proguardAaptRules), references);
+
+            Map<String, Set<String>> providedByLibrary = new HashMap<>();
+            for (String libPath : all) {
+                File libFile = new File(libPath);
+                if (!libFile.isFile()) {
+                    LogUtil.d(TAG, "R8 library filtering disabled: missing library " + libPath);
+                    return all;
+                }
+                providedByLibrary.put(libPath, getJarProvidedPackages(libFile));
+            }
+
+            Set<String> selected = new HashSet<>();
+            boolean changed;
+            do {
+                changed = false;
+                for (String libPath : all) {
+                    if (selected.contains(libPath)) continue;
+                    Set<String> provided = providedByLibrary.get(libPath);
+                    if (provided == null || provided.isEmpty()) {
+                        // An unreadable/unsupported library is not safe to discard.
+                        selected.add(libPath);
+                        changed = true;
+                        continue;
+                    }
+                    if (intersects(references, provided)) {
+                        selected.add(libPath);
+                        changed = true;
+                        if (!extractClassReferencesFromJar(new File(libPath), references)) {
+                            LogUtil.d(TAG, "R8 library filtering fallback: unable to inspect " + libPath);
+                            return all;
+                        }
+                    }
+                }
+            } while (changed);
+
+            List<String> result = new ArrayList<>();
+            for (String libPath : all) {
+                if (selected.contains(libPath)) {
+                    result.add(libPath);
+                } else {
+                    LogUtil.d(TAG, "R8 Optimization: skipping unreferenced library " + new File(libPath).getName());
+                }
+            }
+            // Never run R8 with an empty library classpath due to a false-negative analysis.
+            return result.isEmpty() ? all : result;
+        } catch (Exception e) {
+            LogUtil.d(TAG, "R8 library filtering fallback to full classpath: " + e.getMessage());
+            return all;
+        }
+    }
+
+    private boolean intersects(Set<String> references, Set<String> providedPackages) {
+        for (String reference : references) {
+            if (providedPackages.contains(reference)) return true;
+            // Also match nested packages when bytecode refers to a class in a subpackage.
+            for (String provided : providedPackages) {
+                if (!provided.isEmpty() && reference.startsWith(provided + ".")) return true;
+            }
+        }
+        return false;
+    }
+
+    private void addKeepRulePackages(File rulesFile, Set<String> references) {
+        if (!rulesFile.exists()) return;
+        try {
+            String text = FileUtil.readFile(rulesFile.getAbsolutePath());
+            Matcher matcher = Pattern.compile("-keep\\s+(?:class|interface|enum)\\s+([a-zA-Z0-9_\\$\\.]+)").matcher(text);
+            while (matcher.find()) {
+                String className = matcher.group(1);
+                int dot = className.lastIndexOf('.');
+                if (dot > 0) references.add(className.substring(0, dot));
+            }
+        } catch (Exception ignored) {
+            // The caller still keeps the rest of the classpath; this is supplemental only.
+        }
+    }
+
+    private boolean extractClassReferencesFromDir(File dir, Set<String> references) {
+        if (!dir.exists()) return false;
+        File[] files = dir.listFiles();
+        if (files == null) return false;
+        for (File file : files) {
+            if (file.isDirectory()) {
+                if (!extractClassReferencesFromDir(file, references)) return false;
+            } else if (file.getName().endsWith(".class")) {
+                try (InputStream input = new FileInputStream(file)) {
+                    if (!extractClassReferencesFromStream(input, references)) return false;
+                } catch (Exception e) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    private boolean extractClassReferencesFromJar(File jar, Set<String> references) {
+        try (ZipFile zip = new ZipFile(jar)) {
+            Enumeration<? extends ZipEntry> entries = zip.entries();
+            while (entries.hasMoreElements()) {
+                ZipEntry entry = entries.nextElement();
+                if (entry.isDirectory() || !entry.getName().endsWith(".class")) continue;
+                try (InputStream input = zip.getInputStream(entry)) {
+                    if (!extractClassReferencesFromStream(input, references)) return false;
+                }
+            }
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private boolean extractClassReferencesFromStream(InputStream input, Set<String> outPackages) {
+        try {
+            DataInputStream dis = new DataInputStream(input);
+            if (dis.readInt() != 0xCAFEBABE) return false;
+            dis.readUnsignedShort(); // minor version
+            dis.readUnsignedShort(); // major version
+            int cpCount = dis.readUnsignedShort();
+            int[] classIndices = new int[cpCount];
+            String[] strings = new String[cpCount];
+
+            for (int i = 1; i < cpCount; i++) {
+                int tag = dis.readUnsignedByte();
+                switch (tag) {
+                    case 1:
+                        strings[i] = dis.readUTF();
+                        break;
+                    case 3: case 4: case 9: case 10: case 11: case 12:
+                    case 17: case 18:
+                        dis.skipBytes(4);
+                        break;
+                    case 5: case 6:
+                        dis.skipBytes(8);
+                        i++;
+                        break;
+                    case 7:
+                        classIndices[i] = dis.readUnsignedShort();
+                        break;
+                    case 8: case 16: case 19: case 20:
+                        dis.skipBytes(2);
+                        break;
+                    case 15:
+                        dis.skipBytes(3);
+                        break;
+                    default:
+                        return false;
+                }
+            }
+            for (int i = 1; i < cpCount; i++) {
+                if (classIndices[i] <= 0 || classIndices[i] >= cpCount) continue;
+                String className = strings[classIndices[i]];
+                if (className == null) continue;
+                if (className.startsWith("[")) {
+                    int lPos = className.indexOf('L');
+                    if (lPos < 0) continue;
+                    int endPos = className.indexOf(';', lPos);
+                    if (endPos < 0) continue;
+                    className = className.substring(lPos + 1, endPos);
+                }
+                int slash = className.lastIndexOf('/');
+                if (slash > 0) outPackages.add(className.substring(0, slash).replace('/', '.'));
+            }
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private Set<String> getJarProvidedPackages(File jar) {
+        Set<String> packages = new HashSet<>();
+        try (ZipFile zip = new ZipFile(jar)) {
+            Enumeration<? extends ZipEntry> entries = zip.entries();
+            while (entries.hasMoreElements()) {
+                ZipEntry entry = entries.nextElement();
+                if (entry.isDirectory() || !entry.getName().endsWith(".class")) continue;
+                String name = entry.getName();
+                int slash = name.lastIndexOf('/');
+                packages.add(slash > 0 ? name.substring(0, slash).replace('/', '.') : "");
+            }
+        } catch (Exception e) {
+            return Collections.emptySet();
+        }
+        return packages;
     }
 
     public void runProguard() throws IOException {
