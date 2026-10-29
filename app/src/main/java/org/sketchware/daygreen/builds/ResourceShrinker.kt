@@ -51,8 +51,18 @@ class ResourceShrinker(private val context: Context, private val builder: Projec
         // 3. Kumpulkan referensi dari file Dex hasil kompilasi (Syarat B3.a)
         val dexDir = File(builder.yq.binDirectoryPath, "dex")
         val allStrings = mutableSetOf<String>()
-        
-        dexDir.listFiles { _, name -> name.startsWith("classes") && name.endsWith(".dex") }?.forEach { dexFile ->
+        val dexFiles = dexDir.listFiles { _, name ->
+            name.startsWith("classes") && name.endsWith(".dex")
+        } ?: emptyArray()
+
+        // Fail closed: without complete DEX analysis, deleting resources is unsafe.
+        if (dexFiles.isEmpty()) {
+            LogUtil.w(TAG, "Skipping resource shrinking: no DEX files available for analysis.")
+            return
+        }
+
+        var dexAnalysisComplete = true
+        dexFiles.forEach { dexFile ->
             try {
                 FileInputStream(dexFile).use { fis ->
                     val dex = Dex(fis)
@@ -71,8 +81,14 @@ class ResourceShrinker(private val context: Context, private val builder: Projec
                     }
                 }
             } catch (e: Exception) {
+                dexAnalysisComplete = false
                 LogUtil.e(TAG, "Failed to parse DEX: ${dexFile.name}", e)
             }
+        }
+
+        if (!dexAnalysisComplete) {
+            LogUtil.w(TAG, "Skipping resource shrinking: DEX analysis was incomplete.")
+            return
         }
 
         // 4. Salin dan filter folder res
