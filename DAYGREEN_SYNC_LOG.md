@@ -91,7 +91,7 @@ GitHub reports 2 commits and 2 changed files.
 - PR [#6](https://github.com/Khaledhassan12/Cooper/pull/6) remains open and unmerged. A log-only commit records this verification and will trigger a fresh PR workflow for the final PR head.
 
 
-## Synchronization attempt — 2026-10-29 (build verification pending)
+## Synchronization attempt — 2026-10-29 (code build verified)
 
 - Upstream repository: [fora2323/Sketchware-DayGreen](https://github.com/fora2323/Sketchware-DayGreen), default branch [main](https://github.com/fora2323/Sketchware-DayGreen/tree/main).
 - Upstream HEAD reviewed: [`85c4e96c990fa04032e7bcda720c47832b7af3be`](https://github.com/fora2323/Sketchware-DayGreen/commit/85c4e96c990fa04032e7bcda720c47832b7af3be), matching release/tag [v192](https://github.com/fora2323/Sketchware-DayGreen/releases/tag/v192).
@@ -119,4 +119,13 @@ GitHub reports 2 commits and 2 changed files.
 - The resource-shrinking feature was not partially enabled. Its changes span `ManageProguardActivity.java`, `ProguardHandler.java`, `ResourceCompiler.java`, `BuildTaskNew.kt`, new `ResourceShrinker.kt`, `manage_proguard.xml`, and `values/strings.xml`. The current algorithm uses XML regexes and DEX string/name heuristics to delete resources; dynamic/reflection/library references can be missed, and the stable-ID file lifecycle was not verified. Porting only the toggle or relinking code would expose projects to broken generated APKs, so this feature is deferred until it has safer reachability analysis and generated-project regression tests.
 - Upstream [PR #10](https://github.com/fora2323/Sketchware-DayGreen/pull/10) is a cross-repository Cooper-to-DayGreen PR, not a new upstream feature; it was excluded.
 - Upstream [PR #11](https://github.com/fora2323/Sketchware-DayGreen/pull/11) remains open and was imported separately as described above. Standalone issues: none returned by the checked upstream issues API page. Release [v192](https://github.com/fora2323/Sketchware-DayGreen/releases/tag/v192) is published; tag [v192](https://github.com/fora2323/Sketchware-DayGreen/tree/v192) points to the reviewed HEAD.
-- Comparison cursor remains at `227b9c7...` until the integration code is saved, its Debug APK workflow succeeds, and a real artifact is confirmed. Build/artifact status: **pending**.
+### Debug APK verification — successful
+
+- Workflow [run 40822193169](https://github.com/Khaledhassan12/Cooper/actions/runs/40822193169) completed with conclusion **success** on code head [`4ce69f4521384508926390a1d2cfede2b3899f65`](https://github.com/Khaledhassan12/Cooper/commit/4ce69f4521384508926390a1d2cfede2b3899f65).
+- Job **Build and upload Debug APK** and every step passed, including **Build Debug APK**, **Verify Debug APK exists**, and **Upload Debug APK for download**.
+- Build log confirms `BUILD SUCCESSFUL in 5m 36s`. The verification step found both:
+  - `app/build/outputs/apk/android26/debug/app-debug-android26.apk`
+  - `app/build/outputs/apk/android33/debug/app-debug-android33.apk`
+- Confirmed non-expired artifact [`Cooper-debug-apk-257`](https://github.com/Khaledhassan12/Cooper/actions/runs/40822193169/artifacts/12875361921), artifact ID `12875361921`, size `271,717,941` bytes, SHA-256 `b275a3b112236ae998f05e31c65c30ec70dca63e9acbc4d7829803a048b1aca4`, expiry 2026-11-12.
+- The source code changes are saved and the exact code head has a successful build plus a real artifact. The comparison cursor is therefore advanced to [`85c4e96c990fa04032e7bcda720c47832b7af3be`](https://github.com/fora2323/Sketchware-DayGreen/commit/85c4e96c990fa04032e7bcda720c47832b7af3be). This does not mark the PR merged; [Cooper PR #8](https://github.com/Khaledhassan12/Cooper/pull/8) remains open for review.
+- The workflow log contains non-blocking Gradle deprecation and SDK-location warnings; they did not prevent the build or artifact upload.
