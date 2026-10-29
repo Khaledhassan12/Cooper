@@ -89,3 +89,45 @@ GitHub reports 2 commits and 2 changed files.
 - Confirmed non-expired artifact: [`Cooper-debug-apk-183`](https://github.com/Khaledhassan12/Cooper/actions/runs/40640112639), artifact ID `12795346474`, size `271669901` bytes.
 - With code changes saved, the Debug APK job successful, and the actual artifact confirmed, the comparison cursor is now advanced to [`227b9c7e20910b2a128fd1cda730d821d008e457`](https://github.com/fora2323/Sketchware-DayGreen/commit/227b9c7e20910b2a128fd1cda730d821d008e457).
 - PR [#6](https://github.com/Khaledhassan12/Cooper/pull/6) remains open and unmerged. A log-only commit records this verification and will trigger a fresh PR workflow for the final PR head.
+
+
+## Synchronization attempt — 2026-10-29 (code build verified)
+
+- Upstream repository: [fora2323/Sketchware-DayGreen](https://github.com/fora2323/Sketchware-DayGreen), default branch [main](https://github.com/fora2323/Sketchware-DayGreen/tree/main).
+- Upstream HEAD reviewed: [`85c4e96c990fa04032e7bcda720c47832b7af3be`](https://github.com/fora2323/Sketchware-DayGreen/commit/85c4e96c990fa04032e7bcda720c47832b7af3be), matching release/tag [v192](https://github.com/fora2323/Sketchware-DayGreen/releases/tag/v192).
+- Previous verified main-branch comparison cursor: [`227b9c7e20910b2a128fd1cda730d821d008e457`](https://github.com/fora2323/Sketchware-DayGreen/commit/227b9c7e20910b2a128fd1cda730d821d008e457).
+- Exact source comparison: [`227b9c7...` → `85c4e96...`](https://github.com/fora2323/Sketchware-DayGreen/compare/227b9c7e20910b2a128fd1cda730d821d008e457...85c4e96c990fa04032e7bcda720c47832b7af3be). GitHub reports **2 commits and 9 changed files**.
+- Cooper target base: [`0755734a1224d649fa5973b3e10c37ae8ba33a11`](https://github.com/Khaledhassan12/Cooper/commit/0755734a1224d649fa5973b3e10c37ae8ba33a11). Integration branch: [`integration/daygreen-sync-2026-10-29`](https://github.com/Khaledhassan12/Cooper/tree/integration/daygreen-sync-2026-10-29).
+- Correction to the previous entry's PR status: Cooper PR [#6](https://github.com/Khaledhassan12/Cooper/pull/6) was merged on 2026-10-28; the merge commit is [`0755734a1224d649fa5973b3e10c37ae8ba33a11`](https://github.com/Khaledhassan12/Cooper/commit/0755734a1224d649fa5973b3e10c37ae8ba33a11).
+
+### Upstream main commits reviewed
+
+1. [`2f5aaee6b51385707024531aa571053c45e0b14e`](https://github.com/fora2323/Sketchware-DayGreen/commit/2f5aaee6b51385707024531aa571053c45e0b14e) — R8 shrinking changes and a resource-shrinking feature.
+2. [`85c4e96c990fa04032e7bcda720c47832b7af3be`](https://github.com/fora2323/Sketchware-DayGreen/commit/85c4e96c990fa04032e7bcda720c47832b7af3be) — further R8/resource-shrinking changes and versionCode 192.
+
+### Changes applied to this Cooper integration branch
+
+- [`app/build.gradle`](https://github.com/Khaledhassan12/Cooper/blob/integration/daygreen-sync-2026-10-29/app/build.gradle): advanced `versionCode` from 191 to 192; kept `versionName` unchanged. Removed the external `com.github.PranavPurwar:filepicker` dependency because its compatible implementation is vendored below.
+- Separately reviewed and imported the file-picker fix from still-open upstream [PR #11](https://github.com/fora2323/Sketchware-DayGreen/pull/11), head [`70a792f6795cd99e0db888b3ed490cf53429e4b0`](https://github.com/fora2323/Sketchware-DayGreen/commit/70a792f6795cd99e0db888b3ed490cf53429e4b0). This PR is not part of upstream `main`; it is recorded separately so a future upstream merge is not blindly duplicated.
+- Added the vendored file-picker Kotlin classes and matching resources: `FilePicker.kt`, `FilePickerCallback.kt`, `FilePickerOptions.kt`, five drawable resources, two layouts, the sort menu, and dedicated strings/styles resources. Existing Cooper call sites already use `dev.pranav.filepicker`; the Java/Kotlin API, resource names, styles, and Material dependency were checked for compatibility and collisions. Compilation passed on code head [`4ce69f4521384508926390a1d2cfede2b3899f65`](https://github.com/Khaledhassan12/Cooper/commit/4ce69f4521384508926390a1d2cfede2b3899f65).
+- Cooper-specific correctness adjustment in `FilePicker.kt`: a selected item can now be unchecked when single-selection mode is active; the upstream implementation cleared the selection before checking whether the item was already selected, making deselection impossible.
+- No AI, agent, LLM, AI setting, resource, or dependency was added.
+
+### Upstream changes reviewed but not imported
+
+- `ProjectBuilder.java` R8 library filtering from commits [`2f5aaee...`](https://github.com/fora2323/Sketchware-DayGreen/commit/2f5aaee6b51385707024531aa571053c45e0b14e) and [`85c4e96...`](https://github.com/fora2323/Sketchware-DayGreen/commit/85c4e96c990fa04032e7bcda720c47832b7af3be) was not copied. It matches libraries by exact package names and adds a global `-dontwarn **`; this can hide missing classes and omit transitive runtime dependencies.
+- The resource-shrinking feature was not partially enabled. Its changes span `ManageProguardActivity.java`, `ProguardHandler.java`, `ResourceCompiler.java`, `BuildTaskNew.kt`, new `ResourceShrinker.kt`, `manage_proguard.xml`, and `values/strings.xml`. The current algorithm uses XML regexes and DEX string/name heuristics to delete resources; dynamic/reflection/library references can be missed, and the stable-ID file lifecycle was not verified. Porting only the toggle or relinking code would expose projects to broken generated APKs, so this feature is deferred until it has safer reachability analysis and generated-project regression tests.
+- Upstream [PR #10](https://github.com/fora2323/Sketchware-DayGreen/pull/10) is a cross-repository Cooper-to-DayGreen PR, not a new upstream feature; it was excluded.
+- Upstream [PR #11](https://github.com/fora2323/Sketchware-DayGreen/pull/11) remains open and was imported separately as described above. Standalone issues: none returned by the checked upstream issues API page. Release [v192](https://github.com/fora2323/Sketchware-DayGreen/releases/tag/v192) is published; tag [v192](https://github.com/fora2323/Sketchware-DayGreen/tree/v192) points to the reviewed HEAD.
+### Debug APK verification — successful
+
+- Workflow [run 40822193169](https://github.com/Khaledhassan12/Cooper/actions/runs/40822193169) completed with conclusion **success** on code head [`4ce69f4521384508926390a1d2cfede2b3899f65`](https://github.com/Khaledhassan12/Cooper/commit/4ce69f4521384508926390a1d2cfede2b3899f65).
+- Job **Build and upload Debug APK** and every step passed, including **Build Debug APK**, **Verify Debug APK exists**, and **Upload Debug APK for download**.
+- Build log confirms `BUILD SUCCESSFUL in 5m 36s`. The verification step found both:
+  - `app/build/outputs/apk/android26/debug/app-debug-android26.apk`
+  - `app/build/outputs/apk/android33/debug/app-debug-android33.apk`
+- Confirmed non-expired artifact [`Cooper-debug-apk-257`](https://github.com/Khaledhassan12/Cooper/actions/runs/40822193169/artifacts/12875361921), artifact ID `12875361921`, size `271,717,941` bytes, SHA-256 `b275a3b112236ae998f05e31c65c30ec70dca63e9acbc4d7829803a048b1aca4`, expiry 2026-11-12.
+- The source code changes are saved and the exact code head has a successful build plus a real artifact. The comparison cursor is therefore advanced to [`85c4e96c990fa04032e7bcda720c47832b7af3be`](https://github.com/fora2323/Sketchware-DayGreen/commit/85c4e96c990fa04032e7bcda720c47832b7af3be). This does not mark the PR merged; [Cooper PR #8](https://github.com/Khaledhassan12/Cooper/pull/8) remains open for review.
+
+- The subsequent log-only PR head [`698ce0574a3947e59bf93d916a4f97bfe45e15f0`](https://github.com/Khaledhassan12/Cooper/commit/698ce0574a3947e59bf93d916a4f97bfe45e15f0) also passed [workflow run 40822837947](https://github.com/Khaledhassan12/Cooper/actions/runs/40822837947); its confirmed artifact is [`Cooper-debug-apk-258`](https://github.com/Khaledhassan12/Cooper/actions/runs/40822837947/artifacts/12875925404), ID `12875925404`, SHA-256 `0b5c11deb25e12835a0d418d4412e4626cbbbb105f299631a9a93843fee2d6bb`.
+- The workflow log contains non-blocking Gradle deprecation and SDK-location warnings; they did not prevent the build or artifact upload.
