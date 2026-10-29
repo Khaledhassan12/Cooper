@@ -1298,15 +1298,36 @@ public class ProjectBuilder {
             return all;
         }
 
-        // Custom ProGuard rules may preserve classes loaded reflectively. Until those
-        // rules can be fully interpreted, retain every library when custom rules exist.
+        // User-authored keep rules may preserve classes loaded reflectively. The
+        // project's generated default rules are not custom keep rules and should not
+        // disable filtering, otherwise the optimization never runs on a fresh project.
         File customRules = new File(proguard.getCustomProguardRules());
         if (customRules.exists()) {
             try {
                 String text = FileUtil.readFile(customRules.getAbsolutePath());
-                if (text != null && !text.trim().isEmpty()
-                        && !text.trim().matches("(?s)(\\s|#.*|//.*)+")) {
-                    LogUtil.d(TAG, "R8 library filtering disabled: custom ProGuard rules present");
+                if (text == null) {
+                    LogUtil.d(TAG, "R8 library filtering disabled: unable to read custom rules");
+                    return all;
+                }
+                boolean hasUserRules = false;
+                for (String rawLine : text.split("\\R")) {
+                    String line = rawLine.trim();
+                    if (line.isEmpty() || line.startsWith("#") || line.startsWith("//")) {
+                        continue;
+                    }
+                    // These directives are Cooper's generated baseline. They do not
+                    // keep otherwise unreferenced classes, so filtering remains safe.
+                    if (line.equals("-repackageclasses")
+                            || line.equals("-ignorewarnings")
+                            || line.equals("-dontwarn")
+                            || line.equals("-dontnote")) {
+                        continue;
+                    }
+                    hasUserRules = true;
+                    break;
+                }
+                if (hasUserRules) {
+                    LogUtil.d(TAG, "R8 library filtering disabled: user ProGuard rules present");
                     return all;
                 }
             } catch (Exception e) {
