@@ -235,12 +235,24 @@ class BuildTaskNew @JvmOverloads constructor(
                 builder.getDexFilesReady()
             }
 
-            step("package$modeName", 16) {
+            step(
+                name = "shrinkResources$modeName",
+                stepNo = 16,
+                skipIf = {
+                    !builder.proguard.isShrinkingEnabled() ||
+                    !builder.proguard.isShrinkResourcesEnabled()
+                }
+            ) {
+                ResourceShrinker(context, builder).shrink()
+                false
+            }
+
+            step("package$modeName", 17) {
                 builder.buildApk()
                 false
             }
 
-            step("sign$modeName", 17) {
+            step("sign$modeName", 18) {
                 if (isRelease) {
                     builder.signReleaseApk()
                 } else {

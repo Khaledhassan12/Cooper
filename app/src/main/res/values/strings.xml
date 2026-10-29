@@ -2456,4 +2456,6 @@ Do not create another repository with the same name. Inspect the remote state be
     <string name="cooper_github_recovery_original_project_mismatch">The original project path no longer matches the saved recovery record. Clear recovery only after inspecting local and remote state.</string>
     <string name="cooper_github_recovery_original_project_failed">Cooper could not safely select the saved project.</string>
     <string name="cooper_github_project_icon_content_description">Project application icon</string>
+    <string name="shrink_resources_title">Shrink Resources</string>
+    <string name="shrink_resources_desc">Remove unused resource files from the final APK. Requires Code Shrinking to be enabled.</string>
 </resources>

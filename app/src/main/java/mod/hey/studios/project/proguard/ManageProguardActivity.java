@@ -43,6 +43,8 @@ public class ManageProguardActivity extends BaseAppCompatActivity
             binding.r8Enabled.setChecked(!binding.r8Enabled.isChecked());
         } else if (id == R.id.ln_sw_pg_debug) {
             binding.swPgDebug.setChecked(!binding.swPgDebug.isChecked());
+        } else if (id == R.id.ln_shrink_resources) {
+            binding.swShrinkResources.setChecked(!binding.swShrinkResources.isChecked());
         }
     }
 
@@ -98,6 +100,8 @@ public class ManageProguardActivity extends BaseAppCompatActivity
             pg.setR8Enabled(isChecked);
         } else if (id == binding.swPgDebug.getId()) {
             pg.setDebugEnabled(isChecked);
+        } else if (id == binding.swShrinkResources.getId()) {
+            pg.setShrinkResourcesEnabled(isChecked);
         }
     }
 
@@ -126,6 +130,8 @@ public class ManageProguardActivity extends BaseAppCompatActivity
         binding.lnPgEnabled.setOnClickListener(this);
         binding.lnR8Enabled.setOnClickListener(this);
         binding.lnSwPgDebug.setOnClickListener(this);
+        binding.lnShrinkResources.setOnClickListener(this);
+        binding.swShrinkResources.setOnCheckedChangeListener(this);
     }
 
     private void initializeLogic() {
@@ -134,6 +140,8 @@ public class ManageProguardActivity extends BaseAppCompatActivity
         binding.swPgEnabled.setChecked(pg.isShrinkingEnabled());
         binding.swPgDebug.setChecked(pg.isDebugFilesEnabled());
         binding.r8Enabled.setChecked(pg.isR8Enabled());
+        binding.swShrinkResources.setChecked(pg.isShrinkResourcesEnabled());
+        allOptionsUIController(pg.isShrinkingEnabled());
     }
 
     private void _initToolbar() {
@@ -155,5 +163,7 @@ public class ManageProguardActivity extends BaseAppCompatActivity
         binding.swPgDebug.setEnabled(isEnabled);
         binding.lnR8Enabled.setEnabled(isEnabled);
         binding.lnSwPgDebug.setEnabled(isEnabled);
+        binding.lnShrinkResources.setEnabled(isEnabled);
+        binding.swShrinkResources.setEnabled(isEnabled);
     }
 }

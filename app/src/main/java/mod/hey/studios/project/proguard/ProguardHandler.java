@@ -129,6 +129,7 @@ public class ProguardHandler {
 
         defaultConfig.put("enabled", "false");
         defaultConfig.put("debug", "false");
+        defaultConfig.put("shrink_resources", "false");
 
         return new Gson().toJson(defaultConfig);
     }
@@ -183,6 +184,26 @@ public class ProguardHandler {
         HashMap<String, String> config = new Gson().fromJson(FileUtil.readFile(config_path), Helper.TYPE_STRING_MAP);
         config.put("enabled", String.valueOf(proguardEnabled));
 
+        FileUtil.writeFile(config_path, new Gson().toJson(config));
+    }
+
+    public boolean isShrinkResourcesEnabled() {
+        if (!FileUtil.isExistFile(config_path)) return false;
+        try {
+            HashMap<String, String> config = new Gson().fromJson(
+                    FileUtil.readFile(config_path), Helper.TYPE_STRING_MAP);
+            String enabled = config == null ? null : config.get("shrink_resources");
+            return "true".equals(enabled);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public void setShrinkResourcesEnabled(boolean shrinkResourcesEnabled) {
+        HashMap<String, String> config = new Gson().fromJson(
+                FileUtil.readFile(config_path), Helper.TYPE_STRING_MAP);
+        if (config == null) config = new HashMap<>();
+        config.put("shrink_resources", String.valueOf(shrinkResourcesEnabled));
         FileUtil.writeFile(config_path, new Gson().toJson(config));
     }
 
