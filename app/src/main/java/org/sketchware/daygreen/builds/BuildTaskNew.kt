@@ -238,10 +238,7 @@ class BuildTaskNew @JvmOverloads constructor(
             step(
                 name = "shrinkResources$modeName",
                 stepNo = 16,
-                skipIf = {
-                    !builder.proguard.isShrinkingEnabled() ||
-                    !builder.proguard.isShrinkResourcesEnabled()
-                }
+                skipIf = { !builder.proguard.isShrinkResourcesEnabled() }
             ) {
                 ResourceShrinker(context, builder).shrink()
                 false
