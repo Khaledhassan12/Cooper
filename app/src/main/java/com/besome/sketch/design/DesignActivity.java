@@ -308,7 +308,7 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
             newActiveTabs.add(tab);
         }
 
-        if (mod.hilal.saif.activities.tools.GitManager.hasGitRepo(sc_id)) {
+        if (org.sketchware.daygreen.git.GitManager.hasGitRepo(sc_id)) {
             newActiveTabs.add("git");
         }
 
@@ -339,7 +339,7 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
     
     private List<String> buildActiveTabs(List<String> visibleTabs) {
         List<String> tabs = new ArrayList<>(visibleTabs);
-        if (mod.hilal.saif.activities.tools.GitManager.hasGitRepo(sc_id) && !tabs.contains("git")) {
+        if (org.sketchware.daygreen.git.GitManager.hasGitRepo(sc_id) && !tabs.contains("git")) {
             tabs.add("git");
         }
         return tabs;

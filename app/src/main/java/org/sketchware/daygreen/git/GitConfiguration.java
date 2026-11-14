@@ -1,4 +1,4 @@
-package mod.hilal.saif.activities.tools;
+package org.sketchware.daygreen.git;
 
 import android.content.Context;
 import android.content.SharedPreferences;
@@ -8,6 +8,7 @@ import java.io.File;
 import extensions.anbui.daydream.configs.Configs;
 import extensions.anbui.daydream.file.FileUtils;
 import pro.sketchware.utility.FileUtil;
+import mod.hilal.saif.activities.tools.ConfigActivity;
 
 public class GitConfiguration {
 
@@ -57,6 +58,30 @@ public class GitConfiguration {
             ConfigActivity.setSetting(key, value);
         } catch (Exception ignored) {
         }
+    }
+
+    public static boolean isColorizeFileNamesEnabled(Context context) {
+        return getBoolean(context, KEY_COLORIZE_FILE_NAMES, true);
+    }
+
+    public static boolean isGutterIndicationEnabled(Context context) {
+        return getBoolean(context, KEY_GUTTER_INDICATION, true);
+    }
+
+    public static boolean isConflictDetectionEnabled(Context context) {
+        return getBoolean(context, KEY_CONFLICT_DETECTION, true);
+    }
+
+    public static boolean isCommitSigningEnabled(Context context) {
+        return getBoolean(context, KEY_COMMIT_SIGNING, false);
+    }
+
+    public static boolean isSubmodulesEnabled(Context context) {
+        return getBoolean(context, KEY_SUBMODULES, true);
+    }
+
+    public static boolean isRecursiveSubmodulesEnabled(Context context) {
+        return getBoolean(context, KEY_RECURSIVE_SUBMODULES, false);
     }
 
     public static String getUsername(Context context) {

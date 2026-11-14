@@ -32,8 +32,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 
-import mod.hilal.saif.activities.tools.GitConfiguration;
-import mod.hilal.saif.activities.tools.GitManager;
+import org.sketchware.daygreen.git.GitConfiguration;
+import org.sketchware.daygreen.git.GitManager;
 import pro.sketchware.R;
 import pro.sketchware.databinding.FragmentManageGitBinding;
 import pro.sketchware.databinding.ItemGitChangedFileBinding;
@@ -221,7 +221,7 @@ public class ManageGitFragment extends Fragment {
         Context context = getContext();
         if (context == null) return;
 
-        AlertDialog busy = showBusy("Memuat detail commit...");
+        AlertDialog busy = showBusy("Loading commit details...");
         new Thread(() -> {
             StringBuilder details = new StringBuilder();
             String dateStr = new SimpleDateFormat("dd MMM yyyy, HH:mm:ss", Locale.getDefault())
@@ -238,7 +238,7 @@ public class ManageGitFragment extends Fragment {
                     details.append("• ").append(f).append("\n");
                 }
             } catch (Exception e) {
-                details.append("(Gagal memuat daftar file: ").append(e.getMessage()).append(")");
+                details.append("(Failed to load file list: ").append(e.getMessage()).append(")");
             }
 
             runOnUi(() -> {
@@ -247,7 +247,7 @@ public class ManageGitFragment extends Fragment {
                 new MaterialAlertDialogBuilder(context)
                         .setTitle("Commit " + commit.shortHash)
                         .setMessage(details.toString().trim())
-                        .setPositiveButton("Tutup", null)
+                        .setPositiveButton("Close", null)
                         .show();
             });
         }).start();
@@ -260,7 +260,7 @@ public class ManageGitFragment extends Fragment {
             return;
         }
 
-        CheckBox cbAmend = buildCheckBox("Amend (timpa commit terakhir)");
+        CheckBox cbAmend = buildCheckBox("Amend (overwrite last commit)");
 
         new MaterialAlertDialogBuilder(requireContext())
                 .setTitle("Commit")
@@ -301,10 +301,10 @@ public class ManageGitFragment extends Fragment {
             return;
         }
 
-        CheckBox cbForce = buildCheckBox("Force push (timpa isi remote)");
+        CheckBox cbForce = buildCheckBox("Force push (overwrite remote content)");
 
         new MaterialAlertDialogBuilder(context)
-                .setTitle("Push ke GitHub")
+                .setTitle("Push to GitHub")
                 .setView(wrapCheckBox(cbForce))
                 .setPositiveButton("Push", (d, w) -> doPush(cbForce.isChecked()))
                 .setNegativeButton("Cancel", null)
@@ -381,20 +381,20 @@ public class ManageGitFragment extends Fragment {
                     final int[] selected = {checked};
 
                     new MaterialAlertDialogBuilder(context)
-                            .setTitle("Pilih branch")
+                            .setTitle("Select branch")
                             .setSingleChoiceItems(items, checked, (d, which) -> selected[0] = which)
-                            .setPositiveButton("Pindah", (d, w) -> {
+                            .setPositiveButton("Switch", (d, w) -> {
                                 if (selected[0] >= 0 && !items[selected[0]].equals(branchName)) {
                                     confirmCheckout(items[selected[0]], false);
                                 }
                             })
-                            .setNeutralButton("Branch baru", (d, w) -> askNewBranchName())
+                            .setNeutralButton("New branch", (d, w) -> askNewBranchName())
                             .setNegativeButton("Cancel", null)
                             .show();
                 });
             } catch (Exception e) {
                 Log.e(TAG, "List branch failed: ", e);
-                runOnUi(() -> SketchwareUtil.toastError("Gagal membaca branch: " + e.getMessage()));
+                runOnUi(() -> SketchwareUtil.toastError("Failed to read branch: " + e.getMessage()));
             }
         }).start();
     }
@@ -402,14 +402,14 @@ public class ManageGitFragment extends Fragment {
     private void askNewBranchName() {
         Context context = requireContext();
         EditText input = new EditText(context);
-        input.setHint("nama-branch");
+        input.setHint("branch-name");
         int pad = (int) (16 * getResources().getDisplayMetrics().density);
         input.setPadding(pad, pad, pad, pad);
 
         new MaterialAlertDialogBuilder(context)
-                .setTitle("Branch baru")
+                .setTitle("New branch")
                 .setView(input)
-                .setPositiveButton("Buat", (d, w) -> {
+                .setPositiveButton("Create", (d, w) -> {
                     String name = input.getText().toString().trim();
                     if (!name.isEmpty()) confirmCheckout(name, true);
                 })
@@ -419,16 +419,16 @@ public class ManageGitFragment extends Fragment {
 
     private void confirmCheckout(String name, boolean create) {
         new MaterialAlertDialogBuilder(requireContext())
-                .setTitle("Pindah branch?")
-                .setMessage("Isi project akan diganti dengan isi branch \"" + name + "\". Perubahan yang belum di-commit akan hilang.")
-                .setPositiveButton("Lanjut", (d, w) -> doCheckout(name, create))
+                .setTitle("Switch branch?")
+                .setMessage("Project contents will be replaced with branch \"" + name + "\". Uncommitted changes will be lost.")
+                .setPositiveButton("Proceed", (d, w) -> doCheckout(name, create))
                 .setNegativeButton("Cancel", null)
                 .show();
     }
 
     private void doCheckout(String name, boolean create) {
         Activity host = getActivity();
-        AlertDialog busy = showBusy("Pindah branch...");
+        AlertDialog busy = showBusy("Switching branch...");
         new Thread(() -> {
             try {
                 GitManager.checkoutBranch(sc_id, name, create);
@@ -440,14 +440,14 @@ public class ManageGitFragment extends Fragment {
                     } else {
                         DesignActivity.needReloadProjectData = true;
                     }
-                    SketchwareUtil.toast("Pindah ke branch " + name);
+                    SketchwareUtil.toast("Switched to branch " + name);
                     loadStatus(false);
                 });
             } catch (Exception e) {
                 Log.e(TAG, "Checkout failed: ", e);
                 runOnUi(() -> {
                     busy.dismiss();
-                    SketchwareUtil.toastError("Gagal pindah branch: " + e.getMessage());
+                    SketchwareUtil.toastError("Failed to switch branch: " + e.getMessage());
                 });
             }
         }).start();
@@ -516,12 +516,29 @@ public class ManageGitFragment extends Fragment {
             holder.binding.tvFilePath.setText(item.path);
             holder.binding.tvFileStatusTag.setText(item.status);
 
+            boolean colorize = GitConfiguration.isColorizeFileNamesEnabled(holder.binding.getRoot().getContext());
+
             if ("M".equals(item.status)) {
                 holder.binding.tvFileStatusTag.setBackgroundResource(R.drawable.shape_git_status_modified);
+                if (colorize) {
+                    holder.binding.tvFilePath.setTextColor(0xFFFF9800); // Orange / Modified
+                } else {
+                    holder.binding.tvFilePath.setTextColor(0xFF212121);
+                }
             } else if ("A".equals(item.status)) {
                 holder.binding.tvFileStatusTag.setBackgroundResource(R.drawable.shape_git_status_added);
+                if (colorize) {
+                    holder.binding.tvFilePath.setTextColor(0xFF4CAF50); // Green / Added
+                } else {
+                    holder.binding.tvFilePath.setTextColor(0xFF212121);
+                }
             } else {
                 holder.binding.tvFileStatusTag.setBackgroundResource(R.drawable.shape_git_status_deleted);
+                if (colorize) {
+                    holder.binding.tvFilePath.setTextColor(0xFFF44336); // Red / Deleted
+                } else {
+                    holder.binding.tvFilePath.setTextColor(0xFF212121);
+                }
             }
         }
 

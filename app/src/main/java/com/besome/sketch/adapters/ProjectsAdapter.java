@@ -287,10 +287,10 @@ public class ProjectsAdapter extends RecyclerView.Adapter<ProjectsAdapter.Projec
 
         binding.projectGit.setOnClickListener(v -> {
             String scId = yB.c(projectMap, "sc_id");
-            if (mod.hilal.saif.activities.tools.GitManager.hasGitRepo(scId)) {
+            if (org.sketchware.daygreen.git.GitManager.hasGitRepo(scId)) {
                 projectsFragment.toDesignActivity(scId);
             } else {
-                mod.hilal.saif.activities.tools.GitCloneDialogManager.showInitGitDialog(activity, scId);
+                org.sketchware.daygreen.git.GitCloneDialogManager.showInitGitDialog(activity, scId);
             }
             projectOptionsBSD.dismiss();
         });

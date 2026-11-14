@@ -180,19 +180,18 @@ public class BackupFactory {
     }
 
     private static void addFileToZip(File rootPath, File srcFile, ZipOutputStream zip) throws Exception {
-
         if (srcFile.isDirectory()) {
             addFolderToZip(rootPath, srcFile, zip);
         } else {
-            byte[] buf = new byte[1024];
+            byte[] buf = new byte[4096];
             int len;
             try (FileInputStream in = new FileInputStream(srcFile)) {
-                String name = srcFile.getPath();
-                name = name.replace(rootPath.getPath() + "/", "");
+                String name = rootPath.toPath().relativize(srcFile.toPath()).toString().replace('\\', '/');
                 zip.putNextEntry(new ZipEntry(name));
                 while ((len = in.read(buf)) > 0) {
                     zip.write(buf, 0, len);
                 }
+                zip.closeEntry();
             }
         }
     }

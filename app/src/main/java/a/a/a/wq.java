@@ -6,6 +6,7 @@ import android.os.Environment;
 import java.io.File;
 
 import extensions.anbui.daydream.viewbeans.beans.DayDreamViewBeans;
+import mod.agus.jcoderz.beans.ViewBeans;
 import pro.sketchware.SketchApplication;
 
 //DR
@@ -151,6 +152,7 @@ public class wq {
             case 46 -> "otpview";
             case 47 -> "codeview";
             case 48 -> "recyclerview";
+            case ViewBeans.VIEW_TYPE_LAYOUT_FRAMELAYOUT -> "framelayout";
             case DayDreamViewBeans.VIEW_TYPE_WIDGET_LOADINGINDICATOR -> "loadingindicator";
             case DayDreamViewBeans.VIEW_TYPE_WIDGET_MATERIALDIVIDER -> "materialdivider";
             case DayDreamViewBeans.VIEW_TYPE_WIDGET_BOTTOMSHEETDRAGHANDLEVIEW -> "bottomsheetdraghandleview";

@@ -17,6 +17,7 @@ import java.util.HashMap;
 
 import org.sketchware.daygreen.editor.view.palette.IconViewPager2;
 import org.sketchware.daygreen.editor.view.palette.IconMaterialSwitch;
+import org.sketchware.daygreen.editor.view.palette.IconFrameLayout;
 
 import a.a.a.wB;
 import dev.aldi.sayuti.editor.view.palette.IconBadgeView;
@@ -242,6 +243,7 @@ public class PaletteWidget extends LinearLayout {
             case "CardView" -> new IconCardView(context);
             case "TextInputLayout" -> new IconTextInputLayout(context);
             case "RelativeLayout" -> new IconRelativeLayout(context);
+            case "FrameLayout" -> new IconFrameLayout(context);
             default -> new IconBase(context);
         };
         if (tag != null && !tag.isEmpty()) {

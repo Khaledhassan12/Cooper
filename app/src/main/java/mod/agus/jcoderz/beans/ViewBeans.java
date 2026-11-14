@@ -41,6 +41,7 @@ public class ViewBeans {
     public static final int VIEW_TYPE_WIDGET_RECYCLERVIEW = 48;
     public static final int VIEW_TYPE_LAYOUT_VIEWPAGER2 = 49;
     public static final int VIEW_TYPE_WIDGET_MATERIALSWITCH = 50;
+    public static final int VIEW_TYPE_LAYOUT_FRAMELAYOUT = 51;
 
     /**
      * Map that stores both a view's type and type name.
@@ -78,6 +79,7 @@ public class ViewBeans {
             .put(VIEW_TYPE_WIDGET_RECYCLERVIEW, "RecyclerView")
             .put(VIEW_TYPE_LAYOUT_VIEWPAGER2, "ViewPager2")
             .put(VIEW_TYPE_WIDGET_MATERIALSWITCH, "MaterialSwitch")
+            .put(VIEW_TYPE_LAYOUT_FRAMELAYOUT, "FrameLayout")
             .build();
             //LoadingIndicator, MaterialDivider and BottomSheetDragHandleView are not added so as not to add onClick event.
 
@@ -115,6 +117,7 @@ public class ViewBeans {
             case VIEW_TYPE_WIDGET_PATTERNLOCKVIEW -> R.drawable.ic_mtrl_pattern;
             case VIEW_TYPE_WIDGET_WAVESIDEBAR -> R.drawable.ic_mtrl_sidebar;
             case VIEW_TYPE_LAYOUT_CARDVIEW -> R.drawable.ic_mtrl_rectangle;
+            case VIEW_TYPE_LAYOUT_FRAMELAYOUT -> R.drawable.ic_mtrl_view_relative;
             case VIEW_TYPE_LAYOUT_COLLAPSINGTOOLBARLAYOUT -> R.drawable.ic_mtrl_collapsing_toolbar;
             case VIEW_TYPE_LAYOUT_SWIPEREFRESHLAYOUT -> R.drawable.ic_mtrl_refresh;
             case VIEW_TYPE_LAYOUT_RADIOGROUP -> R.drawable.ic_mtrl_radio_partitial;

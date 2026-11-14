@@ -1,8 +1,10 @@
-package mod.hilal.saif.activities.tools;
+package org.sketchware.daygreen.git.activities;
 
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
+import org.sketchware.daygreen.git.GitConfiguration;
+import org.sketchware.daygreen.git.GitConfiguration;
 import android.view.View;
 import android.view.ViewGroup;
 

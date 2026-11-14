@@ -5,7 +5,11 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.ColorFilter;
 import android.graphics.Paint;
+import android.graphics.Path;
+import android.graphics.PixelFormat;
+import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
@@ -17,6 +21,8 @@ import androidx.appcompat.content.res.AppCompatResources;
 
 import com.besome.sketch.design.DesignActivity;
 import com.bobur.androidsvg.SVG;
+
+import pro.sketchware.R;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -35,6 +41,16 @@ import mod.bobur.VectorDrawableParser;
 import pro.sketchware.activities.resourceseditor.components.utils.ColorsEditorManager;
 import pro.sketchware.utility.FileUtil;
 import pro.sketchware.utility.ThemeUtils;
+import org.sketchware.daygreen.git.GitConfiguration;
+import org.sketchware.daygreen.git.GitManager;
+
+import org.eclipse.jgit.diff.Edit;
+import org.eclipse.jgit.diff.EditList;
+import org.eclipse.jgit.diff.HistogramDiff;
+import org.eclipse.jgit.diff.RawText;
+import org.eclipse.jgit.diff.RawTextComparator;
+import java.nio.charset.StandardCharsets;
+import android.util.Log;
 
 public class SketchwareCodeEditor extends CodeEditor {
 
@@ -98,7 +114,16 @@ public class SketchwareCodeEditor extends CodeEditor {
     }
 
     public String getScId() {
-        return this.currentScId;
+        return this.currentScId != null ? this.currentScId : DesignActivity.sc_id;
+    }
+
+    public boolean isGitRepoActive() {
+        String scId = getScId();
+        return scId != null && !scId.isEmpty() && GitManager.hasGitRepo(scId);
+    }
+
+    public boolean isGutterIndicationActive() {
+        return GitConfiguration.isGutterIndicationEnabled(getContext()) && isGitRepoActive();
     }
 
     @Override
@@ -117,8 +142,185 @@ public class SketchwareCodeEditor extends CodeEditor {
         super.updateStyles(styles, range);
     }
 
+    public enum LineChangeType {
+        NONE, ADDED, MODIFIED, DELETED
+    }
+
+    private String baseText = null;
+    private final Map<Integer, LineChangeType> currentLineChanges = new HashMap<>();
+
+    public void setBaseText(String text) {
+        this.baseText = text;
+        recomputeLineChanges();
+    }
+
+    @Override
+    public void setText(CharSequence text) {
+        super.setText(text);
+        if (text != null && (baseText == null || baseText.isEmpty())) {
+            this.baseText = text.toString();
+        }
+    }
+
+    private void recomputeLineChanges() {
+        currentLineChanges.clear();
+        if (baseText == null || baseText.isEmpty()) return;
+        String currentText = getText().toString();
+
+        try {
+            byte[] baseBytes = baseText.getBytes(StandardCharsets.UTF_8);
+            byte[] currentBytes = currentText.getBytes(StandardCharsets.UTF_8);
+
+            RawText baseRaw = new RawText(baseBytes);
+            RawText currentRaw = new RawText(currentBytes);
+
+            HistogramDiff diff = new HistogramDiff();
+            EditList edits = diff.diff(RawTextComparator.DEFAULT, baseRaw, currentRaw);
+
+            for (Edit edit : edits) {
+                switch (edit.getType()) {
+                    case INSERT:
+                        for (int line = edit.getBeginB(); line < edit.getEndB(); line++) {
+                            currentLineChanges.put(line, LineChangeType.ADDED);
+                        }
+                        break;
+                    case REPLACE:
+                        for (int line = edit.getBeginB(); line < edit.getEndB(); line++) {
+                            currentLineChanges.put(line, LineChangeType.MODIFIED);
+                        }
+                        break;
+                    case DELETE:
+                        int delLine = edit.getBeginB();
+                        if (delLine < currentRaw.size()) {
+                            if (!currentLineChanges.containsKey(delLine)) {
+                                currentLineChanges.put(delLine, LineChangeType.DELETED);
+                            }
+                        } else if (delLine - 1 >= 0) {
+                            if (!currentLineChanges.containsKey(delLine - 1)) {
+                                currentLineChanges.put(delLine - 1, LineChangeType.DELETED);
+                            }
+                        }
+                        break;
+                }
+            }
+        } catch (Exception e) {
+            Log.w("SketchwareCodeEditor", "Failed to compute diff for gutter indication", e);
+        }
+    }
+
+    private static class GutterIndicatorDrawable extends Drawable {
+        private final LineChangeType type;
+        private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Path trianglePath = new Path();
+        private final float density;
+
+        public GutterIndicatorDrawable(LineChangeType type, int color, float density) {
+            this.type = type;
+            this.density = density;
+            this.paint.setColor(color);
+            this.paint.setStyle(Paint.Style.FILL);
+        }
+
+        @Override
+        public void draw(@NonNull Canvas canvas) {
+            Rect bounds = getBounds();
+            if (bounds.isEmpty()) return;
+
+            float width = bounds.width();
+            float height = bounds.height();
+            float left = bounds.left;
+            float top = bounds.top;
+
+            if (type == LineChangeType.DELETED) {
+                // Android Studio deleted marker: right-pointing triangle / wedge (▶)
+                // located in the gutter pointing towards the editor content.
+                trianglePath.reset();
+                float arrowWidth = Math.max(5f * density, width * 0.5f);
+                float arrowHeight = Math.max(7f * density, height * 0.5f);
+                float centerY = top + height / 2f;
+                float halfH = arrowHeight / 2f;
+
+                trianglePath.moveTo(left, centerY - halfH);
+                trianglePath.lineTo(left + arrowWidth, centerY);
+                trianglePath.lineTo(left, centerY + halfH);
+                trianglePath.close();
+
+                canvas.drawPath(trianglePath, paint);
+            } else {
+                // Android Studio Added (Green) / Modified (Blue) marker:
+                // Sleek vertical strip along the gutter line with rounded corners.
+                float barWidth = Math.max(3.5f * density, width * 0.3f);
+                float cornerRadius = 1.5f * density;
+                RectF barRect = new RectF(left, top, left + barWidth, top + height);
+                canvas.drawRoundRect(barRect, cornerRadius, cornerRadius, paint);
+            }
+        }
+
+        @Override
+        public void setAlpha(int alpha) {
+            paint.setAlpha(alpha);
+        }
+
+        @Override
+        public void setColorFilter(@Nullable ColorFilter colorFilter) {
+            paint.setColorFilter(colorFilter);
+        }
+
+        @Override
+        public int getOpacity() {
+            return PixelFormat.TRANSLUCENT;
+        }
+
+        @Override
+        public int getIntrinsicWidth() {
+            return (int) (12 * density);
+        }
+
+        @Override
+        public int getIntrinsicHeight() {
+            return (int) (20 * density);
+        }
+    }
+
+    private Drawable getGutterIndicator(LineChangeType type) {
+        boolean isDark = ThemeUtils.isDarkThemeEnabled(getContext());
+        String key = "gutter_line_" + type.name() + (isDark ? "_dark" : "_light");
+        Drawable d = iconCache.get(key);
+        if (d == null) {
+            float density = getResources().getDisplayMetrics().density;
+            int color;
+            switch (type) {
+                case ADDED:
+                    // Android Studio Green: #62B543 in Dark / #499C54 in Light
+                    color = isDark ? Color.parseColor("#62B543") : Color.parseColor("#499C54");
+                    break;
+                case MODIFIED:
+                    // Android Studio Blue: #389FD6 in Dark / #1D84C6 in Light
+                    color = isDark ? Color.parseColor("#389FD6") : Color.parseColor("#1D84C6");
+                    break;
+                case DELETED:
+                    // Android Studio Red: #ED5565 in Dark / #E53935 in Light
+                    color = isDark ? Color.parseColor("#ED5565") : Color.parseColor("#E53935");
+                    break;
+                default:
+                    color = Color.TRANSPARENT;
+                    break;
+            }
+
+            d = new GutterIndicatorDrawable(type, color, density);
+            iconCache.put(key, d);
+        }
+        return d;
+    }
+
     private void processStyles(Styles styles, @Nullable StyleUpdateRange range) {
         getProps().sideIconSizeFactor = 0.9f;
+
+        if (isGutterIndicationActive()) {
+            recomputeLineChanges();
+        } else {
+            currentLineChanges.clear();
+        }
 
         // The Styles object here can be concurrently touched by sora-editor's own
         // background analyzer thread while we're adding/removing our custom
@@ -157,9 +359,25 @@ public class SketchwareCodeEditor extends CodeEditor {
         if (line < 0 || line >= text.getLineCount()) return false;
 
         String lineText = text.getLineString(line);
-        Matcher matcher = RESOURCE_PATTERN.matcher(lineText);
 
         boolean iconAdded = false;
+
+        if (GitConfiguration.isConflictDetectionEnabled(getContext())) {
+            if (lineText.startsWith("<<<<<<<") || lineText.startsWith("=======") || lineText.startsWith(">>>>>>>")) {
+                styles.addLineStyle(new LineSideIcon(line, getIconForConflict(lineText)));
+                iconAdded = true;
+            }
+        }
+
+        if (!iconAdded && isGutterIndicationActive() && !currentLineChanges.isEmpty()) {
+            LineChangeType changeType = currentLineChanges.get(line);
+            if (changeType != null && changeType != LineChangeType.NONE) {
+                styles.addLineStyle(new LineSideIcon(line, getGutterIndicator(changeType)));
+                iconAdded = true;
+            }
+        }
+
+        Matcher matcher = RESOURCE_PATTERN.matcher(lineText);
 
         while (matcher.find()) {
             String match = matcher.group();
@@ -180,6 +398,32 @@ public class SketchwareCodeEditor extends CodeEditor {
         }
 
         return iconAdded;
+    }
+
+    private Drawable getIconForConflict(String lineText) {
+        String key = "conflict_" + (lineText.length() >= 7 ? lineText.substring(0, 7) : lineText);
+        Drawable d = iconCache.get(key);
+        if (d == null) {
+            float density = getResources().getDisplayMetrics().density;
+            int size = (int) (18 * density);
+            Bitmap bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
+            Canvas canvas = new Canvas(bitmap);
+            Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+
+            if (lineText.startsWith("<<<<<<<")) {
+                p.setColor(Color.RED);
+            } else if (lineText.startsWith("=======")) {
+                p.setColor(Color.YELLOW);
+            } else {
+                p.setColor(Color.GREEN);
+            }
+            float radius = 4 * density;
+            canvas.drawRoundRect(new RectF(0, 0, size, size), radius, radius, p);
+
+            d = new BitmapDrawable(getResources(), bitmap);
+            iconCache.put(key, d);
+        }
+        return d;
     }
 
     private Drawable getIconForColor(int color) {

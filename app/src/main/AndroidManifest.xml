@@ -356,7 +356,7 @@
             android:configChanges="orientation|screenSize" />
 
         <activity
-            android:name="mod.hilal.saif.activities.tools.GitSettingsActivity"
+            android:name="org.sketchware.daygreen.git.activities.GitSettingsActivity"
             android:configChanges="orientation|screenSize"
             android:label="Git" />
 

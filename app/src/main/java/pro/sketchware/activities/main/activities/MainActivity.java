@@ -453,7 +453,7 @@ binding.drawerToggleBtn.setBackground(drawerCircle);
 
         View.OnClickListener cloneClick = v -> {
             closeFabMenu();
-            mod.hilal.saif.activities.tools.GitCloneDialogManager.showCloneDialog(MainActivity.this, () -> {
+            org.sketchware.daygreen.git.GitCloneDialogManager.showCloneDialog(MainActivity.this, () -> {
                 if (projectsFragment != null) {
                     projectsFragment.refreshProjectsList();
                 }

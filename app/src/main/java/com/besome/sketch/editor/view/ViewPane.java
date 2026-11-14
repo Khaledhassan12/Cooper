@@ -290,7 +290,8 @@ public class ViewPane extends RelativeLayout {
                  ViewBeans.VIEW_TYPE_LAYOUT_COLLAPSINGTOOLBARLAYOUT,
                  ViewBeans.VIEW_TYPE_LAYOUT_TEXTINPUTLAYOUT,
                  ViewBeans.VIEW_TYPE_LAYOUT_SWIPEREFRESHLAYOUT,
-                 ViewBeans.VIEW_TYPE_LAYOUT_RADIOGROUP -> new ItemLinearLayout(context);
+                 ViewBeans.VIEW_TYPE_LAYOUT_RADIOGROUP,
+                 ViewBeans.VIEW_TYPE_LAYOUT_FRAMELAYOUT -> new ItemLinearLayout(context);
             case ViewBean.VIEW_TYPE_LAYOUT_RELATIVE -> new ItemRelativeLayout(context);
             case ViewBeans.VIEW_TYPE_LAYOUT_CARDVIEW -> new ItemCardView(context);
             case ViewBean.VIEW_TYPE_LAYOUT_HSCROLLVIEW -> new ItemHorizontalScrollView(context);

@@ -242,11 +242,9 @@ public class ImportIconActivity extends BaseAppCompatActivity implements IconAda
                 styleText += " Filled";
             }
             getSupportActionBar().setSubtitle("Material Symbols - " + styleText + " - " + selectedOpticalSize + "px");
-            binding.tvLicense.setVisibility(View.GONE);
         } else {
             String brandText = "simple-icons".equals(selectedBrandSet) ? "Simple Icons" : "Logos";
             getSupportActionBar().setSubtitle("Brand - " + brandText);
-            binding.tvLicense.setVisibility(View.VISIBLE);
         }
     }
 
@@ -338,11 +336,24 @@ public class ImportIconActivity extends BaseAppCompatActivity implements IconAda
         int end = Math.min(start + ITEMS_PER_PAGE, filteredSourceItems.size());
 
         if (start < end) {
-            displayedItems.addAll(filteredSourceItems.subList(start, end));
+            List<IconCatalog.IconItem> pageItems = filteredSourceItems.subList(start, end);
+            displayedItems.addAll(pageItems);
             adapter.submitList(new ArrayList<>(displayedItems));
             currentPage++;
             if (end >= filteredSourceItems.size()) {
                 isLastPage = true;
+            }
+
+            if (currentSourceMode == SOURCE_BRAND) {
+                List<String> uncachedNames = new ArrayList<>();
+                for (IconCatalog.IconItem item : pageItems) {
+                    if (!iconDownloader.isBrandCached(selectedBrandSet, item.name)) {
+                        uncachedNames.add(item.name);
+                    }
+                }
+                if (!uncachedNames.isEmpty()) {
+                    iconDownloader.prefetchBrandBatchAsync(selectedBrandSet, uncachedNames);
+                }
             }
         } else {
             if (currentPage == 0) {
@@ -552,13 +563,25 @@ public class ImportIconActivity extends BaseAppCompatActivity implements IconAda
                 .setPositiveButton("Save", null)
                 .create();
 
-        String fillSuffix = IconDownloader.FILL_FILLED.equals(activeFill) ? "_filled" : "";
-        String defaultResourceName = "icon_" + iconItem.name + "_" + activeStyle + fillSuffix;
+        String defaultResourceName;
+        if (currentSourceMode == SOURCE_BRAND) {
+            defaultResourceName = "icon_" + iconItem.name.replaceAll("[^a-zA-Z0-9_]", "_");
+        } else {
+            String fillSuffix = IconDownloader.FILL_FILLED.equals(activeFill) ? "_filled" : "";
+            defaultResourceName = "icon_" + iconItem.name + "_" + activeStyle + fillSuffix;
+        }
         dialogBinding.inputText.setText(defaultResourceName);
         iconNameValidator = new WB(getApplicationContext(), dialogBinding.textInputLayout, uq.b, alreadyAddedImageNames);
 
         updatePreviewSizePx(dialogBinding.icon, selectedSaveSizePx);
-        updateColorButtonAndPreview(dialogBinding);
+        if (currentSourceMode == SOURCE_BRAND && "logos".equals(selectedBrandSet)) {
+            dialogBinding.selectColour.setVisibility(View.GONE);
+            dialogBinding.icon.clearColorFilter();
+            dialogBinding.icon.setImageTintList(null);
+        } else {
+            dialogBinding.selectColour.setVisibility(View.VISIBLE);
+            updateColorButtonAndPreview(dialogBinding);
+        }
         loadDialogPreviewSvg(dialog, dialogBinding, iconItem.name, activeStyle, activeFill, activeOpsz, selectedSaveSizePx);
 
         dialogBinding.chipGroupSize.setOnCheckedStateChangeListener((group, checkedIds) -> {
@@ -733,7 +756,12 @@ public class ImportIconActivity extends BaseAppCompatActivity implements IconAda
                             }
                             dialogBinding.progressDownload.setVisibility(View.GONE);
                             svgUtils.loadImage(dialogBinding.icon, resizedPreviewSvg.getAbsolutePath());
-                            dialogBinding.icon.setColorFilter(selectedColor, PorterDuff.Mode.SRC_IN);
+                            if ("logos".equals(selectedBrandSet)) {
+                                dialogBinding.icon.clearColorFilter();
+                                dialogBinding.icon.setImageTintList(null);
+                            } else {
+                                dialogBinding.icon.setColorFilter(selectedColor, PorterDuff.Mode.SRC_IN);
+                            }
                         }
 
                         @Override
@@ -803,6 +831,11 @@ public class ImportIconActivity extends BaseAppCompatActivity implements IconAda
                 + Color.blue(selectedColor) * 0.114;
         dialogBinding.selectColour.setTextColor(luminance > 186 ? Color.BLACK : Color.WHITE);
 
-        dialogBinding.icon.setColorFilter(selectedColor, PorterDuff.Mode.SRC_IN);
+        if (currentSourceMode == SOURCE_BRAND && "logos".equals(selectedBrandSet)) {
+            dialogBinding.icon.clearColorFilter();
+            dialogBinding.icon.setImageTintList(null);
+        } else {
+            dialogBinding.icon.setColorFilter(selectedColor, PorterDuff.Mode.SRC_IN);
+        }
     }
 }

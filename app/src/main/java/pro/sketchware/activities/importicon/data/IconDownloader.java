@@ -418,7 +418,6 @@ public class IconDownloader {
         }
 
         String flightKey = buildBrandFlightKey(prefix, iconName);
-        boolean shouldStartTask = false;
         synchronized (inFlightCallbacks) {
             List<DownloadCallback> waiters = inFlightCallbacks.get(flightKey);
             if (waiters != null) {
@@ -427,23 +426,220 @@ public class IconDownloader {
                 waiters = new ArrayList<>();
                 waiters.add(callback);
                 inFlightCallbacks.put(flightKey, waiters);
-                shouldStartTask = true;
             }
         }
 
-        if (!shouldStartTask || isShutdown) {
-            return;
+        synchronized (pendingBrandRequests) {
+            pendingBrandRequests.computeIfAbsent(prefix, k -> new LinkedHashSet<>()).add(iconName);
         }
+
+        mainHandler.removeCallbacks(brandBatchFlushRunnable);
+        mainHandler.postDelayed(brandBatchFlushRunnable, 35L);
+    }
+
+    private void flushPendingBrandRequests() {
+        if (isShutdown) return;
+
+        Map<String, List<String>> toFetch = new HashMap<>();
+        synchronized (pendingBrandRequests) {
+            for (Map.Entry<String, Set<String>> entry : pendingBrandRequests.entrySet()) {
+                if (!entry.getValue().isEmpty()) {
+                    toFetch.put(entry.getKey(), new ArrayList<>(entry.getValue()));
+                }
+            }
+            pendingBrandRequests.clear();
+        }
+
+        if (toFetch.isEmpty()) return;
+
+        executor.execute(() -> {
+            for (Map.Entry<String, List<String>> entry : toFetch.entrySet()) {
+                String prefix = entry.getKey();
+                List<String> names = entry.getValue();
+                for (int i = 0; i < names.size(); i += 50) {
+                    int end = Math.min(i + 50, names.size());
+                    List<String> chunk = names.subList(i, end);
+                    try {
+                        fetchBrandBatchSync(prefix, chunk);
+                    } catch (Exception e) {
+                        Log.e(TAG, "Failed to fetch brand batch for " + prefix, e);
+                        for (String name : chunk) {
+                            File f = getBrandCachedSvgFile(prefix, name);
+                            if (f.exists() && f.length() > 0) {
+                                notifySuccess(buildBrandFlightKey(prefix, name), f);
+                            } else {
+                                notifyError(buildBrandFlightKey(prefix, name),
+                                        e.getMessage() != null ? e.getMessage() : "Download error");
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    public void prefetchBrandBatchAsync(@NonNull String prefix, @NonNull List<String> iconNames) {
+        if (isShutdown || iconNames.isEmpty()) return;
 
         executor.execute(() -> {
             try {
-                File downloaded = ensureBrandCachedSvgSync(prefix, iconName);
-                notifySuccess(flightKey, downloaded);
+                List<String> uncached = new ArrayList<>();
+                for (String name : iconNames) {
+                    if (!isBrandCached(prefix, name)) {
+                        uncached.add(name);
+                    }
+                }
+                for (int i = 0; i < uncached.size(); i += 50) {
+                    int end = Math.min(i + 50, uncached.size());
+                    fetchBrandBatchSync(prefix, uncached.subList(i, end));
+                }
             } catch (Exception e) {
-                String msg = e.getMessage() != null ? e.getMessage() : "Failed to download brand icon";
-                notifyError(flightKey, msg);
+                Log.w(TAG, "Prefetch brand batch failed for " + prefix, e);
             }
         });
+    }
+
+    public void fetchBrandBatchSync(@NonNull String prefix, @NonNull List<String> iconNames) throws IOException {
+        if (iconNames.isEmpty()) return;
+
+        List<String> toQuery = new ArrayList<>();
+        for (String name : iconNames) {
+            File cached = getBrandCachedSvgFile(prefix, name);
+            if (cached.exists() && cached.length() > 0) {
+                notifySuccess(buildBrandFlightKey(prefix, name), cached);
+            } else {
+                toQuery.add(name);
+            }
+        }
+        if (toQuery.isEmpty()) return;
+
+        if (!SketchwareUtil.isConnected()) {
+            throw new IOException("No internet connection and icons not cached.");
+        }
+
+        String joinedNames = String.join(",", toQuery);
+        String url = "https://api.iconify.design/" + sanitizeFileName(prefix) + ".json?icons=" + joinedNames;
+
+        Request request = new Request.Builder()
+                .url(url)
+                .get()
+                .build();
+
+        int maxRetries = 2;
+        int attempt = 0;
+        String jsonResponse = null;
+
+        while (attempt <= maxRetries) {
+            try (Response response = httpClient.newCall(request).execute()) {
+                if (response.code() == 429) {
+                    attempt++;
+                    if (attempt <= maxRetries) {
+                        try {
+                            Thread.sleep(1000L * attempt);
+                        } catch (InterruptedException ie) {
+                            Thread.currentThread().interrupt();
+                            throw new IOException("Interrupted while waiting for rate limit retry");
+                        }
+                        continue;
+                    }
+                    throw new IOException("HTTP 429 (Rate limit) from Iconify API");
+                }
+                if (!response.isSuccessful()) {
+                    throw new IOException("HTTP " + response.code() + " while fetching brand batch");
+                }
+                ResponseBody body = response.body();
+                if (body == null) {
+                    throw new IOException("Empty response body from Iconify batch endpoint");
+                }
+                jsonResponse = body.string();
+                break;
+            }
+        }
+
+        if (jsonResponse == null || jsonResponse.isEmpty()) {
+            throw new IOException("No response from brand server");
+        }
+
+        try {
+            JSONObject root = new JSONObject(jsonResponse);
+            int rootWidth = root.optInt("width", 24);
+            int rootHeight = root.optInt("height", 24);
+
+            JSONObject iconsObj = root.optJSONObject("icons");
+            if (iconsObj != null) {
+                Iterator<String> keys = iconsObj.keys();
+                while (keys.hasNext()) {
+                    String name = keys.next();
+                    JSONObject iconObj = iconsObj.optJSONObject(name);
+                    if (iconObj == null) continue;
+                    String body = iconObj.optString("body", "");
+                    if (body.isEmpty()) continue;
+                    int width = iconObj.optInt("width", rootWidth);
+                    int height = iconObj.optInt("height", rootHeight);
+                    int left = iconObj.optInt("left", 0);
+                    int top = iconObj.optInt("top", 0);
+
+                    String svgContent = String.format(Locale.ROOT,
+                            "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"%d\" height=\"%d\" viewBox=\"%d %d %d %d\">%s</svg>",
+                            width, height, left, top, width, height, body);
+
+                    File targetFile = getBrandCachedSvgFile(prefix, name);
+                    File parentDir = targetFile.getParentFile();
+                    if (parentDir != null && !parentDir.exists()) {
+                        //noinspection ResultOfMethodCallIgnored
+                        parentDir.mkdirs();
+                    }
+
+                    File tempFile = new File(parentDir, sanitizeFileName(name) + "_" + Thread.currentThread().getId() + ".tmp");
+                    try {
+                        Files.write(tempFile.toPath(), svgContent.getBytes(StandardCharsets.UTF_8));
+                        Files.move(tempFile.toPath(), targetFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                        notifySuccess(buildBrandFlightKey(prefix, name), targetFile);
+                    } finally {
+                        if (tempFile.exists()) {
+                            //noinspection ResultOfMethodCallIgnored
+                            tempFile.delete();
+                        }
+                    }
+                }
+            }
+
+            JSONObject aliasesObj = root.optJSONObject("aliases");
+            if (aliasesObj != null) {
+                Iterator<String> aliasKeys = aliasesObj.keys();
+                while (aliasKeys.hasNext()) {
+                    String aliasName = aliasKeys.next();
+                    JSONObject aliasObj = aliasesObj.optJSONObject(aliasName);
+                    if (aliasObj == null) continue;
+                    String parentName = aliasObj.optString("parent", "");
+                    File parentFile = getBrandCachedSvgFile(prefix, parentName);
+                    if (parentFile.exists() && parentFile.length() > 0) {
+                        File aliasFile = getBrandCachedSvgFile(prefix, aliasName);
+                        try {
+                            Files.copy(parentFile.toPath(), aliasFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                            notifySuccess(buildBrandFlightKey(prefix, aliasName), aliasFile);
+                        } catch (Exception ignored) {
+                        }
+                    }
+                }
+            }
+
+            for (String name : toQuery) {
+                File cached = getBrandCachedSvgFile(prefix, name);
+                if (!cached.exists() || cached.length() == 0) {
+                    try {
+                        File singleDownloaded = downloadSingleBrandSvgDirectSync(prefix, name);
+                        notifySuccess(buildBrandFlightKey(prefix, name), singleDownloaded);
+                    } catch (Exception singleEx) {
+                        notifyError(buildBrandFlightKey(prefix, name),
+                                singleEx.getMessage() != null ? singleEx.getMessage() : "Icon not found");
+                    }
+                }
+            }
+
+        } catch (JSONException e) {
+            throw new IOException("Failed to parse brand batch JSON", e);
+        }
     }
 
     @NonNull
@@ -455,6 +651,26 @@ public class IconDownloader {
 
         if (!SketchwareUtil.isConnected()) {
             throw new IOException("No internet connection and brand icon is not cached.");
+        }
+
+        try {
+            fetchBrandBatchSync(prefix, Collections.singletonList(iconName));
+        } catch (Exception e) {
+            Log.w(TAG, "Batch fetch failed for single icon " + iconName + ", trying direct download", e);
+        }
+
+        if (targetFile.exists() && targetFile.length() > 0) {
+            return targetFile;
+        }
+
+        return downloadSingleBrandSvgDirectSync(prefix, iconName);
+    }
+
+    @NonNull
+    private File downloadSingleBrandSvgDirectSync(@NonNull String prefix, @NonNull String iconName) throws IOException {
+        File targetFile = getBrandCachedSvgFile(prefix, iconName);
+        if (targetFile.exists() && targetFile.length() > 0) {
+            return targetFile;
         }
 
         File parentDir = targetFile.getParentFile();
@@ -469,38 +685,56 @@ public class IconDownloader {
                 .get()
                 .build();
 
-        File tempFile = new File(parentDir, sanitizeFileName(iconName) + "_" + Thread.currentThread().getId() + ".tmp");
-        try (Response response = httpClient.newCall(request).execute()) {
-            if (!response.isSuccessful()) {
-                throw new IOException("HTTP " + response.code() + " while downloading " + iconName);
-            }
-            ResponseBody body = response.body();
-            if (body == null) {
-                throw new IOException("Empty SVG response for " + iconName);
-            }
-
-            try (InputStream in = body.byteStream();
-                 FileOutputStream out = new FileOutputStream(tempFile)) {
-                byte[] buffer = new byte[4096];
-                int read;
-                while ((read = in.read(buffer)) != -1) {
-                    out.write(buffer, 0, read);
+        int maxRetries = 2;
+        int attempt = 0;
+        while (attempt <= maxRetries) {
+            File tempFile = new File(parentDir, sanitizeFileName(iconName) + "_" + Thread.currentThread().getId() + ".tmp");
+            try (Response response = httpClient.newCall(request).execute()) {
+                if (response.code() == 429) {
+                    attempt++;
+                    if (attempt <= maxRetries) {
+                        try {
+                            Thread.sleep(1000L * attempt);
+                        } catch (InterruptedException ie) {
+                            Thread.currentThread().interrupt();
+                            throw new IOException("Interrupted while waiting for retry");
+                        }
+                        continue;
+                    }
+                    throw new IOException("HTTP 429 while downloading " + iconName);
                 }
-                out.flush();
-            }
+                if (!response.isSuccessful()) {
+                    throw new IOException("HTTP " + response.code() + " while downloading " + iconName);
+                }
+                ResponseBody body = response.body();
+                if (body == null) {
+                    throw new IOException("Empty SVG response for " + iconName);
+                }
 
-            if (tempFile.length() == 0) {
-                throw new IOException("Downloaded SVG is empty for " + iconName);
-            }
+                try (InputStream in = body.byteStream();
+                     FileOutputStream out = new FileOutputStream(tempFile)) {
+                    byte[] buffer = new byte[4096];
+                    int read;
+                    while ((read = in.read(buffer)) != -1) {
+                        out.write(buffer, 0, read);
+                    }
+                    out.flush();
+                }
 
-            Files.move(tempFile.toPath(), targetFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-            return targetFile;
-        } finally {
-            if (tempFile.exists()) {
-                //noinspection ResultOfMethodCallIgnored
-                tempFile.delete();
+                if (tempFile.length() == 0) {
+                    throw new IOException("Downloaded SVG is empty for " + iconName);
+                }
+
+                Files.move(tempFile.toPath(), targetFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                return targetFile;
+            } finally {
+                if (tempFile.exists()) {
+                    //noinspection ResultOfMethodCallIgnored
+                    tempFile.delete();
+                }
             }
         }
+        throw new IOException("Failed to download brand icon " + iconName);
     }
 
     public void prepareBrandResizedSvgPreviewAsync(
@@ -695,6 +929,10 @@ public class IconDownloader {
 
     public void shutdown() {
         isShutdown = true;
+        mainHandler.removeCallbacks(brandBatchFlushRunnable);
+        synchronized (pendingBrandRequests) {
+            pendingBrandRequests.clear();
+        }
         synchronized (inFlightCallbacks) {
             inFlightCallbacks.clear();
         }

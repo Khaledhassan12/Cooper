@@ -24,6 +24,7 @@ class DonationActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         binding.collapsingToolbar.title = "Support"
+        binding.collapsingToolbar.subtitle = "Help support the developer."
         binding.toolbar.setNavigationOnClickListener { finish() }
 
         options.forEachIndexed { index, option ->

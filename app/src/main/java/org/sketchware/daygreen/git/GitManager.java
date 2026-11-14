@@ -1,4 +1,4 @@
-package mod.hilal.saif.activities.tools;
+package org.sketchware.daygreen.git;
 
 import android.content.Context;
 import android.util.Log;
@@ -239,7 +239,7 @@ public class GitManager {
                         lC.a(sc_id, map);
                     }
                 } catch (Exception e) {
-                    Log.e(TAG, "Gagal mengganti sc_id di file project: ", e);
+                    Log.e(TAG, "Failed to replace sc_id in project file: ", e);
                 }
             } else {
                 HashMap<String, Object> map = new HashMap<>();
@@ -312,7 +312,22 @@ public class GitManager {
             if (name.isEmpty()) name = "Sketchware User";
             if (email.isEmpty()) email = "user@sketchware.app";
 
-            git.commit().setMessage(message).setAmend(amend).setAuthor(name, email).setCommitter(name, email).call();
+            String commitMessage = (message == null || message.trim().isEmpty()) ? "Update project" : message.trim();
+
+            var commitCmd = git.commit()
+                    .setMessage(commitMessage)
+                    .setAmend(amend)
+                    .setAuthor(name, email)
+                    .setCommitter(name, email);
+
+            if (GitConfiguration.isCommitSigningEnabled(context)) {
+                try {
+                    commitCmd.setSign(true);
+                } catch (Exception ignored) {
+                }
+            }
+
+            commitCmd.call();
         }
     }
 
@@ -325,6 +340,9 @@ public class GitManager {
         try (Git git = Git.open(gitDir)) {
             Repository repo = git.getRepository();
             String target = (branch == null || branch.trim().isEmpty()) ? repo.getBranch() : branch.trim();
+            if (target == null || target.trim().isEmpty() || "HEAD".equalsIgnoreCase(target)) {
+                target = "main";
+            }
             ensureTrackingConfig(repo, target);
 
             var pushCmd = git.push()
@@ -369,6 +387,10 @@ public class GitManager {
             // 2. Bersihkan perubahan working tree hasil auto-sync yang belum di-commit agar tidak bentrok CheckoutConflictException
             if (repo.resolve("HEAD") != null) {
                 git.reset().setMode(ResetCommand.ResetType.HARD).call();
+                try {
+                    git.clean().setCleanDirectories(true).call();
+                } catch (Exception ignored) {
+                }
             }
 
             // 3. Jalankan pull dengan target remote & branch eksplisit
@@ -386,8 +408,8 @@ public class GitManager {
             if (!result.isSuccessful()) {
                 String reason = (result.getMergeResult() != null)
                         ? result.getMergeResult().getMergeStatus().toString()
-                        : "Pull merge gagal";
-                throw new Exception("Pull gagal: " + reason);
+                        : "Pull merge failed";
+                throw new Exception("Pull failed: " + reason);
             }
 
             // 4. Salin hasil pull ke direktori project internal Sketchware
@@ -396,7 +418,13 @@ public class GitManager {
     }
 
     public static void cloneRepo(Context context, String repoUrl, String branch, File targetDir, ProgressMonitor progressMonitor) throws Exception {
-        CloneCommand cloneCmd = Git.cloneRepository().setURI(repoUrl).setDirectory(targetDir);
+        boolean submodules = GitConfiguration.isSubmodulesEnabled(context);
+        boolean recursive = GitConfiguration.isRecursiveSubmodulesEnabled(context);
+
+        CloneCommand cloneCmd = Git.cloneRepository()
+                .setURI(repoUrl)
+                .setDirectory(targetDir)
+                .setCloneSubmodules(submodules);
 
         if (branch != null && !branch.trim().isEmpty()) {
             cloneCmd.setBranch(branch.trim());
@@ -413,6 +441,14 @@ public class GitManager {
 
         try (Git git = cloneCmd.call()) {
             ensureTrackingConfig(git.getRepository(), git.getRepository().getBranch());
+            if (submodules && recursive) {
+                try {
+                    git.submoduleInit().call();
+                    git.submoduleUpdate().call();
+                } catch (Exception e) {
+                    Log.w(TAG, "Submodule update warning: " + e.getMessage());
+                }
+            }
             Log.i(TAG, "Cloned successfully to " + targetDir.getAbsolutePath());
         }
     }
@@ -527,18 +563,29 @@ public class GitManager {
 
     public static void checkoutBranch(String sc_id, String name, boolean create) throws Exception {
         try (Git git = Git.open(getGitDir(sc_id))) {
-            git.checkout().setName(name).setCreateBranch(create).call();
+            syncProjectToGitDir(sc_id);
+            if (git.getRepository().resolve("HEAD") != null) {
+                try {
+                    git.reset().setMode(ResetCommand.ResetType.HARD).call();
+                } catch (Exception ignored) {}
+            }
+            git.checkout().setName(name).setCreateBranch(create).setForceRefUpdate(true).call();
             ensureTrackingConfig(git.getRepository(), name);
+            restoreProjectFromGitDir(sc_id);
         }
     }
 
     public static void addRemoteOrigin(String sc_id, String repoUrl) throws Exception {
+        if (repoUrl == null) return;
+        String cleanUrl = repoUrl.trim();
+        if (cleanUrl.isEmpty()) return;
+
         File gitDir = getGitDir(sc_id);
         try (Git git = Git.open(gitDir)) {
             try {
                 git.remoteRemove().setRemoteName("origin").call();
             } catch (Exception ignored) {}
-            git.remoteAdd().setName("origin").setUri(new org.eclipse.jgit.transport.URIish(repoUrl)).call();
+            git.remoteAdd().setName("origin").setUri(new org.eclipse.jgit.transport.URIish(cleanUrl)).call();
             ensureTrackingConfig(git.getRepository(), git.getRepository().getBranch());
         }
     }

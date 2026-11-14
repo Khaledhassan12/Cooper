@@ -83,35 +83,28 @@ public class BackupCore {
             fileName = GetProjectInfo.getProjectName(projectID) + "-" + GetProjectInfo.getVersionName(projectID) + "-" + GetProjectInfo.getVersionCode(projectID) + "-" + System.currentTimeMillis() / 1000L + ".swb";
 
         String backupDir = FileUtils.getInternalStorageDir() + SkSettings.getBackupDir() + GetProjectInfo.getProjectName(projectID) + "/";
-        if(!FileUtils.createDirectory(backupDir)) result = false;
+        if (!FileUtils.createDirectory(backupDir)) result = false;
+        backedupFilePath = backupDir + fileName;
         try {
             if (result) {
                 updateStatus(statusTextView, "Creating backup...");
-                ZipFile zipFile = new ZipFile(backupDir + fileName);
-                ArrayList<String> filelist = new ArrayList<>();
-                FileUtils.getFileListInDirectory(
-                        FileUtils.getInternalStorageDir() + Configs.tempBackupDayDreamFolderDir,
-                        filelist
-                );
-                List<File> files = new ArrayList<>();
-                for (String path : filelist) {
-                    File currentfile = new File(path);
-                    if (currentfile.isDirectory()) {
-                        zipFile.addFolder(currentfile);
-                    } else {
-                        files.add(currentfile);
+                ZipFile zipFile = new ZipFile(backedupFilePath);
+                File tempFolder = new File(FileUtils.getInternalStorageDir() + Configs.tempBackupDayDreamFolderDir);
+                File[] children = tempFolder.listFiles();
+                if (children != null) {
+                    for (File child : children) {
+                        if (child.isDirectory()) {
+                            zipFile.addFolder(child);
+                        } else {
+                            zipFile.addFile(child);
+                        }
                     }
                 }
-
-                if (!files.isEmpty()) {
-                    zipFile.addFiles(files);
-                }
             }
-            backedupFilePath = backupDir + fileName;
             Log.i(TAG, "backup: " + backedupFilePath);
         } catch (Exception e) {
             result = false;
-            Log.e(TAG, Objects.requireNonNull(e.getMessage()));
+            Log.e(TAG, "Backup failed: " + e.getMessage(), e);
         }
         updateStatus(statusTextView, "Cleaning up...");
         try {
