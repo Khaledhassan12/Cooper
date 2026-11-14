@@ -38,6 +38,8 @@ public class IconCatalog {
     private static final String CACHE_FILE_NAME = "material_symbols_catalog.json";
     private static final long CACHE_MAX_AGE_MS = 7L * 24L * 60L * 60L * 1000L; // 7 days
 
+    private static final String BRAND_METADATA_URL = "https://api.iconify.design/collection?prefix=";
+
     public static class IconItem {
         public final String name;
         public final List<String> categories;
@@ -215,6 +217,170 @@ public class IconCatalog {
                 });
             }
         });
+    }
+
+    private File getBrandCacheFile(String prefix) {
+        return new File(cacheFile.getParentFile(), "brand_catalog_" + prefix + ".json");
+    }
+
+    public void loadBrandCatalog(@NonNull String prefix, @NonNull CatalogCallback callback) {
+        if (isShutdown) return;
+
+        executor.execute(() -> {
+            if (isShutdown) return;
+
+            File brandCache = getBrandCacheFile(prefix);
+            List<IconItem> cachedItems = readBrandFromCache(brandCache);
+            boolean hasValidCache = !cachedItems.isEmpty();
+
+            if (hasValidCache) {
+                mainHandler.post(() -> {
+                    if (!isShutdown) {
+                        callback.onCatalogLoaded(cachedItems, false);
+                    }
+                });
+
+                boolean isExpired = (System.currentTimeMillis() - brandCache.lastModified()) > CACHE_MAX_AGE_MS;
+                if (isExpired && SketchwareUtil.isConnected() && !isShutdown) {
+                    try {
+                        List<IconItem> freshItems = fetchAndCacheBrandCatalog(prefix, brandCache);
+                        if (!freshItems.isEmpty() && !isShutdown) {
+                            mainHandler.post(() -> {
+                                if (!isShutdown) {
+                                    callback.onCatalogLoaded(freshItems, true);
+                                }
+                            });
+                        }
+                    } catch (Exception e) {
+                        Log.w(TAG, "Background brand catalog refresh failed, keeping cached data", e);
+                    }
+                }
+                return;
+            }
+
+            if (!SketchwareUtil.isConnected()) {
+                String msg = "No internet connection. Connect to the internet to load brand icons.";
+                mainHandler.post(() -> {
+                    if (!isShutdown) {
+                        callback.onCatalogError(msg);
+                    }
+                });
+                return;
+            }
+
+            try {
+                List<IconItem> freshItems = fetchAndCacheBrandCatalog(prefix, brandCache);
+                if (isShutdown) return;
+
+                if (freshItems.isEmpty()) {
+                    String msg = "Brand icon catalog is empty.";
+                    mainHandler.post(() -> {
+                        if (!isShutdown) {
+                            callback.onCatalogError(msg);
+                        }
+                    });
+                } else {
+                    mainHandler.post(() -> {
+                        if (!isShutdown) {
+                            callback.onCatalogLoaded(freshItems, true);
+                        }
+                    });
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to load brand icon catalog", e);
+                String msg = "Failed to load brand icon catalog: " + (e.getMessage() != null ? e.getMessage() : "Unknown error");
+                mainHandler.post(() -> {
+                    if (!isShutdown) {
+                        callback.onCatalogError(msg);
+                    }
+                });
+            }
+        });
+    }
+
+    @NonNull
+    private List<IconItem> readBrandFromCache(File brandCacheFile) {
+        if (!brandCacheFile.exists() || brandCacheFile.length() == 0) {
+            return Collections.emptyList();
+        }
+        try {
+            byte[] bytes = Files.readAllBytes(brandCacheFile.toPath());
+            String jsonText = new String(bytes, StandardCharsets.UTF_8);
+            return parseBrandCatalogJson(jsonText);
+        } catch (Exception e) {
+            Log.w(TAG, "Failed to read cached brand icon catalog", e);
+            return Collections.emptyList();
+        }
+    }
+
+    @NonNull
+    private List<IconItem> fetchAndCacheBrandCatalog(String prefix, File brandCacheFile) throws IOException, JSONException {
+        Request request = new Request.Builder()
+                .url(BRAND_METADATA_URL + prefix)
+                .get()
+                .build();
+
+        try (Response response = httpClient.newCall(request).execute()) {
+            if (!response.isSuccessful()) {
+                throw new IOException("HTTP " + response.code());
+            }
+            ResponseBody body = response.body();
+            if (body == null) {
+                throw new IOException("Empty response from brand metadata server");
+            }
+            String rawResponse = body.string();
+            List<IconItem> items = parseBrandCatalogJson(rawResponse);
+            if (!items.isEmpty()) {
+                saveBrandToCache(items, brandCacheFile);
+            }
+            return items;
+        }
+    }
+
+    @NonNull
+    private List<IconItem> parseBrandCatalogJson(@NonNull String jsonText) throws JSONException {
+        JSONObject root = new JSONObject(jsonText);
+        JSONArray uncategorized = root.optJSONArray("uncategorized");
+        if (uncategorized == null) {
+            return Collections.emptyList();
+        }
+
+        List<IconItem> result = new ArrayList<>(uncategorized.length());
+        for (int i = 0; i < uncategorized.length(); i++) {
+            String name = uncategorized.optString(i, "").trim();
+            if (name.isEmpty()) continue;
+            result.add(new IconItem(name, Collections.emptyList(), Collections.emptyList()));
+        }
+        return result;
+    }
+
+    private void saveBrandToCache(@NonNull List<IconItem> items, File brandCacheFile) {
+        File tempFile = null;
+        try {
+            JSONObject root = new JSONObject();
+            JSONArray namesArray = new JSONArray();
+            for (IconItem item : items) {
+                namesArray.put(item.name);
+            }
+            root.put("uncategorized", namesArray);
+
+            File parent = brandCacheFile.getParentFile();
+            if (parent != null && !parent.exists()) {
+                //noinspection ResultOfMethodCallIgnored
+                parent.mkdirs();
+            }
+
+            tempFile = new File(parent, brandCacheFile.getName() + ".tmp");
+            Files.write(tempFile.toPath(), root.toString().getBytes(StandardCharsets.UTF_8));
+            Files.move(tempFile.toPath(), brandCacheFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+        } catch (Exception e) {
+            Log.w(TAG, "Failed to write brand catalog cache", e);
+        } finally {
+            if (tempFile != null && tempFile.exists()) {
+                //noinspection ResultOfMethodCallIgnored
+                tempFile.delete();
+            }
+        }
     }
 
     @NonNull

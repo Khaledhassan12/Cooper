@@ -50,7 +50,9 @@ public class IconDownloader {
 
     private static final String SVG_URL_TEMPLATE =
             "https://fonts.gstatic.com/s/i/short-term/release/materialsymbols%s/%s/%s/%dpx.svg";
+    private static final String BRAND_SVG_URL_TEMPLATE = "https://api.iconify.design/%s/%s.svg";
     private static final String CACHE_DIR_NAME = "material_symbols";
+    private static final String BRAND_CACHE_DIR_NAME = "brand_icons";
     private static final String PREVIEW_CACHE_DIR_NAME = "material_symbols_preview";
 
     private static final Pattern SVG_OPEN_TAG_PATTERN =
@@ -67,6 +69,7 @@ public class IconDownloader {
     }
 
     private final File baseCacheDir;
+    private final File brandCacheDir;
     private final File previewCacheDir;
     private final OkHttpClient httpClient;
     private final ExecutorService executor;
@@ -80,6 +83,11 @@ public class IconDownloader {
         if (!this.baseCacheDir.exists()) {
             //noinspection ResultOfMethodCallIgnored
             this.baseCacheDir.mkdirs();
+        }
+        this.brandCacheDir = new File(appContext.getCacheDir(), BRAND_CACHE_DIR_NAME);
+        if (!this.brandCacheDir.exists()) {
+            //noinspection ResultOfMethodCallIgnored
+            this.brandCacheDir.mkdirs();
         }
         this.previewCacheDir = new File(appContext.getCacheDir(), PREVIEW_CACHE_DIR_NAME);
         if (!this.previewCacheDir.exists()) {
@@ -357,6 +365,210 @@ public class IconDownloader {
                 });
             } catch (Exception e) {
                 Log.e(TAG, "Failed to save SVG icon to project", e);
+                String msg = e.getMessage() != null ? e.getMessage() : "Failed to save icon";
+                mainHandler.post(() -> {
+                    if (!isShutdown) {
+                        callback.onError(msg);
+                    }
+                });
+            }
+        });
+    }
+
+    @NonNull
+    public File getBrandCachedSvgFile(@NonNull String prefix, @NonNull String iconName) {
+        File prefixDir = new File(brandCacheDir, sanitizeFileName(prefix));
+        return new File(prefixDir, sanitizeFileName(iconName) + ".svg");
+    }
+
+    public boolean isBrandCached(@NonNull String prefix, @NonNull String iconName) {
+        File file = getBrandCachedSvgFile(prefix, iconName);
+        return file.exists() && file.length() > 0;
+    }
+
+    @NonNull
+    private String buildBrandFlightKey(@NonNull String prefix, @NonNull String iconName) {
+        return "brand/" + prefix + "/" + iconName;
+    }
+
+    public void downloadBrandSvgAsync(
+            @NonNull String prefix,
+            @NonNull String iconName,
+            @NonNull DownloadCallback callback
+    ) {
+        if (isShutdown) return;
+
+        File cachedFile = getBrandCachedSvgFile(prefix, iconName);
+        if (cachedFile.exists() && cachedFile.length() > 0) {
+            mainHandler.post(() -> {
+                if (!isShutdown) {
+                    callback.onSuccess(cachedFile);
+                }
+            });
+            return;
+        }
+
+        String flightKey = buildBrandFlightKey(prefix, iconName);
+        boolean shouldStartTask = false;
+        synchronized (inFlightCallbacks) {
+            List<DownloadCallback> waiters = inFlightCallbacks.get(flightKey);
+            if (waiters != null) {
+                waiters.add(callback);
+            } else {
+                waiters = new ArrayList<>();
+                waiters.add(callback);
+                inFlightCallbacks.put(flightKey, waiters);
+                shouldStartTask = true;
+            }
+        }
+
+        if (!shouldStartTask || isShutdown) {
+            return;
+        }
+
+        executor.execute(() -> {
+            try {
+                File downloaded = ensureBrandCachedSvgSync(prefix, iconName);
+                notifySuccess(flightKey, downloaded);
+            } catch (Exception e) {
+                String msg = e.getMessage() != null ? e.getMessage() : "Failed to download brand icon";
+                notifyError(flightKey, msg);
+            }
+        });
+    }
+
+    @NonNull
+    public File ensureBrandCachedSvgSync(@NonNull String prefix, @NonNull String iconName) throws IOException {
+        File targetFile = getBrandCachedSvgFile(prefix, iconName);
+        if (targetFile.exists() && targetFile.length() > 0) {
+            return targetFile;
+        }
+
+        if (!SketchwareUtil.isConnected()) {
+            throw new IOException("No internet connection and brand icon is not cached.");
+        }
+
+        File parentDir = targetFile.getParentFile();
+        if (parentDir != null && !parentDir.exists()) {
+            //noinspection ResultOfMethodCallIgnored
+            parentDir.mkdirs();
+        }
+
+        String url = String.format(Locale.ROOT, BRAND_SVG_URL_TEMPLATE, sanitizeFileName(prefix), sanitizeFileName(iconName));
+        Request request = new Request.Builder()
+                .url(url)
+                .get()
+                .build();
+
+        File tempFile = new File(parentDir, sanitizeFileName(iconName) + "_" + Thread.currentThread().getId() + ".tmp");
+        try (Response response = httpClient.newCall(request).execute()) {
+            if (!response.isSuccessful()) {
+                throw new IOException("HTTP " + response.code() + " while downloading " + iconName);
+            }
+            ResponseBody body = response.body();
+            if (body == null) {
+                throw new IOException("Empty SVG response for " + iconName);
+            }
+
+            try (InputStream in = body.byteStream();
+                 FileOutputStream out = new FileOutputStream(tempFile)) {
+                byte[] buffer = new byte[4096];
+                int read;
+                while ((read = in.read(buffer)) != -1) {
+                    out.write(buffer, 0, read);
+                }
+                out.flush();
+            }
+
+            if (tempFile.length() == 0) {
+                throw new IOException("Downloaded SVG is empty for " + iconName);
+            }
+
+            Files.move(tempFile.toPath(), targetFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            return targetFile;
+        } finally {
+            if (tempFile.exists()) {
+                //noinspection ResultOfMethodCallIgnored
+                tempFile.delete();
+            }
+        }
+    }
+
+    public void prepareBrandResizedSvgPreviewAsync(
+            @NonNull String prefix,
+            @NonNull String sourceIconName,
+            int outputSizePx,
+            @NonNull DownloadCallback callback
+    ) {
+        if (isShutdown) return;
+
+        executor.execute(() -> {
+            try {
+                File cachedSvg = ensureBrandCachedSvgSync(prefix, sourceIconName);
+                String rawSvg = new String(Files.readAllBytes(cachedSvg.toPath()), StandardCharsets.UTF_8);
+                String resizedSvg = resizeSvgDimensionsOnly(rawSvg, outputSizePx);
+
+                if (!previewCacheDir.exists()) {
+                    //noinspection ResultOfMethodCallIgnored
+                    previewCacheDir.mkdirs();
+                }
+
+                String previewFileName = "brand_" + sanitizeFileName(prefix)
+                        + "_" + sanitizeFileName(sourceIconName) + "_" + outputSizePx + "px.svg";
+                File previewFile = new File(previewCacheDir, previewFileName);
+                Files.write(previewFile.toPath(), resizedSvg.getBytes(StandardCharsets.UTF_8));
+
+                mainHandler.post(() -> {
+                    if (!isShutdown) {
+                        callback.onSuccess(previewFile);
+                    }
+                });
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to prepare resized brand SVG preview", e);
+                String msg = e.getMessage() != null ? e.getMessage() : "Failed to load icon preview";
+                mainHandler.post(() -> {
+                    if (!isShutdown) {
+                        callback.onError(msg);
+                    }
+                });
+            }
+        });
+    }
+
+    public void saveBrandResizedSvgToProjectAsync(
+            @NonNull String prefix,
+            @NonNull String sourceIconName,
+            @NonNull String scId,
+            @NonNull String outputResourceName,
+            int outputSizePx,
+            @NonNull DownloadCallback callback
+    ) {
+        if (isShutdown) return;
+
+        executor.execute(() -> {
+            try {
+                File cachedSvg = ensureBrandCachedSvgSync(prefix, sourceIconName);
+                String rawSvg = new String(Files.readAllBytes(cachedSvg.toPath()), StandardCharsets.UTF_8);
+                String resizedSvg = resizeSvgDimensionsOnly(rawSvg, outputSizePx);
+
+                FilePathUtil filePathUtil = new FilePathUtil();
+                String outputPath = filePathUtil.getSvgFullPath(scId, outputResourceName);
+                File outputFile = new File(outputPath);
+                File parentDir = outputFile.getParentFile();
+                if (parentDir != null && !parentDir.exists()) {
+                    //noinspection ResultOfMethodCallIgnored
+                    parentDir.mkdirs();
+                }
+
+                Files.write(outputFile.toPath(), resizedSvg.getBytes(StandardCharsets.UTF_8));
+
+                mainHandler.post(() -> {
+                    if (!isShutdown) {
+                        callback.onSuccess(outputFile);
+                    }
+                });
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to save brand SVG icon to project", e);
                 String msg = e.getMessage() != null ? e.getMessage() : "Failed to save icon";
                 mainHandler.post(() -> {
                     if (!isShutdown) {

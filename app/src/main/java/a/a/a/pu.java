@@ -90,7 +90,7 @@ public class pu extends qA {
     private final FilePathUtil fpu = new FilePathUtil();
     public boolean isSelecting = false;
     public SvgUtils svgUtils;
-    Map<Integer, Map<String, Object>> colorMap = new HashMap<>();
+    Map<String, Map<String, Object>> colorMap = new HashMap<>();
     private ImageLoader coilImageLoader;
     private FrManageImageListBinding binding;
     private String sc_id;
@@ -121,7 +121,7 @@ public class pu extends qA {
                 selectedColorHex = DEFAULT_ICON_COLOR_HEX;
             }
             int selectedSize = data.getIntExtra("iconSize", DEFAULT_ICON_SIZE_PX);
-            addNewColorFilterInfo(selectedColorHex, selectedColor, selectedSize, images.size());
+            addNewColorFilterInfo(selectedColorHex, selectedColor, selectedSize, icon.resName);
 
             addImage(icon);
             bB.a(requireActivity(), getString(R.string.design_manager_message_add_complete), bB.TOAST_NORMAL).show();
@@ -240,21 +240,11 @@ public class pu extends qA {
     }
 
     private void deleteSelected() {
-        Map<Integer, Map<String, Object>> updatedColorMap = new HashMap<>();
-        int newIndex = 0;
-        for (int i = 0; i < images.size(); i++) {
-            if (!images.get(i).isSelected) {
-                if (colorMap.containsKey(i)) {
-                    updatedColorMap.put(newIndex, colorMap.get(i));
-                }
-                newIndex++;
-            }
-        }
-        colorMap.clear();
-        colorMap.putAll(updatedColorMap);
-
         for (int i = images.size() - 1; i >= 0; i--) {
             if (images.get(i).isSelected) {
+                String resName = images.get(i).resName;
+                colorMap.remove(resName);
+                iconTintCache.remove(resName);
                 images.remove(i);
             }
         }
@@ -270,7 +260,6 @@ public class pu extends qA {
         } catch (IOException error) {
             Log.d("pu.java", "Failed to create directory for saving svgs at: " + fpu.getPathResource(sc_id));
         }
-        int index = 0;
         for (ProjectResourceBean image : images) {
             if (image.isNew || image.isEdited) {
                 try {
@@ -286,7 +275,7 @@ public class pu extends qA {
                     if (image.resFullName.endsWith(".svg")) {
                         String svgPath = fpu.getSvgFullPath(sc_id, image.resName);
                         copyFile(path, svgPath);
-                        Map<String, Object> colorInfo = colorMap.get(index);
+                        Map<String, Object> colorInfo = colorMap.get(image.resName);
                         String colorHex = colorInfo != null ? (String) colorInfo.get("colorHex") : null;
                         colorHex = (colorHex != null) ? colorHex : "#FFFFFF";
                         svgUtils.convert(svgPath, projectImagesDirectory, colorHex);
@@ -297,7 +286,6 @@ public class pu extends qA {
                     e.printStackTrace();
                 }
             }
-            index++;
         }
         for (int i = 0; i < images.size(); i++) {
             ProjectResourceBean image = images.get(i);
@@ -461,7 +449,7 @@ public class pu extends qA {
         String initialColorHex = DEFAULT_ICON_COLOR_HEX;
         int initialSizePx = DEFAULT_ICON_SIZE_PX;
 
-        Map<String, Object> savedMeta = colorMap.get(position);
+        Map<String, Object> savedMeta = colorMap.get(image.resName);
         if (savedMeta != null) {
             if (savedMeta.get("colorHex") instanceof String hex && !hex.isEmpty()) {
                 initialColorHex = hex;
@@ -624,7 +612,7 @@ public class pu extends qA {
                             iconTintCache.remove(oldName);
                             iconTintCache.remove(newName);
 
-                            addNewColorFilterInfo(editColorHex[0], editColor[0], editSizePx[0], position);
+                            addNewColorFilterInfo(editColorHex[0], editColor[0], editSizePx[0], newName);
                             adapter.notifyItemChanged(position);
                             ((ManageImageActivity) activity).l().refreshData();
                             bB.a(activity, getString(R.string.design_manager_message_edit_complete), bB.TOAST_NORMAL).show();
@@ -749,7 +737,7 @@ public class pu extends qA {
             return color;
         }
 
-        Map<String, Object> meta = colorMap.get(position);
+        Map<String, Object> meta = colorMap.get(image.resName);
         if (meta != null && meta.get("color") instanceof Integer c) {
             return c;
         }
@@ -930,18 +918,18 @@ public class pu extends qA {
         updateGuideVisibility();
     }
 
-    private void addNewColorFilterInfo(String colorHex, int color, int forPosition) {
-        addNewColorFilterInfo(colorHex, color, DEFAULT_ICON_SIZE_PX, forPosition);
+    private void addNewColorFilterInfo(String colorHex, int color, String resName) {
+        addNewColorFilterInfo(colorHex, color, DEFAULT_ICON_SIZE_PX, resName);
     }
 
-    private void addNewColorFilterInfo(String colorHex, int color, int iconSize, int forPosition) {
+    private void addNewColorFilterInfo(String colorHex, int color, int iconSize, String resName) {
         Map<String, Object> colorItem1 = new HashMap<>();
         colorItem1.put("colorHex", colorHex);
         colorItem1.put("color", color);
         colorItem1.put("iconSize", iconSize);
 
-        colorMap.put(forPosition, colorItem1);
-        Log.d("color filter", "new color filter item at " + forPosition + ": " + colorHex + " " + color + " (" + iconSize + "px)");
+        colorMap.put(resName, colorItem1);
+        Log.d("color filter", "new color filter item for " + resName + ": " + colorHex + " " + color + " (" + iconSize + "px)");
     }
 
     private void addImages(ArrayList<ProjectResourceBean> arrayList) {

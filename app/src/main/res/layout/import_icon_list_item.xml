@@ -1,23 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/icon_bg"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:foreground="?attr/selectableItemBackground"
-    android:gravity="center"
-    android:orientation="vertical"
-    android:paddingHorizontal="4dp"
-    android:paddingVertical="6dp">
+    android:padding="6dp">
 
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/card_icon"
-        android:layout_width="80dp"
-        android:layout_height="80dp"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
         app:cardBackgroundColor="?attr/colorSurfaceContainerLow"
         app:cardCornerRadius="16dp"
         app:cardElevation="0dp"
+        app:layout_constraintDimensionRatio="1:1"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
         app:strokeColor="?attr/colorOutlineVariant"
         app:strokeWidth="1dp">
 
@@ -29,9 +30,8 @@
                 android:id="@+id/img"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:padding="18dp"
+                android:padding="16dp"
                 android:scaleType="centerInside"
-                app:tint="@color/grey"
                 tools:src="@drawable/unit_96" />
 
             <com.google.android.material.progressindicator.CircularProgressIndicator
@@ -48,7 +48,7 @@
 
     <TextView
         android:id="@+id/title"
-        android:layout_width="80dp"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginTop="6dp"
         android:ellipsize="end"
@@ -56,6 +56,9 @@
         android:singleLine="true"
         android:text="Title"
         android:textColor="?attr/colorOnSurfaceVariant"
-        android:textSize="11sp" />
+        android:textSize="11sp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/card_icon" />
 
-</LinearLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>

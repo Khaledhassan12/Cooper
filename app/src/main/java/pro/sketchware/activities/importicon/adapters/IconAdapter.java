@@ -1,6 +1,7 @@
 package pro.sketchware.activities.importicon.adapters;
 
 import android.content.Context;
+import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.PorterDuff;
 import android.view.LayoutInflater;
@@ -45,6 +46,9 @@ public class IconAdapter extends ListAdapter<IconCatalog.IconItem, IconAdapter.V
     private String currentFillType = IconDownloader.DEFAULT_FILL_TYPE;
     private int currentOpticalSize = IconDownloader.DEFAULT_OPTICAL_SIZE;
 
+    private boolean isBrandMode = false;
+    private String currentBrandPrefix = "simple-icons";
+
     public IconAdapter(
             @NonNull Context context,
             @NonNull IconDownloader iconDownloader,
@@ -60,6 +64,13 @@ public class IconAdapter extends ListAdapter<IconCatalog.IconItem, IconAdapter.V
         this.currentStyle = IconDownloader.normalizeStyle(style);
         this.currentFillType = IconDownloader.normalizeFillType(fillType);
         this.currentOpticalSize = IconDownloader.normalizeOpticalSize(opticalSize);
+        this.isBrandMode = false;
+        notifyDataSetChanged();
+    }
+
+    public void updateBrandMode(@NonNull String prefix) {
+        this.currentBrandPrefix = prefix;
+        this.isBrandMode = true;
         notifyDataSetChanged();
     }
 
@@ -81,44 +92,86 @@ public class IconAdapter extends ListAdapter<IconCatalog.IconItem, IconAdapter.V
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         IconCatalog.IconItem item = getItem(position);
         String iconName = item.name;
-        String style = currentStyle;
-        String fillType = currentFillType;
-        int opticalSize = currentOpticalSize;
-        String variantKey = style + "/" + fillType + "/" + opticalSize + "/" + iconName;
 
-        holder.boundVariantKey = variantKey;
         holder.itemBinding.title.setText(iconName);
-        holder.itemBinding.img.setColorFilter(DEFAULT_ICON_COLOR, PorterDuff.Mode.SRC_IN);
 
-        if (iconDownloader.isCached(iconName, style, fillType, opticalSize)) {
-            holder.itemBinding.progressLoading.setVisibility(View.GONE);
-            holder.itemBinding.img.setVisibility(View.VISIBLE);
-            File cachedFile = iconDownloader.getCachedSvgFile(iconName, style, fillType, opticalSize);
-            svgUtils.loadImage(holder.itemBinding.img, cachedFile.getAbsolutePath());
+        if (isBrandMode) {
+            holder.itemBinding.img.clearColorFilter();
+            holder.itemBinding.img.setImageTintList(null);
+            String prefix = currentBrandPrefix;
+            String variantKey = "brand/" + prefix + "/" + iconName;
+            holder.boundVariantKey = variantKey;
+
+            if (iconDownloader.isBrandCached(prefix, iconName)) {
+                holder.itemBinding.progressLoading.setVisibility(View.GONE);
+                holder.itemBinding.img.setVisibility(View.VISIBLE);
+                File cachedFile = iconDownloader.getBrandCachedSvgFile(prefix, iconName);
+                svgUtils.loadImage(holder.itemBinding.img, cachedFile.getAbsolutePath());
+            } else {
+                holder.itemBinding.img.setImageDrawable(null);
+                holder.itemBinding.img.setVisibility(View.INVISIBLE);
+                holder.itemBinding.progressLoading.setVisibility(View.VISIBLE);
+
+                iconDownloader.downloadBrandSvgAsync(prefix, iconName, new IconDownloader.DownloadCallback() {
+                    @Override
+                    public void onSuccess(@NonNull File svgFile) {
+                        if (variantKey.equals(holder.boundVariantKey)) {
+                            holder.itemBinding.progressLoading.setVisibility(View.GONE);
+                            holder.itemBinding.img.setVisibility(View.VISIBLE);
+                            svgUtils.loadImage(holder.itemBinding.img, svgFile.getAbsolutePath());
+                        }
+                    }
+
+                    @Override
+                    public void onError(@NonNull String errorMessage) {
+                        if (variantKey.equals(holder.boundVariantKey)) {
+                            holder.itemBinding.progressLoading.setVisibility(View.GONE);
+                            holder.itemBinding.img.setVisibility(View.VISIBLE);
+                            holder.itemBinding.img.setImageResource(R.drawable.ic_remove_grey600_24dp);
+                        }
+                    }
+                });
+            }
         } else {
-            holder.itemBinding.img.setImageDrawable(null);
-            holder.itemBinding.img.setVisibility(View.INVISIBLE);
-            holder.itemBinding.progressLoading.setVisibility(View.VISIBLE);
+            holder.itemBinding.img.clearColorFilter();
+            holder.itemBinding.img.setImageTintList(ColorStateList.valueOf(DEFAULT_ICON_COLOR));
+            String style = currentStyle;
+            String fillType = currentFillType;
+            int opticalSize = currentOpticalSize;
+            String variantKey = style + "/" + fillType + "/" + opticalSize + "/" + iconName;
 
-            iconDownloader.downloadSvgAsync(iconName, style, fillType, opticalSize, new IconDownloader.DownloadCallback() {
-                @Override
-                public void onSuccess(@NonNull File svgFile) {
-                    if (variantKey.equals(holder.boundVariantKey)) {
-                        holder.itemBinding.progressLoading.setVisibility(View.GONE);
-                        holder.itemBinding.img.setVisibility(View.VISIBLE);
-                        svgUtils.loadImage(holder.itemBinding.img, svgFile.getAbsolutePath());
-                    }
-                }
+            holder.boundVariantKey = variantKey;
 
-                @Override
-                public void onError(@NonNull String errorMessage) {
-                    if (variantKey.equals(holder.boundVariantKey)) {
-                        holder.itemBinding.progressLoading.setVisibility(View.GONE);
-                        holder.itemBinding.img.setVisibility(View.VISIBLE);
-                        holder.itemBinding.img.setImageResource(R.drawable.ic_remove_grey600_24dp);
+            if (iconDownloader.isCached(iconName, style, fillType, opticalSize)) {
+                holder.itemBinding.progressLoading.setVisibility(View.GONE);
+                holder.itemBinding.img.setVisibility(View.VISIBLE);
+                File cachedFile = iconDownloader.getCachedSvgFile(iconName, style, fillType, opticalSize);
+                svgUtils.loadImage(holder.itemBinding.img, cachedFile.getAbsolutePath());
+            } else {
+                holder.itemBinding.img.setImageDrawable(null);
+                holder.itemBinding.img.setVisibility(View.INVISIBLE);
+                holder.itemBinding.progressLoading.setVisibility(View.VISIBLE);
+
+                iconDownloader.downloadSvgAsync(iconName, style, fillType, opticalSize, new IconDownloader.DownloadCallback() {
+                    @Override
+                    public void onSuccess(@NonNull File svgFile) {
+                        if (variantKey.equals(holder.boundVariantKey)) {
+                            holder.itemBinding.progressLoading.setVisibility(View.GONE);
+                            holder.itemBinding.img.setVisibility(View.VISIBLE);
+                            svgUtils.loadImage(holder.itemBinding.img, svgFile.getAbsolutePath());
+                        }
                     }
-                }
-            });
+
+                    @Override
+                    public void onError(@NonNull String errorMessage) {
+                        if (variantKey.equals(holder.boundVariantKey)) {
+                            holder.itemBinding.progressLoading.setVisibility(View.GONE);
+                            holder.itemBinding.img.setVisibility(View.VISIBLE);
+                            holder.itemBinding.img.setImageResource(R.drawable.ic_remove_grey600_24dp);
+                        }
+                    }
+                });
+            }
         }
     }
 

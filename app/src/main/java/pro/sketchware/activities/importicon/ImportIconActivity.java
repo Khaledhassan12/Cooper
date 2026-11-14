@@ -85,10 +85,19 @@ public class ImportIconActivity extends BaseAppCompatActivity implements IconAda
     private boolean isLoadingMore = false;
     private boolean isLastPage = false;
 
+    // Source Modes
+    private static final int SOURCE_MATERIAL_SYMBOLS = 0;
+    private static final int SOURCE_BRAND = 1;
+
+    private int currentSourceMode = SOURCE_MATERIAL_SYMBOLS;
+
     // Active Material Symbols variant filters
     private String selectedStyle = IconDownloader.DEFAULT_STYLE;
     private String selectedFillType = IconDownloader.DEFAULT_FILL_TYPE;
     private int selectedOpticalSize = IconDownloader.DEFAULT_OPTICAL_SIZE;
+
+    // Active Brand filters
+    private String selectedBrandSet = "simple-icons";
 
     // Active Save Dialog state
     private int selectedColor = DEFAULT_ICON_COLOR;
@@ -226,34 +235,76 @@ public class ImportIconActivity extends BaseAppCompatActivity implements IconAda
         super.onDestroy();
     }
 
+    private void updateToolbarSubtitle() {
+        if (currentSourceMode == SOURCE_MATERIAL_SYMBOLS) {
+            String styleText = selectedStyle.substring(0, 1).toUpperCase() + selectedStyle.substring(1);
+            if (IconDownloader.FILL_FILLED.equals(selectedFillType)) {
+                styleText += " Filled";
+            }
+            getSupportActionBar().setSubtitle("Material Symbols - " + styleText + " - " + selectedOpticalSize + "px");
+            binding.tvLicense.setVisibility(View.GONE);
+        } else {
+            String brandText = "simple-icons".equals(selectedBrandSet) ? "Simple Icons" : "Logos";
+            getSupportActionBar().setSubtitle("Brand - " + brandText);
+            binding.tvLicense.setVisibility(View.VISIBLE);
+        }
+    }
+
     private void loadIconCatalog() {
-        boolean hasCache = iconCatalog.hasCache();
-        binding.progressInitial.setVisibility(hasCache ? View.GONE : View.VISIBLE);
+        binding.progressInitial.setVisibility(View.VISIBLE);
         binding.tvEmptyState.setVisibility(View.GONE);
 
-        iconCatalog.loadCatalog(new IconCatalog.CatalogCallback() {
-            @Override
-            public void onCatalogLoaded(@NonNull List<IconCatalog.IconItem> items, boolean fromNetwork) {
-                if (isDestroyed() || isFinishing()) return;
+        if (currentSourceMode == SOURCE_MATERIAL_SYMBOLS) {
+            iconCatalog.loadCatalog(new IconCatalog.CatalogCallback() {
+                @Override
+                public void onCatalogLoaded(@NonNull List<IconCatalog.IconItem> items, boolean fromNetwork) {
+                    if (isDestroyed() || isFinishing()) return;
 
-                binding.progressInitial.setVisibility(View.GONE);
-                allCatalogItems.clear();
-                allCatalogItems.addAll(items);
-                applyFilterAndResetPaging(currentQuery);
-            }
-
-            @Override
-            public void onCatalogError(@NonNull String errorMessage) {
-                if (isDestroyed() || isFinishing()) return;
-
-                binding.progressInitial.setVisibility(View.GONE);
-                SketchwareUtil.toastError(errorMessage);
-                if (allCatalogItems.isEmpty()) {
-                    binding.tvEmptyState.setText(errorMessage);
-                    binding.tvEmptyState.setVisibility(View.VISIBLE);
+                    binding.progressInitial.setVisibility(View.GONE);
+                    allCatalogItems.clear();
+                    allCatalogItems.addAll(items);
+                    applyFilterAndResetPaging(currentQuery);
                 }
-            }
-        });
+
+                @Override
+                public void onCatalogError(@NonNull String errorMessage) {
+                    if (isDestroyed() || isFinishing()) return;
+
+                    binding.progressInitial.setVisibility(View.GONE);
+                    SketchwareUtil.toastError(errorMessage);
+                    if (allCatalogItems.isEmpty()) {
+                        binding.tvEmptyState.setText(errorMessage);
+                        binding.tvEmptyState.setVisibility(View.VISIBLE);
+                    }
+                }
+            });
+        } else {
+            iconCatalog.loadBrandCatalog(selectedBrandSet, new IconCatalog.CatalogCallback() {
+                @Override
+                public void onCatalogLoaded(@NonNull List<IconCatalog.IconItem> items, boolean fromNetwork) {
+                    if (isDestroyed() || isFinishing()) return;
+
+                    binding.progressInitial.setVisibility(View.GONE);
+                    allCatalogItems.clear();
+                    allCatalogItems.addAll(items);
+                    adapter.updateBrandMode(selectedBrandSet);
+                    applyFilterAndResetPaging(currentQuery);
+                }
+
+                @Override
+                public void onCatalogError(@NonNull String errorMessage) {
+                    if (isDestroyed() || isFinishing()) return;
+
+                    binding.progressInitial.setVisibility(View.GONE);
+                    SketchwareUtil.toastError(errorMessage);
+                    if (allCatalogItems.isEmpty()) {
+                        binding.tvEmptyState.setText(errorMessage);
+                        binding.tvEmptyState.setVisibility(View.VISIBLE);
+                    }
+                }
+            });
+        }
+        updateToolbarSubtitle();
     }
 
     private void applyFilterAndResetPaging(@NonNull String query) {
@@ -320,6 +371,29 @@ public class ImportIconActivity extends BaseAppCompatActivity implements IconAda
                 BottomSheetFilterMaterialSymbolsBinding.inflate(getLayoutInflater());
         bottomSheet.setContentView(sheetBinding.getRoot());
 
+        // Setup Source selection
+        if (currentSourceMode == SOURCE_BRAND) {
+            sheetBinding.chipGroupSource.check(R.id.chip_source_brand);
+            sheetBinding.containerBrandOptions.setVisibility(View.VISIBLE);
+            sheetBinding.containerMaterialSymbolsOptions.setVisibility(View.GONE);
+        } else {
+            sheetBinding.chipGroupSource.check(R.id.chip_source_material_symbols);
+            sheetBinding.containerBrandOptions.setVisibility(View.GONE);
+            sheetBinding.containerMaterialSymbolsOptions.setVisibility(View.VISIBLE);
+        }
+
+        sheetBinding.chipGroupSource.setOnCheckedStateChangeListener((group, checkedIds) -> {
+            if (checkedIds.isEmpty()) return;
+            int checkedId = checkedIds.get(0);
+            if (checkedId == R.id.chip_source_brand) {
+                sheetBinding.containerBrandOptions.setVisibility(View.VISIBLE);
+                sheetBinding.containerMaterialSymbolsOptions.setVisibility(View.GONE);
+            } else {
+                sheetBinding.containerBrandOptions.setVisibility(View.GONE);
+                sheetBinding.containerMaterialSymbolsOptions.setVisibility(View.VISIBLE);
+            }
+        });
+
         // Restore active Style selection
         switch (selectedStyle) {
             case IconDownloader.STYLE_ROUNDED -> sheetBinding.chipGroupStyle.check(R.id.chip_style_rounded);
@@ -338,34 +412,74 @@ public class ImportIconActivity extends BaseAppCompatActivity implements IconAda
             default -> sheetBinding.chipGroupOpsz.check(R.id.chip_opsz_40);
         }
 
+        // Restore active Brand Set selection
+        if ("logos".equals(selectedBrandSet)) {
+            sheetBinding.chipGroupBrandSet.check(R.id.chip_brand_logos);
+        } else {
+            sheetBinding.chipGroupBrandSet.check(R.id.chip_brand_simple_icons);
+        }
+
         sheetBinding.btnCancelFilter.setOnClickListener(v -> bottomSheet.dismiss());
 
         sheetBinding.btnApplyFilter.setOnClickListener(v -> {
-            int checkedStyleId = sheetBinding.chipGroupStyle.getCheckedChipId();
-            if (checkedStyleId == R.id.chip_style_rounded) {
-                selectedStyle = IconDownloader.STYLE_ROUNDED;
-            } else if (checkedStyleId == R.id.chip_style_sharp) {
-                selectedStyle = IconDownloader.STYLE_SHARP;
+            int checkedSourceId = sheetBinding.chipGroupSource.getCheckedChipId();
+            boolean sourceChanged = false;
+            boolean filterChanged = false;
+
+            if (checkedSourceId == R.id.chip_source_brand) {
+                if (currentSourceMode != SOURCE_BRAND) {
+                    currentSourceMode = SOURCE_BRAND;
+                    sourceChanged = true;
+                }
+                int checkedBrandSetId = sheetBinding.chipGroupBrandSet.getCheckedChipId();
+                String newBrandSet = checkedBrandSetId == R.id.chip_brand_logos ? "logos" : "simple-icons";
+                if (!newBrandSet.equals(selectedBrandSet)) {
+                    selectedBrandSet = newBrandSet;
+                    sourceChanged = true;
+                }
+                
+                if (sourceChanged) {
+                    adapter.submitList(new ArrayList<>());
+                    loadIconCatalog();
+                }
             } else {
-                selectedStyle = IconDownloader.STYLE_OUTLINED;
+                if (currentSourceMode != SOURCE_MATERIAL_SYMBOLS) {
+                    currentSourceMode = SOURCE_MATERIAL_SYMBOLS;
+                    sourceChanged = true;
+                }
+                
+                int checkedStyleId = sheetBinding.chipGroupStyle.getCheckedChipId();
+                String newStyle = (checkedStyleId == R.id.chip_style_rounded) ? IconDownloader.STYLE_ROUNDED :
+                                  (checkedStyleId == R.id.chip_style_sharp) ? IconDownloader.STYLE_SHARP :
+                                  IconDownloader.STYLE_OUTLINED;
+                if (!newStyle.equals(selectedStyle)) {
+                    selectedStyle = newStyle;
+                    filterChanged = true;
+                }
+
+                String newFillType = sheetBinding.switchFill.isChecked() ? IconDownloader.FILL_FILLED : IconDownloader.FILL_DEFAULT;
+                if (!newFillType.equals(selectedFillType)) {
+                    selectedFillType = newFillType;
+                    filterChanged = true;
+                }
+
+                int checkedOpszId = sheetBinding.chipGroupOpsz.getCheckedChipId();
+                int newOpsz = (checkedOpszId == R.id.chip_opsz_20) ? 20 :
+                              (checkedOpszId == R.id.chip_opsz_24) ? 24 :
+                              (checkedOpszId == R.id.chip_opsz_48) ? 48 : 40;
+                if (newOpsz != selectedOpticalSize) {
+                    selectedOpticalSize = newOpsz;
+                    filterChanged = true;
+                }
+
+                if (sourceChanged) {
+                    adapter.submitList(new ArrayList<>());
+                    loadIconCatalog();
+                } else if (filterChanged) {
+                    adapter.updateVariant(selectedStyle, selectedFillType, selectedOpticalSize);
+                    updateToolbarSubtitle();
+                }
             }
-
-            selectedFillType = sheetBinding.switchFill.isChecked()
-                    ? IconDownloader.FILL_FILLED
-                    : IconDownloader.FILL_DEFAULT;
-
-            int checkedOpszId = sheetBinding.chipGroupOpsz.getCheckedChipId();
-            if (checkedOpszId == R.id.chip_opsz_20) {
-                selectedOpticalSize = 20;
-            } else if (checkedOpszId == R.id.chip_opsz_24) {
-                selectedOpticalSize = 24;
-            } else if (checkedOpszId == R.id.chip_opsz_48) {
-                selectedOpticalSize = 48;
-            } else {
-                selectedOpticalSize = 40;
-            }
-
-            adapter.updateVariant(selectedStyle, selectedFillType, selectedOpticalSize);
             bottomSheet.dismiss();
         });
 
@@ -514,40 +628,75 @@ public class ImportIconActivity extends BaseAppCompatActivity implements IconAda
                 positiveButton.setEnabled(false);
                 dialogBinding.progressDownload.setVisibility(View.VISIBLE);
 
-                iconDownloader.saveResizedSvgToProjectAsync(
-                        iconItem.name,
-                        activeStyle,
-                        activeFill,
-                        activeOpsz,
-                        sc_id,
-                        outputResourceName,
-                        selectedSaveSizePx,
-                        new IconDownloader.DownloadCallback() {
-                            @Override
-                            public void onSuccess(@NonNull File savedSvgFile) {
-                                if (isDestroyed() || isFinishing()) return;
-                                dialogBinding.progressDownload.setVisibility(View.GONE);
-                                dialogInterface.dismiss();
+                if (currentSourceMode == SOURCE_BRAND) {
+                    iconDownloader.saveBrandResizedSvgToProjectAsync(
+                            selectedBrandSet,
+                            iconItem.name,
+                            sc_id,
+                            outputResourceName,
+                            selectedSaveSizePx,
+                            new IconDownloader.DownloadCallback() {
+                                @Override
+                                public void onSuccess(@NonNull File savedSvgFile) {
+                                    if (isDestroyed() || isFinishing()) return;
+                                    dialogBinding.progressDownload.setVisibility(View.GONE);
+                                    dialogInterface.dismiss();
 
-                                Intent intent = new Intent();
-                                intent.putExtra("iconName", outputResourceName);
-                                intent.putExtra("iconPath", savedSvgFile.getAbsolutePath());
-                                intent.putExtra("iconColor", selectedColor);
-                                intent.putExtra("iconColorHex", selectedColorHex);
-                                intent.putExtra("iconSize", selectedSaveSizePx);
-                                setResult(Activity.RESULT_OK, intent);
-                                finish();
-                            }
+                                    Intent intent = new Intent();
+                                    intent.putExtra("iconName", outputResourceName);
+                                    intent.putExtra("iconPath", savedSvgFile.getAbsolutePath());
+                                    intent.putExtra("iconColor", selectedColor);
+                                    intent.putExtra("iconColorHex", selectedColorHex);
+                                    intent.putExtra("iconSize", selectedSaveSizePx);
+                                    setResult(Activity.RESULT_OK, intent);
+                                    finish();
+                                }
 
-                            @Override
-                            public void onError(@NonNull String errorMessage) {
-                                if (isDestroyed() || isFinishing()) return;
-                                dialogBinding.progressDownload.setVisibility(View.GONE);
-                                positiveButton.setEnabled(true);
-                                SketchwareUtil.toastError(errorMessage);
+                                @Override
+                                public void onError(@NonNull String errorMessage) {
+                                    if (isDestroyed() || isFinishing()) return;
+                                    dialogBinding.progressDownload.setVisibility(View.GONE);
+                                    positiveButton.setEnabled(true);
+                                    SketchwareUtil.toastError(errorMessage);
+                                }
                             }
-                        }
-                );
+                    );
+                } else {
+                    iconDownloader.saveResizedSvgToProjectAsync(
+                            iconItem.name,
+                            activeStyle,
+                            activeFill,
+                            activeOpsz,
+                            sc_id,
+                            outputResourceName,
+                            selectedSaveSizePx,
+                            new IconDownloader.DownloadCallback() {
+                                @Override
+                                public void onSuccess(@NonNull File savedSvgFile) {
+                                    if (isDestroyed() || isFinishing()) return;
+                                    dialogBinding.progressDownload.setVisibility(View.GONE);
+                                    dialogInterface.dismiss();
+
+                                    Intent intent = new Intent();
+                                    intent.putExtra("iconName", outputResourceName);
+                                    intent.putExtra("iconPath", savedSvgFile.getAbsolutePath());
+                                    intent.putExtra("iconColor", selectedColor);
+                                    intent.putExtra("iconColorHex", selectedColorHex);
+                                    intent.putExtra("iconSize", selectedSaveSizePx);
+                                    setResult(Activity.RESULT_OK, intent);
+                                    finish();
+                                }
+
+                                @Override
+                                public void onError(@NonNull String errorMessage) {
+                                    if (isDestroyed() || isFinishing()) return;
+                                    dialogBinding.progressDownload.setVisibility(View.GONE);
+                                    positiveButton.setEnabled(true);
+                                    SketchwareUtil.toastError(errorMessage);
+                                }
+                            }
+                    );
+                }
             });
         });
 
@@ -564,39 +713,74 @@ public class ImportIconActivity extends BaseAppCompatActivity implements IconAda
             int outputSizePx
     ) {
         final int requestId = ++previewRequestToken;
-        boolean alreadyCached = iconDownloader.isCached(iconName, style, fillType, opticalSize);
-        if (!alreadyCached) {
-            dialogBinding.icon.setImageDrawable(null);
-            dialogBinding.progressDownload.setVisibility(View.VISIBLE);
+        
+        if (currentSourceMode == SOURCE_BRAND) {
+            boolean alreadyCached = iconDownloader.isBrandCached(selectedBrandSet, iconName);
+            if (!alreadyCached) {
+                dialogBinding.icon.setImageDrawable(null);
+                dialogBinding.progressDownload.setVisibility(View.VISIBLE);
+            }
+
+            iconDownloader.prepareBrandResizedSvgPreviewAsync(
+                    selectedBrandSet,
+                    iconName,
+                    outputSizePx,
+                    new IconDownloader.DownloadCallback() {
+                        @Override
+                        public void onSuccess(@NonNull File resizedPreviewSvg) {
+                            if (isDestroyed() || isFinishing() || !dialog.isShowing() || requestId != previewRequestToken) {
+                                return;
+                            }
+                            dialogBinding.progressDownload.setVisibility(View.GONE);
+                            svgUtils.loadImage(dialogBinding.icon, resizedPreviewSvg.getAbsolutePath());
+                            dialogBinding.icon.setColorFilter(selectedColor, PorterDuff.Mode.SRC_IN);
+                        }
+
+                        @Override
+                        public void onError(@NonNull String errorMessage) {
+                            if (isDestroyed() || isFinishing() || !dialog.isShowing() || requestId != previewRequestToken) {
+                                return;
+                            }
+                            dialogBinding.progressDownload.setVisibility(View.GONE);
+                            dialogBinding.icon.setImageResource(R.drawable.ic_remove_grey600_24dp);
+                        }
+                    }
+            );
+        } else {
+            boolean alreadyCached = iconDownloader.isCached(iconName, style, fillType, opticalSize);
+            if (!alreadyCached) {
+                dialogBinding.icon.setImageDrawable(null);
+                dialogBinding.progressDownload.setVisibility(View.VISIBLE);
+            }
+
+            iconDownloader.prepareResizedSvgPreviewAsync(
+                    iconName,
+                    style,
+                    fillType,
+                    opticalSize,
+                    outputSizePx,
+                    new IconDownloader.DownloadCallback() {
+                        @Override
+                        public void onSuccess(@NonNull File resizedPreviewSvg) {
+                            if (isDestroyed() || isFinishing() || !dialog.isShowing() || requestId != previewRequestToken) {
+                                return;
+                            }
+                            dialogBinding.progressDownload.setVisibility(View.GONE);
+                            svgUtils.loadImage(dialogBinding.icon, resizedPreviewSvg.getAbsolutePath());
+                            dialogBinding.icon.setColorFilter(selectedColor, PorterDuff.Mode.SRC_IN);
+                        }
+
+                        @Override
+                        public void onError(@NonNull String errorMessage) {
+                            if (isDestroyed() || isFinishing() || !dialog.isShowing() || requestId != previewRequestToken) {
+                                return;
+                            }
+                            dialogBinding.progressDownload.setVisibility(View.GONE);
+                            dialogBinding.icon.setImageResource(R.drawable.ic_remove_grey600_24dp);
+                        }
+                    }
+            );
         }
-
-        iconDownloader.prepareResizedSvgPreviewAsync(
-                iconName,
-                style,
-                fillType,
-                opticalSize,
-                outputSizePx,
-                new IconDownloader.DownloadCallback() {
-                    @Override
-                    public void onSuccess(@NonNull File resizedPreviewSvg) {
-                        if (isDestroyed() || isFinishing() || !dialog.isShowing() || requestId != previewRequestToken) {
-                            return;
-                        }
-                        dialogBinding.progressDownload.setVisibility(View.GONE);
-                        svgUtils.loadImage(dialogBinding.icon, resizedPreviewSvg.getAbsolutePath());
-                        dialogBinding.icon.setColorFilter(selectedColor, PorterDuff.Mode.SRC_IN);
-                    }
-
-                    @Override
-                    public void onError(@NonNull String errorMessage) {
-                        if (isDestroyed() || isFinishing() || !dialog.isShowing() || requestId != previewRequestToken) {
-                            return;
-                        }
-                        dialogBinding.progressDownload.setVisibility(View.GONE);
-                        dialogBinding.icon.setImageResource(R.drawable.ic_remove_grey600_24dp);
-                    }
-                }
-        );
     }
 
     private void updatePreviewSizePx(@NonNull ImageView previewView, int sizePx) {
