@@ -16,15 +16,22 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -75,6 +82,8 @@ public class IconDownloader {
     private final ExecutorService executor;
     private final Handler mainHandler;
     private final Map<String, List<DownloadCallback>> inFlightCallbacks = new HashMap<>();
+    private final Map<String, Set<String>> pendingBrandRequests = new HashMap<>();
+    private final Runnable brandBatchFlushRunnable = this::flushPendingBrandRequests;
     private volatile boolean isShutdown = false;
 
     public IconDownloader(@NonNull Context context) {
