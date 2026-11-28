@@ -1,0 +1,67 @@
+name: Daily upstream sync
+on:
+  schedule:
+    - cron: '23 5 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Sync from upstream (fork's own modified files always win)
+        env:
+          UPSTREAM_URL: https://github.com/fora2323/Sketchware-DayGreen.git
+          UPSTREAM_BRANCH: main
+        run: |
+          set -e
+          BRANCH=$(git symbolic-ref --short HEAD)
+          git remote add upstream "$UPSTREAM_URL"
+          git fetch upstream "$UPSTREAM_BRANCH"
+          UP="upstream/$UPSTREAM_BRANCH"
+          if git merge-base --is-ancestor "$UP" HEAD; then
+            echo "Up to date: upstream has nothing this fork lacks."
+            exit 0
+          fi
+          if git merge-base --is-ancestor HEAD "$UP"; then
+            git merge --ff-only "$UP"
+            git push origin "$BRANCH"
+            echo "Fast-forwarded to upstream."
+            exit 0
+          fi
+          BASE=$(git merge-base HEAD "$UP")
+          git diff --name-only "$BASE" HEAD | sort > /tmp/ours.txt
+          git diff --name-only "$BASE" "$UP" | sort > /tmp/theirs.txt
+          comm -12 /tmp/ours.txt /tmp/theirs.txt > /tmp/both.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          set +e
+          git merge --no-commit --no-ff "$UP"
+          MERGE_RC=$?
+          set -e
+          for f in $(git ls-files -u | awk '{print $4}' | sort -u); do
+            if grep -qxF "$f" /tmp/both.txt; then
+              git checkout --ours -- "$f" 2>/dev/null || git rm -qf -- "$f"
+              git add -- "$f" 2>/dev/null || true
+            else
+              echo "::error::Conflict in '$f', which this fork did not modify. Aborting with no changes."
+              git merge --abort
+              exit 1
+            fi
+          done
+          while IFS= read -r f; do
+            git checkout HEAD -- "$f" 2>/dev/null || git rm -qf --ignore-unmatch -- "$f"
+          done < /tmp/both.txt
+          if git diff --cached --quiet && git diff --quiet && [ "$MERGE_RC" -eq 0 ]; then
+            git merge --abort 2>/dev/null || true
+            echo "Merge produced no changes."
+            exit 0
+          fi
+          git commit --no-edit
+          git push origin "$BRANCH"
+          echo "Merged upstream; files this fork modified were kept exactly as they are."
